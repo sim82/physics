@@ -1,0 +1,20 @@
+[package]
+name = "physics"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# ] }
+bevy = { version = "0.6", features = ["dynamic"] }
+# bevy_egui = { git = "https://github.com/jakobhellermann/bevy_egui.git", branch = "bevy-main", default-features = false }
+bevy_egui = { version = "0.10", default-features = false }
+log = "0.4"
+anyhow = { version = "1" }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
+serde_yaml = "0.8"
+bevy_rapier3d = { version = "0.12", features = ["render", "simd-stable"] }
+gltf = "*"
