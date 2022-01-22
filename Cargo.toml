@@ -18,3 +18,7 @@ serde_json = { version = "1" }
 serde_yaml = "0.8"
 bevy_rapier3d = { version = "0.12", features = ["render", "simd-stable"] }
 gltf = "*"
+
+
+[profile.dev]
+opt-level = 2

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::{
+    input::system::exit_on_esc_system,
     prelude::*,
     render::{
         mesh,
@@ -24,7 +25,8 @@ fn main() {
         .add_startup_system(setup)
         .add_system(animate_light_direction)
         .add_system(rotation_system)
-        .add_system(physics::apply_input)
+        .add_plugin(physics::CharacterStateInputPlugin::default())
+        .add_system(exit_on_esc_system)
         // .add_system(mesh_loaded)
         .run();
 }
@@ -218,11 +220,15 @@ fn setup(
         })
         .insert_bundle(collider);
 
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(5.7, 1.7, 5.0).looking_at(Vec3::new(0.0, 0.3, 0.0), Vec3::Y),
-        ..Default::default()
-    });
-    const HALF_SIZE: f32 = 5.0;
+    commands
+        .spawn_bundle(PerspectiveCameraBundle {
+            transform: Transform::from_xyz(0.0, 2.0, 5.0)
+                .looking_at(Vec3::new(0.0, 2.0, 1.0), Vec3::Y),
+            ..Default::default()
+        })
+        .insert(physics::CharacterState::default())
+        .insert(physics::InputTarget);
+    const HALF_SIZE: f32 = 10.0;
     commands.spawn_bundle(DirectionalLightBundle {
         directional_light: DirectionalLight {
             shadow_projection: OrthographicProjection {
