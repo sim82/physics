@@ -1,3 +1,6 @@
+use bevy::input::keyboard::KeyboardInput;
+use bevy::math::Vec3;
+use bevy::prelude::*;
 
 pub mod test_texture {
     pub const TW: usize = 256;
@@ -44,4 +47,22 @@ pub mod test_texture {
         }
         bitmap
     }
+}
+
+#[derive(Component, Default)]
+pub struct CharacterState {
+    pos: Vec3,
+    pitch: f32,
+    yaw: f32,
+}
+
+#[derive(Component)]
+pub struct InputTarget;
+
+pub fn apply_input(
+    // keyboard_input: Res<KeyboardInput>,
+    input: ResMut<Input<KeyCode>>,
+    query: Query<(&mut CharacterState,), With<InputTarget>>,
+) {
+    // info!("forward: {:?}", input.pressed(KeyCode::W));
 }
