@@ -5,6 +5,10 @@ use bevy::input::mouse::MouseMotion;
 use bevy::math::Vec3;
 use bevy::prelude::*;
 use bevy::utils::Instant;
+// use bevy_rapier3d::physics::{
+//     QueryPipelineColliderComponentsQuery, QueryPipelineColliderComponentsSet,
+// };
+use bevy_rapier3d::prelude::*;
 
 pub mod test_texture {
     pub const TW: usize = 256;
@@ -227,6 +231,8 @@ fn apply_input_states(
     mut crappify_timer: ResMut<Timer>,
     mut queue: ResMut<InputStateQueue>,
     mut query: Query<(&mut CharacterState, &mut Transform), With<InputTarget>>,
+    query_pipeline: Res<QueryPipeline>,
+    collider_query: QueryPipelineColliderComponentsQuery,
 ) {
     crappify_timer.tick(time.delta());
     // if !crappify_timer.just_finished() {
@@ -248,6 +254,7 @@ fn apply_input_states(
 
             debug!("forward: {:?} right: {:?}", forward_vec, right_vec);
 
+            let trans_start = trans;
             let dt = input_state.time.delta_seconds();
             let speed = if input_state.walk {
                 WALK_SPEED
@@ -268,6 +275,98 @@ fn apply_input_states(
             if input_state.strafe_left {
                 trans += right_vec * -speed * dt;
             }
+
+            // ground trace
+
+            // Wrap the bevy query so it can be used by the query pipeline.
+            let collider_set = QueryPipelineColliderComponentsSet(&collider_query);
+
+            let shape = Cuboid::new(Vec3::new(0.2, 0.9, 0.2).into());
+            let mut shape_pos = transform.translation.into();
+            let shape_vel = (-Vec3::Y * 0.1).into();
+            let max_toi = 4.0;
+            let groups = InteractionGroups::all();
+            let filter = None;
+            let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
+                &collider_set,
+                &shape_pos,
+                &shape_vel,
+                &shape,
+                max_toi,
+                groups,
+                filter,
+            ) {
+                // The first collider hit has the handle `handle`. The `hit` is a
+                // structure containing details about the hit configuration.
+                info!(
+                    "Hit the entity {:?} with the configuration: {:?}",
+                    handle.entity(),
+                    hit
+                );
+                hit.toi
+            } else {
+                1.0
+            };
+            info!("groundtrace1: {}", toi);
+            let shape_pos_start = shape_pos;
+            shape_pos.append_translation_mut(&(shape_vel * toi).into());
+
+            shape_pos.append_translation_mut(&Vec3::new(0.0, 0.11, 0.0).into());
+
+            let shape_vel = trans.into();
+
+            let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
+                &collider_set,
+                &shape_pos,
+                &shape_vel,
+                &shape,
+                max_toi,
+                groups,
+                filter,
+            ) {
+                // The first collider hit has the handle `handle`. The `hit` is a
+                // structure containing details about the hit configuration.
+                info!(
+                    "Hit the entity {:?} with the configuration: {:?}",
+                    handle.entity(),
+                    hit
+                );
+                hit.toi
+            } else {
+                1.0
+            };
+
+            info!("forward: {}", toi);
+            shape_pos.append_translation_mut(&(shape_vel * toi).into());
+
+            let shape_vel = (-Vec3::Y * 0.2).into();
+
+            let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
+                &collider_set,
+                &shape_pos,
+                &shape_vel,
+                &shape,
+                max_toi,
+                groups,
+                filter,
+            ) {
+                // The first collider hit has the handle `handle`. The `hit` is a
+                // structure containing details about the hit configuration.
+                info!(
+                    "Hit the entity {:?} with the configuration: {:?}",
+                    handle.entity(),
+                    hit
+                );
+                hit.toi
+            } else {
+                1.0
+            };
+            info!("groundtrace2: {}", toi);
+            shape_pos.append_translation_mut(&(shape_vel * toi).into());
+
+            let d: Vec3 =
+                (shape_pos.translation.vector - shape_pos_start.translation.vector).into();
+            trans = trans_start + d;
         }
 
         queue.retire_up_to(character_state.last_serial);

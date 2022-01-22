@@ -215,15 +215,48 @@ fn setup(
                 }
                 .into(),
             ),
-            material,
+            material: material.clone(),
             ..Default::default()
         })
         .insert_bundle(collider);
 
+    {
+        let mut size = 10.0;
+        let mut pos = Vec3::new(5.0, 0.1, 0.0);
+        for _ in 0..10 {
+            let mut collider_pos = pos;
+            collider_pos.y += 0.05;
+            let collider = ColliderBundle {
+                shape: ColliderShape::cuboid(size / 2.0, 0.1 / 2.0, size / 2.0).into(),
+                position: collider_pos.into(),
+                ..Default::default()
+            };
+            commands
+                .spawn_bundle(PbrBundle {
+                    mesh: meshes.add(
+                        mesh::shape::Box {
+                            min_x: -size / 2.0,
+                            max_x: size / 2.0,
+                            min_y: 0.0,
+                            max_y: 0.1,
+                            min_z: -size / 2.0,
+                            max_z: size / 2.0,
+                        }
+                        .into(),
+                    ),
+                    material: material.clone(),
+                    transform: Transform::from_translation(pos),
+                    ..Default::default()
+                })
+                .insert_bundle(collider);
+            pos.y += 0.1;
+            size -= 0.4;
+        }
+    }
     commands
         .spawn_bundle(PerspectiveCameraBundle {
-            transform: Transform::from_xyz(0.0, 2.0, 5.0)
-                .looking_at(Vec3::new(0.0, 2.0, 1.0), Vec3::Y),
+            transform: Transform::from_xyz(5.0, 4.0, 0.0)
+                .looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
             ..Default::default()
         })
         .insert(physics::CharacterState::default())
