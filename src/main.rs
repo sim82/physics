@@ -14,6 +14,12 @@ use physics::test_texture;
 
 fn main() {
     App::new()
+        // .insert_resource(WindowDescriptor {
+        //     mode: bevy::window::WindowMode::Fullscreen,
+        //     width: 1280.0,
+        //     height: 720.0,
+        //     ..Default::default()
+        // })
         .insert_resource(AmbientLight {
             color: Color::WHITE,
             brightness: 1.0 / 5.0f32,
@@ -184,7 +190,7 @@ fn setup(
 
     spawn_sphere(
         &mut commands,
-        0.4,
+        0.5,
         Vec3::new(-0.1, 5.0, 0.0),
         material.clone(),
         &mut meshes,
@@ -255,13 +261,13 @@ fn setup(
     }
     commands
         .spawn_bundle(PerspectiveCameraBundle {
-            transform: Transform::from_xyz(5.0, 4.0, 0.0)
+            transform: Transform::from_xyz(5.0, 1.01, 10.0)
                 .looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
             ..Default::default()
         })
         .insert(physics::CharacterState::default())
         .insert(physics::InputTarget);
-    const HALF_SIZE: f32 = 10.0;
+    const HALF_SIZE: f32 = 5.0;
     commands.spawn_bundle(DirectionalLightBundle {
         directional_light: DirectionalLight {
             shadow_projection: OrthographicProjection {

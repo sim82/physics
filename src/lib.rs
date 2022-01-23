@@ -1,10 +1,6 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
-use bevy::input::keyboard::KeyboardInput;
-use bevy::input::mouse::MouseMotion;
-use bevy::math::Vec3;
-use bevy::prelude::*;
-use bevy::utils::Instant;
+use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*, render::mesh};
 // use bevy_rapier3d::physics::{
 //     QueryPipelineColliderComponentsQuery, QueryPipelineColliderComponentsSet,
 // };
@@ -208,7 +204,7 @@ fn capture_input_state(
         return;
     }
 
-    const SCALE: f32 = 0.5;
+    const SCALE: f32 = 0.25;
     debug!("send input state: {:?}", time);
     queue.push(InputState {
         time: time.clone(),
@@ -227,6 +223,7 @@ fn capture_input_state(
 pub struct InputTarget;
 
 fn apply_input_states(
+    mut contact_debug: ResMut<ContactDebug>,
     time: Res<Time>,
     mut crappify_timer: ResMut<Timer>,
     mut queue: ResMut<InputStateQueue>,
@@ -240,7 +237,7 @@ fn apply_input_states(
     // }
 
     for (mut character_state, mut transform) in query.iter_mut() {
-        let mut trans = Vec3::ZERO;
+        let mut trans_all = Vec3::ZERO;
         const WALK_SPEED: f32 = 2.0; // ms⁻¹
         const RUN_SPEED: f32 = 6.0; // ms⁻¹
         debug!("pending input states: {}", queue.len());
@@ -254,125 +251,377 @@ fn apply_input_states(
 
             debug!("forward: {:?} right: {:?}", forward_vec, right_vec);
 
-            let trans_start = trans;
+            // let trans_start = trans;
             let dt = input_state.time.delta_seconds();
             let speed = if input_state.walk {
                 WALK_SPEED
             } else {
                 RUN_SPEED
             };
+            let mut trans = Vec3::ZERO;
 
             if input_state.forward {
-                trans += forward_vec * speed * dt;
+                trans += forward_vec * speed;
             }
             if input_state.backward {
-                trans += forward_vec * -speed * dt;
+                trans += forward_vec * -speed;
             }
 
             if input_state.strafe_right {
-                trans += right_vec * speed * dt;
+                trans += right_vec * speed;
             }
             if input_state.strafe_left {
-                trans += right_vec * -speed * dt;
+                trans += right_vec * -speed;
             }
 
-            // ground trace
-
-            // Wrap the bevy query so it can be used by the query pipeline.
-            let collider_set = QueryPipelineColliderComponentsSet(&collider_query);
-
-            let shape = Cuboid::new(Vec3::new(0.2, 0.9, 0.2).into());
-            let mut shape_pos = transform.translation.into();
-            let shape_vel = (-Vec3::Y * 0.1).into();
-            let max_toi = 4.0;
-            let groups = InteractionGroups::all();
-            let filter = None;
-            let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
-                &collider_set,
-                &shape_pos,
-                &shape_vel,
-                &shape,
-                max_toi,
-                groups,
-                filter,
-            ) {
-                // The first collider hit has the handle `handle`. The `hit` is a
-                // structure containing details about the hit configuration.
-                info!(
-                    "Hit the entity {:?} with the configuration: {:?}",
-                    handle.entity(),
-                    hit
-                );
-                hit.toi
-            } else {
-                1.0
-            };
-            info!("groundtrace1: {}", toi);
-            let shape_pos_start = shape_pos;
-            shape_pos.append_translation_mut(&(shape_vel * toi).into());
-
-            shape_pos.append_translation_mut(&Vec3::new(0.0, 0.11, 0.0).into());
-
-            let shape_vel = trans.into();
-
-            let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
-                &collider_set,
-                &shape_pos,
-                &shape_vel,
-                &shape,
-                max_toi,
-                groups,
-                filter,
-            ) {
-                // The first collider hit has the handle `handle`. The `hit` is a
-                // structure containing details about the hit configuration.
-                info!(
-                    "Hit the entity {:?} with the configuration: {:?}",
-                    handle.entity(),
-                    hit
-                );
-                hit.toi
-            } else {
-                1.0
-            };
-
-            info!("forward: {}", toi);
-            shape_pos.append_translation_mut(&(shape_vel * toi).into());
-
-            let shape_vel = (-Vec3::Y * 0.2).into();
-
-            let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
-                &collider_set,
-                &shape_pos,
-                &shape_vel,
-                &shape,
-                max_toi,
-                groups,
-                filter,
-            ) {
-                // The first collider hit has the handle `handle`. The `hit` is a
-                // structure containing details about the hit configuration.
-                info!(
-                    "Hit the entity {:?} with the configuration: {:?}",
-                    handle.entity(),
-                    hit
-                );
-                hit.toi
-            } else {
-                1.0
-            };
-            info!("groundtrace2: {}", toi);
-            shape_pos.append_translation_mut(&(shape_vel * toi).into());
-
-            let d: Vec3 =
-                (shape_pos.translation.vector - shape_pos_start.translation.vector).into();
-            trans = trans_start + d;
+            trans = slidemove_try1(
+                &mut contact_debug,
+                &collider_query,
+                transform.translation + trans_all,
+                trans,
+                dt,
+                &query_pipeline,
+            );
+            trans_all += trans;
         }
 
         queue.retire_up_to(character_state.last_serial);
         transform.rotation = character_state.rotation_full();
-        transform.translation += trans;
+        transform.translation += trans_all;
         debug!("{:?} {:?}", *character_state, transform.rotation);
+    }
+}
+
+#[derive(Default)]
+struct ContactDebug {
+    add: Vec<(Contact, Vec3)>,
+    plane_mesh: Option<Handle<Mesh>>,
+}
+
+#[derive(Debug, Clone)]
+struct Contact {
+    collider_normal: Vec3,
+    collider_point: Vec3,
+    shape_normal: Vec3,
+    shape_point: Vec3,
+}
+
+#[derive(Debug, Clone)]
+enum CastResult {
+    NoHit,
+    Impact(f32, Contact),
+    Touch(Contact),
+    Stuck,
+    Failed,
+}
+fn slidemove_none(
+    contact_debug: &mut ContactDebug,
+    collider_query: &QueryPipelineColliderComponentsQuery,
+    origin: Vec3,
+    velocity: Vec3,
+    time: f32,
+    query_pipeline: &Res<QueryPipeline>,
+) -> Vec3 {
+    let res = trace(collider_query, origin, velocity, query_pipeline, time);
+    match &res {
+        CastResult::Impact(toi, ref contact) => contact_debug
+            .add
+            .push((contact.clone(), origin + velocity * *toi)),
+        CastResult::Touch(ref contact) => contact_debug.add.push((contact.clone(), origin)),
+        _ => (),
+    }
+
+    match res {
+        CastResult::NoHit => velocity * time,
+        CastResult::Impact(toi, _) => velocity * toi,
+        CastResult::Touch(_) | CastResult::Stuck | CastResult::Failed => Vec3::ZERO,
+    }
+}
+
+// port of quake 3 PM_ClipVelocity
+fn do_clip_velocity(v_in: Vec3, normal: Vec3, overbounce: f32) -> Vec3 {
+    let backoff = match v_in.dot(normal) {
+        dot if dot < 0.0 => dot * overbounce,
+        dot => dot / overbounce,
+    };
+    let change = Vec3::new(normal.x * backoff, normal.y * backoff, normal.z * backoff);
+    v_in - change
+}
+
+fn slidemove_try1(
+    contact_debug: &mut ContactDebug,
+    collider_query: &QueryPipelineColliderComponentsQuery,
+    origin: Vec3,
+    mut velocity: Vec3,
+    mut time: f32,
+    query_pipeline: &Res<QueryPipeline>,
+) -> Vec3 {
+    let mut planes = Vec::new();
+    let mut move_v = Vec3::ZERO;
+
+    // TODO: gravity and ground trace
+
+    // initial velocity defines first clipping plane -> avoid to be nudged backwards (due to overclip?)
+    planes.push(velocity.normalize());
+    for _ in 0..4 {
+        let res = trace(
+            collider_query,
+            origin + move_v,
+            velocity,
+            query_pipeline,
+            time,
+        );
+        match &res {
+            CastResult::Impact(toi, ref contact) => contact_debug
+                .add
+                .push((contact.clone(), origin + velocity * *toi)),
+            CastResult::Touch(ref contact) => contact_debug.add.push((contact.clone(), origin)),
+            _ => (),
+        }
+
+        let (f, normal) = match res {
+            CastResult::NoHit => return velocity * time, // no intersection -> instantly accept whole move
+            CastResult::Stuck | CastResult::Failed => return Vec3::ZERO, // TODO: we probably need handling for being stuck (push back?)
+            CastResult::Impact(toi, contact) => (toi, contact.collider_normal),
+            CastResult::Touch(contact) => (0.0, contact.collider_normal),
+        };
+        // accumulate movement and time-increments up to next intersection
+        move_v += velocity * f;
+        time -= time * f;
+
+        // use contact normal as clip plane
+        planes.push(normal);
+
+        // actual clipping: try to make velocity parallel to all clip planes
+        // find first plane we intersect
+        for (i, plane) in planes.iter().enumerate() {
+            let into = velocity.normalize().dot(*plane);
+            if into >= 0.1 {
+                continue; // move doesn't interact with the plane
+            }
+            // TODO: store impact speed
+
+            // slide along the plane
+            const OVERCLIP: f32 = 1.001;
+            let mut clip_velocity = do_clip_velocity(velocity, *plane, OVERCLIP);
+            // TODO: end velocity for gravity
+
+            // find second plane
+            for (j, plane2) in planes.iter().enumerate() {
+                if j == i {
+                    continue;
+                }
+
+                if clip_velocity.dot(*plane2) >= 0.1 {
+                    continue;
+                }
+
+                // re-clip velocity with second plane
+                clip_velocity = do_clip_velocity(clip_velocity, *plane2, OVERCLIP);
+                if clip_velocity.dot(*plane) >= 0.0 {
+                    continue;
+                }
+
+                // slide along the crease of the two planes (based on original velocity!)
+                let dir = plane.cross(*plane2).normalize();
+
+                let d = dir.dot(velocity);
+                clip_velocity = dir * d;
+
+                // is there a third plane we clip?
+                for (k, plane3) in planes.iter().enumerate() {
+                    if k == i || k == j {
+                        continue;
+                    }
+                    if clip_velocity.dot(*plane3) >= 0.1 {
+                        continue;
+                    }
+
+                    // give up on triple plane intersections
+                    warn!("triple plane interaction");
+                    return Vec3::ZERO;
+                }
+            }
+            // all interactions should be fixed -> try another move
+            velocity = clip_velocity;
+            break;
+        }
+    }
+    move_v
+}
+
+fn trace(
+    collider_query: &QueryPipelineColliderComponentsQuery,
+    origin: Vec3,
+    velocity: Vec3,
+    query_pipeline: &Res<QueryPipeline>,
+    time: f32,
+) -> CastResult {
+    let collider_set = QueryPipelineColliderComponentsSet(collider_query);
+    let shape = Cylinder::new(0.9, 0.2);
+    let shape_pos = Isometry::translation(origin.x, origin.y, origin.z);
+    let shape_vel = velocity.into();
+    let groups = InteractionGroups::all();
+    let filter = None;
+    if let Some((handle, hit)) = query_pipeline.cast_shape(
+        &collider_set,
+        &shape_pos,
+        &shape_vel,
+        &shape,
+        time,
+        groups,
+        filter,
+    ) {
+        use bevy_rapier3d::rapier::parry::query::TOIStatus;
+
+        let contact = Contact {
+            collider_normal: (*hit.normal1).into(),
+            collider_point: hit.witness1.into(),
+            shape_normal: (*hit.normal2).into(),
+            shape_point: hit.witness2.into(),
+        };
+        match hit.status {
+            TOIStatus::Converged if hit.toi > 0.01 => CastResult::Impact(hit.toi, contact),
+            TOIStatus::Converged => CastResult::Touch(contact),
+            TOIStatus::Failed | TOIStatus::OutOfIterations => CastResult::Failed,
+            TOIStatus::Penetrating => CastResult::Stuck,
+        }
+    } else {
+        CastResult::NoHit
+    }
+}
+
+fn slidemove_crap(
+    collider_query: &QueryPipelineColliderComponentsQuery,
+    origin: Vec3,
+    velocity: Vec3,
+    query_pipeline: &Res<QueryPipeline>,
+) -> Vec3 {
+    // ground trace
+    // Wrap the bevy query so it can be used by the query pipeline.
+
+    let velocity_start = velocity;
+    let collider_set = QueryPipelineColliderComponentsSet(collider_query);
+    // let shape = Cuboid::new(Vec3::new(0.2, 0.9, 0.2).into());
+    let shape = Cylinder::new(0.9, 0.2);
+    let mut shape_pos = Isometry::translation(origin.x, origin.y, origin.z);
+    let shape_vel = (-Vec3::Y * 0.1).into();
+    let max_toi = 4.0;
+    let groups = InteractionGroups::all();
+    let filter = None;
+
+    let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
+        &collider_set,
+        &shape_pos,
+        &shape_vel,
+        &shape,
+        max_toi,
+        groups,
+        filter,
+    ) {
+        // The first collider hit has the handle `handle`. The `hit` is a
+        // structure containing details about the hit configuration.
+        info!(
+            "Hit the entity {:?} with the configuration: {:?}",
+            handle.entity(),
+            hit
+        );
+        hit.toi
+    } else {
+        1.0
+    };
+    info!("groundtrace1: {}", toi);
+    let shape_pos_start = shape_pos;
+    shape_pos.append_translation_mut(&(shape_vel * toi).into());
+    shape_pos.append_translation_mut(&Vec3::new(0.0, 0.11, 0.0).into());
+    let shape_vel = velocity.into();
+    let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
+        &collider_set,
+        &shape_pos,
+        &shape_vel,
+        &shape,
+        max_toi,
+        groups,
+        filter,
+    ) {
+        // The first collider hit has the handle `handle`. The `hit` is a
+        // structure containing details about the hit configuration.
+        info!(
+            "Hit the entity {:?} with the configuration: {:?}",
+            handle.entity(),
+            hit
+        );
+        hit.toi
+    } else {
+        1.0
+    };
+    info!("forward: {}", toi);
+    shape_pos.append_translation_mut(&(shape_vel * toi).into());
+    let shape_vel = (-Vec3::Y * 0.2).into();
+    let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
+        &collider_set,
+        &shape_pos,
+        &shape_vel,
+        &shape,
+        max_toi,
+        groups,
+        filter,
+    ) {
+        // The first collider hit has the handle `handle`. The `hit` is a
+        // structure containing details about the hit configuration.
+        info!(
+            "Hit the entity {:?} with the configuration: {:?}",
+            handle.entity(),
+            hit
+        );
+        hit.toi
+    } else {
+        1.0
+    };
+    info!("groundtrace2: {}", toi);
+    shape_pos.append_translation_mut(&(shape_vel * toi).into());
+    let d: Vec3 = (shape_pos.translation.vector - shape_pos_start.translation.vector).into();
+    velocity_start + d
+}
+
+#[derive(Component)]
+struct ContactDebugMesh {
+    elapsed: Timer,
+}
+
+fn contact_debug(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut contact_debug: ResMut<ContactDebug>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut reaper_query: Query<(Entity, &mut ContactDebugMesh)>,
+) {
+    let mut cv = Vec::new();
+    std::mem::swap(&mut contact_debug.add, &mut cv);
+    for (contact, shape_origin) in cv.drain(..) {
+        let mesh = contact_debug
+            .plane_mesh
+            .get_or_insert_with(|| meshes.add(mesh::shape::Quad::new(Vec2::new(0.1, 0.1)).into()))
+            .clone();
+
+        let rotation = Quat::from_rotation_arc(Vec3::Z, contact.collider_normal);
+        commands
+            .spawn_bundle(PbrBundle {
+                mesh,
+                transform: Transform::from_translation(shape_origin + contact.shape_point)
+                    .with_rotation(rotation),
+                ..Default::default()
+            })
+            .insert(ContactDebugMesh {
+                elapsed: Timer::from_seconds(5.0, false),
+            });
+    }
+
+    for (entity, mut dbg_mesh) in reaper_query.iter_mut() {
+        dbg_mesh.elapsed.tick(time.delta());
+        if dbg_mesh.elapsed.just_finished() {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
@@ -383,8 +632,10 @@ impl Plugin for CharacterStateInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(capture_input_state)
             .add_system(apply_input_states)
+            .add_system(contact_debug)
             .insert_resource(InputMapping::default())
             .insert_resource(Timer::from_seconds(0.5, true))
-            .insert_resource(InputStateQueue::default());
+            .insert_resource(InputStateQueue::default())
+            .insert_resource(ContactDebug::default());
     }
 }
