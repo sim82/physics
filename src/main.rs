@@ -28,6 +28,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(RapierRenderPlugin)
+        .add_plugin(physics::debug_lines::DebugLinesPlugin::default())
         .add_startup_system(setup)
         .add_system(animate_light_direction)
         .add_system(rotation_system)

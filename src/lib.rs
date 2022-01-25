@@ -224,6 +224,7 @@ pub struct InputTarget;
 
 fn apply_input_states(
     mut contact_debug: ResMut<ContactDebug>,
+    // mut debug_lines: ResMut<debug_lines::DebugLines>,
     time: Res<Time>,
     mut crappify_timer: ResMut<Timer>,
     mut queue: ResMut<InputStateQueue>,
@@ -274,7 +275,8 @@ fn apply_input_states(
                 trans += right_vec * -speed;
             }
 
-            trans = slidemove_try1(
+            trans = step_slidemove_try1(
+                // &mut debug_lines,
                 &mut contact_debug,
                 &collider_query,
                 transform.translation + trans_all,
@@ -295,6 +297,7 @@ fn apply_input_states(
 #[derive(Default)]
 struct ContactDebug {
     add: Vec<(Contact, Vec3)>,
+    add_pointer: Vec<(Vec3, Vec3)>,
     plane_mesh: Option<Handle<Mesh>>,
 }
 
@@ -348,22 +351,116 @@ fn do_clip_velocity(v_in: Vec3, normal: Vec3, overbounce: f32) -> Vec3 {
     v_in - change
 }
 
-fn slidemove_try1(
+fn step_slidemove_try1(
     contact_debug: &mut ContactDebug,
+    // debug_lines: &mut debug_lines::DebugLines,
     collider_query: &QueryPipelineColliderComponentsQuery,
     origin: Vec3,
     mut velocity: Vec3,
     mut time: f32,
     query_pipeline: &Res<QueryPipeline>,
 ) -> Vec3 {
+    let (mut move_v, bump) = slidemove_try1(
+        contact_debug,
+        collider_query,
+        origin,
+        velocity,
+        time,
+        query_pipeline,
+    );
+    // info!("bump: {:?}", bump);
+    if !bump {
+        // goal reached without wall interaction -> done
+        return move_v;
+    }
+    const STEP_SIZE: f32 = 0.11;
+    let step_dir = -Vec3::Y;
+    // groundtrace
+    let res = trace(collider_query, origin, step_dir, query_pipeline, STEP_SIZE);
+    info!("ground trace1: {:?}", res);
+    let toi = match res {
+        CastResult::NoHit | CastResult::Stuck | CastResult::Failed => {
+            return move_v - step_dir * STEP_SIZE
+        }
+        CastResult::Impact(toi, _) => toi,
+        CastResult::Touch(_) => 0.0,
+    };
+
+    let mut move_v = step_dir * toi * 0.99;
+
+    // hop
+    let step_dir = Vec3::Y;
+
+    let res = trace(
+        collider_query,
+        origin + move_v,
+        step_dir,
+        query_pipeline,
+        STEP_SIZE,
+    );
+
+    info!("hop: {:?}", res);
+
+    let toi = match res {
+        CastResult::Stuck | CastResult::Failed => return move_v,
+        CastResult::NoHit => STEP_SIZE,
+        CastResult::Impact(toi, _) => toi,
+        CastResult::Touch(_) => 0.0,
+    };
+
+    move_v += step_dir * toi;
+
+    let (move_v2, bump) = slidemove_try1(
+        contact_debug,
+        collider_query,
+        origin + move_v,
+        velocity,
+        time,
+        query_pipeline,
+    );
+    move_v += move_v2;
+
+    // groundtrace
+    let step_dir = -Vec3::Y;
+
+    let res = trace(
+        collider_query,
+        origin + move_v,
+        step_dir,
+        query_pipeline,
+        STEP_SIZE,
+    );
+    info!("ground trace2: {:?}", res);
+
+    let toi = match res {
+        CastResult::NoHit | CastResult::Stuck | CastResult::Failed => {
+            return move_v - step_dir * STEP_SIZE
+        }
+        CastResult::Impact(toi, _) => toi,
+        CastResult::Touch(_) => 0.0,
+    };
+
+    move_v += step_dir * toi * 0.99;
+
+    move_v
+}
+fn slidemove_try1(
+    contact_debug: &mut ContactDebug,
+    // debug_lines: &mut debug_lines::DebugLines,
+    collider_query: &QueryPipelineColliderComponentsQuery,
+    origin: Vec3,
+    mut velocity: Vec3,
+    mut time: f32,
+    query_pipeline: &Res<QueryPipeline>,
+) -> (Vec3, bool) {
     let mut planes = Vec::new();
     let mut move_v = Vec3::ZERO;
 
     // TODO: gravity and ground trace
-
+    // info!("slidemove");
     // initial velocity defines first clipping plane -> avoid to be nudged backwards (due to overclip?)
     planes.push(velocity.normalize());
-    for _ in 0..4 {
+    for bump in 0..4 {
         let res = trace(
             collider_query,
             origin + move_v,
@@ -372,19 +469,30 @@ fn slidemove_try1(
             time,
         );
         match &res {
-            CastResult::Impact(toi, ref contact) => contact_debug
-                .add
-                .push((contact.clone(), origin + velocity * *toi)),
-            CastResult::Touch(ref contact) => contact_debug.add.push((contact.clone(), origin)),
+            CastResult::Impact(toi, ref contact) => {
+                contact_debug
+                    .add
+                    .push((contact.clone(), origin + velocity * *toi));
+            }
+            CastResult::Touch(ref contact) => {
+                contact_debug.add.push((contact.clone(), origin));
+            }
             _ => (),
         }
-
+        if bump >= 2 {
+            info!("bump: {}", bump);
+        }
+        // info!("res: {:?}", res);
         let (f, normal) = match res {
-            CastResult::NoHit => return velocity * time, // no intersection -> instantly accept whole move
-            CastResult::Stuck | CastResult::Failed => return Vec3::ZERO, // TODO: we probably need handling for being stuck (push back?)
+            CastResult::NoHit => return (velocity * time, bump != 0), // no intersection -> instantly accept whole move
+            CastResult::Stuck | CastResult::Failed => return (Vec3::ZERO, false), // TODO: we probably need handling for being stuck (push back?)
             CastResult::Impact(toi, contact) => (toi, contact.collider_normal),
             CastResult::Touch(contact) => (0.0, contact.collider_normal),
         };
+        contact_debug
+            .add_pointer
+            .push((origin + move_v, velocity * f));
+
         // accumulate movement and time-increments up to next intersection
         move_v += velocity * f;
         time -= time * f;
@@ -402,7 +510,7 @@ fn slidemove_try1(
             // TODO: store impact speed
 
             // slide along the plane
-            const OVERCLIP: f32 = 1.001;
+            const OVERCLIP: f32 = 1.01;
             let mut clip_velocity = do_clip_velocity(velocity, *plane, OVERCLIP);
             // TODO: end velocity for gravity
 
@@ -439,7 +547,7 @@ fn slidemove_try1(
 
                     // give up on triple plane intersections
                     warn!("triple plane interaction");
-                    return Vec3::ZERO;
+                    return (Vec3::ZERO, false);
                 }
             }
             // all interactions should be fixed -> try another move
@@ -447,7 +555,7 @@ fn slidemove_try1(
             break;
         }
     }
-    move_v
+    (move_v, true)
 }
 
 fn trace(
@@ -481,7 +589,7 @@ fn trace(
             shape_point: hit.witness2.into(),
         };
         match hit.status {
-            TOIStatus::Converged if hit.toi > 0.01 => CastResult::Impact(hit.toi, contact),
+            TOIStatus::Converged if hit.toi > 0.001 => CastResult::Impact(hit.toi, contact),
             TOIStatus::Converged => CastResult::Touch(contact),
             TOIStatus::Failed | TOIStatus::OutOfIterations => CastResult::Failed,
             TOIStatus::Penetrating => CastResult::Stuck,
@@ -595,21 +703,68 @@ fn contact_debug(
     mut contact_debug: ResMut<ContactDebug>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut reaper_query: Query<(Entity, &mut ContactDebugMesh)>,
+    mut debug_lines: ResMut<debug_lines::DebugLines>,
 ) {
     let mut cv = Vec::new();
     std::mem::swap(&mut contact_debug.add, &mut cv);
     for (contact, shape_origin) in cv.drain(..) {
         let mesh = contact_debug
             .plane_mesh
-            .get_or_insert_with(|| meshes.add(mesh::shape::Quad::new(Vec2::new(0.1, 0.1)).into()))
+            // .get_or_insert_with(|| meshes.add(mesh::shape::Quad::new(Vec2::new(0.1, 0.1)).into()))
+            .get_or_insert_with(|| {
+                meshes.add(
+                    mesh::shape::Capsule {
+                        radius: 0.01,
+                        depth: 0.1,
+                        latitudes: 2,
+                        longitudes: 3,
+                        rings: 2,
+                        ..Default::default()
+                    }
+                    .into(),
+                )
+            })
             .clone();
 
-        let rotation = Quat::from_rotation_arc(Vec3::Z, contact.collider_normal);
+        let rotation = Quat::from_rotation_arc(Vec3::Y, contact.collider_normal);
         commands
             .spawn_bundle(PbrBundle {
                 mesh,
                 transform: Transform::from_translation(shape_origin + contact.shape_point)
                     .with_rotation(rotation),
+                ..Default::default()
+            })
+            .insert(ContactDebugMesh {
+                elapsed: Timer::from_seconds(5.0, false),
+            });
+    }
+
+    let mut cv = Vec::new();
+    std::mem::swap(&mut contact_debug.add_pointer, &mut cv);
+    for (pos, vec) in cv.drain(..) {
+        let mesh = contact_debug
+            .plane_mesh
+            // .get_or_insert_with(|| meshes.add(mesh::shape::Quad::new(Vec2::new(0.1, 0.1)).into()))
+            .get_or_insert_with(|| {
+                meshes.add(
+                    mesh::shape::Capsule {
+                        radius: 0.01,
+                        depth: 0.1,
+                        latitudes: 2,
+                        longitudes: 3,
+                        rings: 2,
+                        ..Default::default()
+                    }
+                    .into(),
+                )
+            })
+            .clone();
+
+        let rotation = Quat::from_rotation_arc(Vec3::Y, vec);
+        commands
+            .spawn_bundle(PbrBundle {
+                mesh,
+                transform: Transform::from_translation(pos).with_rotation(rotation),
                 ..Default::default()
             })
             .insert(ContactDebugMesh {
