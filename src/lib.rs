@@ -6,6 +6,7 @@ use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*, render::mesh};
 // };
 use bevy_rapier3d::prelude::*;
 
+pub mod debug_lines;
 pub mod test_texture {
     pub const TW: usize = 256;
     pub const TH: usize = 256;
