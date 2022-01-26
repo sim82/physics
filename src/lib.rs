@@ -240,7 +240,7 @@ fn apply_input_states(
 
     for (mut character_state, mut transform) in query.iter_mut() {
         let mut trans_all = Vec3::ZERO;
-        const WALK_SPEED: f32 = 2.0; // ms⁻¹
+        const WALK_SPEED: f32 = 0.5; // ms⁻¹
         const RUN_SPEED: f32 = 6.0; // ms⁻¹
         debug!("pending input states: {}", queue.len());
         for input_state in queue.iter() {
@@ -276,7 +276,7 @@ fn apply_input_states(
                 trans += right_vec * -speed;
             }
 
-            trans = step_slidemove_try1(
+            trans = slidemove_none(
                 // &mut debug_lines,
                 &mut contact_debug,
                 &collider_query,
@@ -314,7 +314,7 @@ struct Contact {
 enum CastResult {
     NoHit,
     Impact(f32, Contact),
-    Touch(Contact),
+    // Touch(Contact),
     Stuck,
     Failed,
 }
@@ -331,14 +331,21 @@ fn slidemove_none(
         CastResult::Impact(toi, ref contact) => contact_debug
             .add
             .push((contact.clone(), origin + velocity * *toi)),
-        CastResult::Touch(ref contact) => contact_debug.add.push((contact.clone(), origin)),
+        // CastResult::Touch(ref contact) => contact_debug.add.push((contact.clone(), origin)),
         _ => (),
     }
 
     match res {
         CastResult::NoHit => velocity * time,
-        CastResult::Impact(toi, _) => velocity * toi,
-        CastResult::Touch(_) | CastResult::Stuck | CastResult::Failed => Vec3::ZERO,
+        CastResult::Impact(toi, _) => {
+            info!("impact: {}", toi);
+            velocity * toi
+        }
+        CastResult::Stuck => {
+            info!("stuck!");
+            Vec3::ZERO
+        }
+        CastResult::Failed => Vec3::ZERO,
     }
 }
 
@@ -384,10 +391,10 @@ fn step_slidemove_try1(
             return move_v - step_dir * STEP_SIZE
         }
         CastResult::Impact(toi, _) => toi,
-        CastResult::Touch(_) => 0.0,
+        // CastResult::Touch(_) => 0.0,
     };
 
-    let mut move_v = step_dir * toi * 0.99;
+    let mut move_v = step_dir * toi; // * 0.99;
 
     // hop
     let step_dir = Vec3::Y;
@@ -406,7 +413,7 @@ fn step_slidemove_try1(
         CastResult::Stuck | CastResult::Failed => return move_v,
         CastResult::NoHit => STEP_SIZE,
         CastResult::Impact(toi, _) => toi,
-        CastResult::Touch(_) => 0.0,
+        // CastResult::Touch(_) => 0.0,
     };
 
     move_v += step_dir * toi;
@@ -438,7 +445,7 @@ fn step_slidemove_try1(
             return move_v - step_dir * STEP_SIZE
         }
         CastResult::Impact(toi, _) => toi,
-        CastResult::Touch(_) => 0.0,
+        // CastResult::Touch(_) => 0.0,
     };
 
     move_v += step_dir * toi * 0.99;
@@ -475,9 +482,9 @@ fn slidemove_try1(
                     .add
                     .push((contact.clone(), origin + velocity * *toi));
             }
-            CastResult::Touch(ref contact) => {
-                contact_debug.add.push((contact.clone(), origin));
-            }
+            // CastResult::Touch(ref contact) => {
+            //     contact_debug.add.push((contact.clone(), origin));
+            // }
             _ => (),
         }
         if bump >= 2 {
@@ -488,7 +495,7 @@ fn slidemove_try1(
             CastResult::NoHit => return (velocity * time, bump != 0), // no intersection -> instantly accept whole move
             CastResult::Stuck | CastResult::Failed => return (Vec3::ZERO, false), // TODO: we probably need handling for being stuck (push back?)
             CastResult::Impact(toi, contact) => (toi, contact.collider_normal),
-            CastResult::Touch(contact) => (0.0, contact.collider_normal),
+            // CastResult::Touch(contact) => (0.0, contact.collider_normal),
         };
         contact_debug
             .add_pointer
@@ -590,13 +597,76 @@ fn trace(
             shape_point: hit.witness2.into(),
         };
         match hit.status {
-            TOIStatus::Converged if hit.toi > 0.001 => CastResult::Impact(hit.toi, contact),
-            TOIStatus::Converged => CastResult::Touch(contact),
+            TOIStatus::Converged if hit.toi > 0.01 => CastResult::Impact(hit.toi * 0.99, contact),
+            TOIStatus::Converged => CastResult::Impact(0.0, contact),
+            // TOIStatus::Converged => CastResult::Touch(contact),
             TOIStatus::Failed | TOIStatus::OutOfIterations => CastResult::Failed,
             TOIStatus::Penetrating => CastResult::Stuck,
         }
     } else {
         CastResult::NoHit
+    }
+}
+
+struct TraceResult {
+    contact: Option<Contact>,
+    stuck: bool,
+    end: Vec3,
+}
+
+fn trace2(
+    collider_query: &QueryPipelineColliderComponentsQuery,
+    start: Vec3,
+    end: Vec3,
+    query_pipeline: &Res<QueryPipeline>,
+) -> TraceResult {
+    let collider_set = QueryPipelineColliderComponentsSet(collider_query);
+    let shape = Cylinder::new(0.9, 0.2);
+    let shape_pos = Isometry::translation(start.x, start.y, start.z);
+    let d = end - start;
+    let shape_vel = d.into();
+    let groups = InteractionGroups::all();
+    let filter = None;
+    if let Some((handle, hit)) = query_pipeline.cast_shape(
+        &collider_set,
+        &shape_pos,
+        &shape_vel,
+        &shape,
+        1.0,
+        groups,
+        filter,
+    ) {
+        use bevy_rapier3d::rapier::parry::query::TOIStatus;
+
+        let contact = Contact {
+            collider_normal: (*hit.normal1).into(),
+            collider_point: hit.witness1.into(),
+            shape_normal: (*hit.normal2).into(),
+            shape_point: hit.witness2.into(),
+        };
+        match hit.status {
+            TOIStatus::Converged if hit.toi > 0.01 => TraceResult {
+                contact: Some(contact),
+                end: start + d * hit.toi * 0.99,
+                stuck: false,
+            },
+            TOIStatus::Converged | TOIStatus::Failed | TOIStatus::OutOfIterations => TraceResult {
+                contact: Some(contact),
+                end: start,
+                stuck: false,
+            },
+            TOIStatus::Penetrating => TraceResult {
+                contact: None,
+                end: start,
+                stuck: true,
+            },
+        }
+    } else {
+        TraceResult {
+            contact: None,
+            end,
+            stuck: false,
+        }
     }
 }
 
