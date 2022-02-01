@@ -276,7 +276,7 @@ fn apply_input_states(
                 trans += right_vec * -speed;
             }
 
-            trans = slidemove_none(
+            trans = slidemove_try1(
                 // &mut debug_lines,
                 &mut contact_debug,
                 &collider_query,
@@ -284,7 +284,8 @@ fn apply_input_states(
                 trans,
                 dt,
                 &query_pipeline,
-            );
+            )
+            .0;
             trans_all += trans;
         }
 
@@ -326,27 +327,34 @@ fn slidemove_none(
     time: f32,
     query_pipeline: &Res<QueryPipeline>,
 ) -> Vec3 {
-    let res = trace(collider_query, origin, velocity, query_pipeline, time);
-    match &res {
-        CastResult::Impact(toi, ref contact) => contact_debug
-            .add
-            .push((contact.clone(), origin + velocity * *toi)),
-        // CastResult::Touch(ref contact) => contact_debug.add.push((contact.clone(), origin)),
-        _ => (),
+    let res = trace2(collider_query, origin, velocity * time, query_pipeline);
+
+    if res.stuck {
+        info!("stuck!");
+        return Vec3::ZERO;
     }
 
-    match res {
-        CastResult::NoHit => velocity * time,
-        CastResult::Impact(toi, _) => {
-            info!("impact: {}", toi);
-            velocity * toi
-        }
-        CastResult::Stuck => {
-            info!("stuck!");
-            Vec3::ZERO
-        }
-        CastResult::Failed => Vec3::ZERO,
-    }
+    res.dist
+    // match &res {
+    //     CastResult::Impact(toi, ref contact) => contact_debug
+    //         .add
+    //         .push((contact.clone(), origin + velocity * *toi)),
+    //     // CastResult::Touch(ref contact) => contact_debug.add.push((contact.clone(), origin)),
+    //     _ => (),
+    // }
+
+    // match res {
+    //     CastResult::NoHit => velocity * time,
+    //     CastResult::Impact(toi, _) => {
+    //         info!("impact: {}", toi);
+    //         velocity * toi
+    //     }
+    //     CastResult::Stuck => {
+    //         info!("stuck!");
+    //         Vec3::ZERO
+    //     }
+    //     CastResult::Failed => Vec3::ZERO,
+    // }
 }
 
 // port of quake 3 PM_ClipVelocity
@@ -468,45 +476,57 @@ fn slidemove_try1(
     // info!("slidemove");
     // initial velocity defines first clipping plane -> avoid to be nudged backwards (due to overclip?)
     planes.push(velocity.normalize());
-    for bump in 0..4 {
-        let res = trace(
-            collider_query,
-            origin + move_v,
-            velocity,
-            query_pipeline,
-            time,
-        );
-        match &res {
-            CastResult::Impact(toi, ref contact) => {
-                contact_debug
-                    .add
-                    .push((contact.clone(), origin + velocity * *toi));
+    planes.push(Vec3::Y);
+
+    info!("start");
+    'bump: for bump in 0..4 {
+        let trace_start_pos = origin + move_v;
+        let trace_dist = velocity * time;
+
+        let res = trace2(collider_query, trace_start_pos, trace_dist, query_pipeline);
+        if res.stuck {
+            error!("stuck!");
+            return (Vec3::ZERO, true);
+        }
+        // info!(
+        //     "bump {} {:?} {} {:?} {}",
+        //     bump, trace_dist, res.f, velocity, time
+        // );
+
+        if let Some(contact) = res.contact {
+            contact_debug
+                .add
+                .push((contact.clone(), trace_start_pos + res.dist));
+
+            // use contact normal as clip plane
+            move_v += res.dist;
+            time -= time * res.f;
+
+            //
+            // if this is the same plane we hit before, nudge velocity
+            // out along it, which fixes some epsilon issues with
+            // non-axial planes
+            //
+            for plane in planes.iter() {
+                let dot = contact.collider_normal.dot(*plane);
+                if dot > 0.99 {
+                    info!("dot: {} {:?} {:?}", dot, contact.collider_normal, plane);
+
+                    velocity += contact.collider_normal;
+                    info!("nudge");
+                    continue 'bump;
+                }
+                info!("dot: {} {:?} {:?}", dot, contact.collider_normal, plane);
             }
-            // CastResult::Touch(ref contact) => {
-            //     contact_debug.add.push((contact.clone(), origin));
-            // }
-            _ => (),
+            planes.push(contact.collider_normal);
+        } else {
+            info!("done");
+            return (move_v + res.dist, false);
         }
-        if bump >= 2 {
-            info!("bump: {}", bump);
-        }
-        // info!("res: {:?}", res);
-        let (f, normal) = match res {
-            CastResult::NoHit => return (velocity * time, bump != 0), // no intersection -> instantly accept whole move
-            CastResult::Stuck | CastResult::Failed => return (Vec3::ZERO, false), // TODO: we probably need handling for being stuck (push back?)
-            CastResult::Impact(toi, contact) => (toi, contact.collider_normal),
-            // CastResult::Touch(contact) => (0.0, contact.collider_normal),
-        };
-        contact_debug
-            .add_pointer
-            .push((origin + move_v, velocity * f));
 
-        // accumulate movement and time-increments up to next intersection
-        move_v += velocity * f;
-        time -= time * f;
-
-        // use contact normal as clip plane
-        planes.push(normal);
+        // if bump >= 1 {
+        //     info!("bump: {}", bump);
+        // }
 
         // actual clipping: try to make velocity parallel to all clip planes
         // find first plane we intersect
@@ -518,10 +538,13 @@ fn slidemove_try1(
             // TODO: store impact speed
 
             // slide along the plane
-            const OVERCLIP: f32 = 1.01;
+            const OVERCLIP: f32 = 1.001;
             let mut clip_velocity = do_clip_velocity(velocity, *plane, OVERCLIP);
             // TODO: end velocity for gravity
-
+            info!(
+                "clip velocity1 {:?} {:?} {:?} {} {}",
+                velocity, clip_velocity, plane, i, into
+            );
             // find second plane
             for (j, plane2) in planes.iter().enumerate() {
                 if j == i {
@@ -533,10 +556,20 @@ fn slidemove_try1(
                 }
 
                 // re-clip velocity with second plane
+                let xc = clip_velocity;
                 clip_velocity = do_clip_velocity(clip_velocity, *plane2, OVERCLIP);
                 if clip_velocity.dot(*plane) >= 0.0 {
+                    info!(
+                        "clip velocity1.5 {:?} {:?} {:?} {}",
+                        xc, clip_velocity, plane2, j
+                    );
+
                     continue;
                 }
+                // info!(
+                //     "clip velocity2 {:?} {:?} {:?} {}",
+                //     xc, clip_velocity, plane2, j
+                // );
 
                 // slide along the crease of the two planes (based on original velocity!)
                 let dir = plane.cross(*plane2).normalize();
@@ -554,7 +587,10 @@ fn slidemove_try1(
                     }
 
                     // give up on triple plane intersections
-                    warn!("triple plane interaction");
+                    warn!(
+                        "triple plane interaction {:?} {:?} {:?}",
+                        plane, plane2, plane3
+                    );
                     return (Vec3::ZERO, false);
                 }
             }
@@ -611,23 +647,25 @@ fn trace(
 struct TraceResult {
     contact: Option<Contact>,
     stuck: bool,
-    end: Vec3,
+    dist: Vec3,
+    f: f32,
 }
 
 fn trace2(
     collider_query: &QueryPipelineColliderComponentsQuery,
     start: Vec3,
-    end: Vec3,
+    dist: Vec3,
     query_pipeline: &Res<QueryPipeline>,
 ) -> TraceResult {
     let collider_set = QueryPipelineColliderComponentsSet(collider_query);
     let shape = Cylinder::new(0.9, 0.2);
+    // let shape = Cuboid::new(Vec3::new(0.2, 0.9, 0.2).into());
+
     let shape_pos = Isometry::translation(start.x, start.y, start.z);
-    let d = end - start;
-    let shape_vel = d.into();
+    let shape_vel = dist.into();
     let groups = InteractionGroups::all();
     let filter = None;
-    if let Some((handle, hit)) = query_pipeline.cast_shape(
+    let trace_result = if let Some((handle, hit)) = query_pipeline.cast_shape(
         &collider_set,
         &shape_pos,
         &shape_vel,
@@ -645,122 +683,59 @@ fn trace2(
             shape_point: hit.witness2.into(),
         };
         match hit.status {
-            TOIStatus::Converged if hit.toi > 0.01 => TraceResult {
+            TOIStatus::Converged if hit.toi > 0.05 => TraceResult {
                 contact: Some(contact),
-                end: start + d * hit.toi * 0.99,
+                dist: dist * hit.toi,
                 stuck: false,
+                f: hit.toi,
             },
             TOIStatus::Converged | TOIStatus::Failed | TOIStatus::OutOfIterations => TraceResult {
                 contact: Some(contact),
-                end: start,
+                dist: Vec3::ZERO,
                 stuck: false,
+                f: 0.0,
             },
             TOIStatus::Penetrating => TraceResult {
                 contact: None,
-                end: start,
+                dist: Vec3::ZERO,
                 stuck: true,
+                f: 0.0,
             },
         }
     } else {
         TraceResult {
             contact: None,
-            end,
+            dist: dist * 0.99,
             stuck: false,
+            f: 0.99,
         }
+    };
+
+    let end_pos = start + trace_result.dist;
+    let intersection = query_pipeline.intersection_with_shape(
+        &collider_set,
+        &end_pos.into(),
+        &shape,
+        groups,
+        filter,
+    );
+    if let Some(_collider) = intersection {
+        warn!(
+            "trace ends up stuck. {:?} {} {} {}",
+            trace_result.dist,
+            trace_result.f,
+            dist,
+            dist.length()
+        );
+        return TraceResult {
+            contact: None,
+            dist: Vec3::ZERO,
+            stuck: false,
+            f: 0.0,
+        };
     }
-}
 
-fn slidemove_crap(
-    collider_query: &QueryPipelineColliderComponentsQuery,
-    origin: Vec3,
-    velocity: Vec3,
-    query_pipeline: &Res<QueryPipeline>,
-) -> Vec3 {
-    // ground trace
-    // Wrap the bevy query so it can be used by the query pipeline.
-
-    let velocity_start = velocity;
-    let collider_set = QueryPipelineColliderComponentsSet(collider_query);
-    // let shape = Cuboid::new(Vec3::new(0.2, 0.9, 0.2).into());
-    let shape = Cylinder::new(0.9, 0.2);
-    let mut shape_pos = Isometry::translation(origin.x, origin.y, origin.z);
-    let shape_vel = (-Vec3::Y * 0.1).into();
-    let max_toi = 4.0;
-    let groups = InteractionGroups::all();
-    let filter = None;
-
-    let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
-        &collider_set,
-        &shape_pos,
-        &shape_vel,
-        &shape,
-        max_toi,
-        groups,
-        filter,
-    ) {
-        // The first collider hit has the handle `handle`. The `hit` is a
-        // structure containing details about the hit configuration.
-        info!(
-            "Hit the entity {:?} with the configuration: {:?}",
-            handle.entity(),
-            hit
-        );
-        hit.toi
-    } else {
-        1.0
-    };
-    info!("groundtrace1: {}", toi);
-    let shape_pos_start = shape_pos;
-    shape_pos.append_translation_mut(&(shape_vel * toi).into());
-    shape_pos.append_translation_mut(&Vec3::new(0.0, 0.11, 0.0).into());
-    let shape_vel = velocity.into();
-    let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
-        &collider_set,
-        &shape_pos,
-        &shape_vel,
-        &shape,
-        max_toi,
-        groups,
-        filter,
-    ) {
-        // The first collider hit has the handle `handle`. The `hit` is a
-        // structure containing details about the hit configuration.
-        info!(
-            "Hit the entity {:?} with the configuration: {:?}",
-            handle.entity(),
-            hit
-        );
-        hit.toi
-    } else {
-        1.0
-    };
-    info!("forward: {}", toi);
-    shape_pos.append_translation_mut(&(shape_vel * toi).into());
-    let shape_vel = (-Vec3::Y * 0.2).into();
-    let toi = if let Some((handle, hit)) = query_pipeline.cast_shape(
-        &collider_set,
-        &shape_pos,
-        &shape_vel,
-        &shape,
-        max_toi,
-        groups,
-        filter,
-    ) {
-        // The first collider hit has the handle `handle`. The `hit` is a
-        // structure containing details about the hit configuration.
-        info!(
-            "Hit the entity {:?} with the configuration: {:?}",
-            handle.entity(),
-            hit
-        );
-        hit.toi
-    } else {
-        1.0
-    };
-    info!("groundtrace2: {}", toi);
-    shape_pos.append_translation_mut(&(shape_vel * toi).into());
-    let d: Vec3 = (shape_pos.translation.vector - shape_pos_start.translation.vector).into();
-    velocity_start + d
+    trace_result
 }
 
 #[derive(Component)]
