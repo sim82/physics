@@ -4,8 +4,8 @@ use bevy::{
     input::system::exit_on_esc_system,
     prelude::*,
     render::{
-        mesh,
-        render_resource::{Extent3d, TextureDimension, TextureFormat},
+        mesh::{self, Indices, VertexAttributeValues},
+        render_resource::{Extent3d, PrimitiveTopology, TextureDimension, TextureFormat},
     },
 };
 use bevy_rapier3d::{na::OPoint, prelude::*};
@@ -86,12 +86,15 @@ fn spawn_gltf(
     asset_server: &AssetServer,
     filename: &str,
     position: Vec3,
+    materials: &mut Assets<StandardMaterial>,
+    meshes: &mut Assets<Mesh>,
 ) {
     let path = format!("assets/models/{}", filename);
     let bevy_path = format!("models/{}", filename);
 
     let (document, buffers, images) = gltf::import(&path).unwrap();
     let mut anvil_collider = None;
+    // let mut debug_mesh = Mesh::new(PrimitiveTopology::TriangleList);
     for mesh in document.meshes() {
         println!("Mesh #{}", mesh.index());
         for primitive in mesh.primitives() {
@@ -122,6 +125,26 @@ fn spawn_gltf(
                 .collect::<Vec<_>>();
             println!("collider: {:?} {:?}", compound.aabbs(), shapes);
 
+            // compound
+            //     .shapes()
+            //     .first()
+            //     .unwrap()
+            //     .1
+            //     .as_convex_polyhedron()
+            //     .unwrap()
+            //     .points()
+            //     .iter()
+            //     .map(|p| p.coords.data.0[0]);
+            // debug_mesh = Mesh::new(PrimitiveTopology::TriangleList);
+            // // let mut debug_mesh = Mesh::new(PrimitiveTopology::TriangleList);
+            // debug_mesh.set_attribute(
+            //     Mesh::ATTRIBUTE_POSITION,
+            //     VertexAttributeValues::Float32x3(reader.read_positions().unwrap().collect()),
+            // );
+            // debug_mesh.set_indices(Some(Indices::U32(
+            //     reader.read_indices().unwrap().into_u32().collect(),
+            // )));
+
             anvil_collider = Some(collider);
         }
     }
@@ -150,6 +173,11 @@ fn spawn_gltf(
 
     commands
         .spawn_bundle(PbrBundle {
+            // mesh: meshes.add(debug_mesh),
+            // material: materials.add(StandardMaterial {
+            //     base_color: Color::BISQUE,
+            //     ..Default::default()
+            // }),
             mesh: anvil_mesh,
             material: anvil_material,
             // transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
@@ -291,6 +319,8 @@ fn setup(
         &asset_server,
         "donut_gltf/donut.gltf",
         Vec3::new(-0.1, 2.0, -0.1),
+        &mut materials,
+        &mut meshes,
     );
 
     spawn_gltf(
@@ -298,86 +328,9 @@ fn setup(
         &asset_server,
         "anvil_gltf/anvil.gltf",
         Vec3::new(-0.1, 7.0, -0.1),
+        &mut materials,
+        &mut meshes,
     );
-
-    // commands.spawn_bundle(PointLightBundle {
-    //     point_light: PointLight {
-    //         shadows_enabled: true,
-    //         ..Default::default()
-    //     },
-    //     transform: Transform::from_translation(Vec3::new(0.0, 2.0, -3.0)),
-    //     ..Default::default()
-    // });
-
-    // let (document, buffers, images) = gltf::import("assets/models/donut_gltf/donut.gltf").unwrap();
-    // let mut anvil_collider = None;
-    // for mesh in document.meshes() {
-    //     println!("Mesh #{}", mesh.index());
-    //     for primitive in mesh.primitives() {
-    //         println!("- Primitive #{} {:?}", primitive.index(), primitive.mode());
-    //         let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()].0));
-    //         let pos = reader
-    //             .read_positions()
-    //             .unwrap()
-    //             .map(|p| nalgebra::Point3::new(p[0], p[1], p[2]))
-    //             .collect::<Vec<_>>();
-    //         let indices = reader
-    //             .read_indices()
-    //             .unwrap()
-    //             .into_u32()
-    //             .collect::<Vec<_>>();
-
-    //         let indices = indices
-    //             .chunks(3)
-    //             .map(|c| [c[0], c[1], c[2]])
-    //             .collect::<Vec<_>>();
-
-    //         let collider = ColliderShape::convex_decomposition(&pos[..], &indices[..]);
-    //         println!("collider: {:?}", collider.as_compound().unwrap().aabbs());
-    //         anvil_collider = Some(collider);
-    //     }
-    // }
-
-    // let rigid_body = RigidBodyBundle {
-    //     forces: RigidBodyForces {
-    //         gravity_scale: 1.0,
-    //         ..Default::default()
-    //     }
-    //     .into(),
-    //     position: Vec3::new(-0.1, 2.0, -0.1).into(),
-    //     ..Default::default()
-    // };
-    // let collider = ColliderBundle {
-    //     shape: anvil_collider.unwrap().into(),
-    //     material: ColliderMaterial {
-    //         restitution: 0.2,
-    //         ..Default::default()
-    //     }
-    //     .into(),
-    //     ..Default::default()
-    // };
-
-    // let anvil_mesh = asset_server.load("models/donut_gltf/donut.gltf#Mesh0/Primitive0");
-    // let anvil_material = asset_server.load("models/donut_gltf/donut.gltf#Material0");
-
-    // commands
-    //     .spawn_bundle(PbrBundle {
-    //         mesh: anvil_mesh,
-    //         material: anvil_material,
-    //         // transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
-    //         ..Default::default()
-    //     })
-    //     .insert(Rotation { vel: 1.0 })
-    //     .insert_bundle(rigid_body)
-    //     .insert_bundle(collider)
-    //     // .insert(ColliderDebugRender::default())
-    //     .insert(RigidBodyPositionSync::Discrete);
-
-    // commands.spawn_scene(asset_server.load("models/donut_gltf/donut.gltf#Scene0"));
-    // let anvil_mesh: Handle<Mesh> =
-    //     asset_server.load(&format!("models/donut_gltf/donut.gltf#Mesh0/Primitive0"));
-    // anvil_mesh.
-    // anvil_mesh.
 
     commands
         .spawn()
