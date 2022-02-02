@@ -84,9 +84,20 @@ pub fn trace2(
     let filter = None;
 
     let d = dist.length();
-    const MIN_DIST: f32 = 1e-3;
+    const MIN_DIST: f32 = 1e-2;
+
+    if d <= MIN_DIST {
+        return TraceResult {
+            contact: None,
+            dist: Vec3::ZERO,
+            stuck: false,
+            f: 0.0,
+        };
+    }
 
     let minfrac = MIN_DIST / d;
+
+    info!("minfrac: {:?} {} {}", dist, d, minfrac);
 
     let trace_result = if let Some((handle, hit)) = query_pipeline.cast_shape(
         &collider_set,
@@ -105,12 +116,13 @@ pub fn trace2(
             shape_normal: (*hit.normal2).into(),
             shape_point: hit.witness2.into(),
         };
+
         match hit.status {
-            TOIStatus::Converged if hit.toi > 0.05 => TraceResult {
+            TOIStatus::Converged if hit.toi > minfrac => TraceResult {
                 contact: Some(contact),
-                dist: dist * hit.toi,
+                dist: dist * (hit.toi - minfrac),
                 stuck: false,
-                f: hit.toi,
+                f: hit.toi - minfrac,
             },
             TOIStatus::Converged | TOIStatus::Failed | TOIStatus::OutOfIterations => TraceResult {
                 contact: Some(contact),
@@ -128,9 +140,9 @@ pub fn trace2(
     } else {
         TraceResult {
             contact: None,
-            dist: dist * 0.99,
+            dist: dist * (1.0 - minfrac),
             stuck: false,
-            f: 0.99,
+            f: 1.0 - minfrac,
         }
     };
 
