@@ -4,6 +4,7 @@ use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*};
 use bevy_rapier3d::prelude::*;
 use contact_debug::ContactDebug;
 use std::collections::VecDeque;
+use trace::CollisionTraceable;
 
 pub mod contact_debug;
 pub mod debug_lines;
@@ -195,6 +196,8 @@ impl CharacterState {
         self.rotation_up().mul_vec3(self.right).normalize()
     }
 
+    pub fn ground_trace(&mut self) {}
+
     pub fn apply_friction(&mut self, time: f32) {
         let vel = self.velocity;
         let speed = vel.length();
@@ -234,7 +237,7 @@ impl CharacterState {
         &mut self,
         input_state: &InputState,
         translation: Vec3,
-        collision_system: CollisionSystem,
+        collision_system: &dyn CollisionTraceable,
     ) -> Vec3 {
         const WALK_SPEED: f32 = 0.5; // ms⁻¹
         const RUN_SPEED: f32 = 6.0; // ms⁻¹
@@ -270,18 +273,12 @@ impl CharacterState {
         if input_state.strafe_left {
             trans += right_vec * -speed;
         }
+        self.ground_trace();
         self.apply_friction(dt);
         self.apply_acceleration(trans, dt, 10.0);
 
-        let (trans, new_velocity, _clip) = slidemove::slidemove_try2(
-            // &mut debug_lines,
-            &collision_system,
-            // &collider_query,
-            translation,
-            self.velocity,
-            dt,
-            // &query_pipeline,
-        );
+        let (trans, new_velocity, _clip) =
+            slidemove::slidemove_try2(collision_system, translation, self.velocity, dt);
         self.velocity = new_velocity;
         trans
     }
@@ -347,7 +344,7 @@ fn apply_input_states(
             let trans = character_state.apply_user_input(
                 input_state,
                 transform.translation + trans_all,
-                collision_system,
+                &collision_system,
             );
             trans_all += trans;
         }

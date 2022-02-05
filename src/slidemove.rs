@@ -1,4 +1,4 @@
-use crate::trace::CollisionSystem;
+use crate::trace::CollisionTraceable;
 
 use bevy::{math::Vec3, prelude::*};
 
@@ -13,7 +13,7 @@ fn do_clip_velocity(v_in: Vec3, normal: Vec3, overbounce: f32) -> Vec3 {
 }
 
 pub fn slidemove_try2(
-    collision_system: &CollisionSystem,
+    collision_system: &dyn CollisionTraceable,
     // contact_debug: &mut ContactDebug,
     // debug_lines: &mut debug_lines::DebugLines,
     // collider_query: &QueryPipelineColliderComponentsQuery,
@@ -25,7 +25,7 @@ pub fn slidemove_try2(
     let mut planes = Vec::new();
     let mut move_v = Vec3::ZERO;
 
-    let gravity = false;
+    let gravity = true;
     let gravity_normal = -Vec3::Y;
     let gravity_vector = gravity_normal * 9.81;
 

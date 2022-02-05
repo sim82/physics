@@ -27,14 +27,18 @@ pub enum CastResult {
     Failed,
 }
 
+pub trait CollisionTraceable {
+    fn trace2(&self, start: Vec3, dist: Vec3) -> TraceResult;
+}
+
 pub struct CollisionSystem<'a, 'x, 'world, 'state> {
     pub contact_debug: &'a mut ContactDebug,
     pub query_pipeline: &'a QueryPipeline,
     pub collider_query: &'a QueryPipelineColliderComponentsQuery<'world, 'state, 'x>,
 }
 
-impl<'a, 'x, 'world, 'state> CollisionSystem<'a, 'x, 'world, 'state> {
-    pub fn trace2(&self, start: Vec3, dist: Vec3) -> TraceResult {
+impl<'a, 'x, 'world, 'state> CollisionTraceable for CollisionSystem<'a, 'x, 'world, 'state> {
+    fn trace2(&self, start: Vec3, dist: Vec3) -> TraceResult {
         let collider_set = QueryPipelineColliderComponentsSet(self.collider_query);
         let shape = Cylinder::new(0.9, 0.2);
         // let shape = Cuboid::new(Vec3::new(0.2, 0.9, 0.2).into());
