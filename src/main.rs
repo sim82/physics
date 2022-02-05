@@ -6,6 +6,7 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
 };
+use bevy_editor_pls::prelude::*;
 use bevy_rapier3d::prelude::*;
 use physics::test_texture;
 
@@ -26,6 +27,7 @@ fn main() {
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(RapierRenderPlugin)
         .add_plugin(physics::debug_lines::DebugLinesPlugin::default())
+        .add_plugin(EditorPlugin)
         .add_startup_system(setup)
         .add_system(animate_light_direction)
         .add_system(rotation_system)
