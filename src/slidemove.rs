@@ -1,53 +1,6 @@
-use std::{collections::VecDeque, time::Duration};
+use crate::trace::CollisionSystem;
 
-use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*, render::mesh};
-// use bevy_rapier3d::physics::{
-//     QueryPipelineColliderComponentsQuery, QueryPipelineColliderComponentsSet,
-// };
-use bevy_rapier3d::prelude::*;
-
-use crate::{
-    contact_debug::ContactDebug,
-    trace::{self, CastResult},
-};
-
-fn slidemove_none(
-    contact_debug: &mut ContactDebug,
-    collider_query: &QueryPipelineColliderComponentsQuery,
-    origin: Vec3,
-    velocity: Vec3,
-    time: f32,
-    query_pipeline: &Res<QueryPipeline>,
-) -> Vec3 {
-    let res = trace::trace2(collider_query, origin, velocity * time, query_pipeline);
-
-    if res.stuck {
-        info!("stuck!");
-        return Vec3::ZERO;
-    }
-
-    res.dist
-    // match &res {
-    //     CastResult::Impact(toi, ref contact) => contact_debug
-    //         .add
-    //         .push((contact.clone(), origin + velocity * *toi)),
-    //     // CastResult::Touch(ref contact) => contact_debug.add.push((contact.clone(), origin)),
-    //     _ => (),
-    // }
-
-    // match res {
-    //     CastResult::NoHit => velocity * time,
-    //     CastResult::Impact(toi, _) => {
-    //         info!("impact: {}", toi);
-    //         velocity * toi
-    //     }
-    //     CastResult::Stuck => {
-    //         info!("stuck!");
-    //         Vec3::ZERO
-    //     }
-    //     CastResult::Failed => Vec3::ZERO,
-    // }
-}
+use bevy::{math::Vec3, prelude::*};
 
 // port of quake 3 PM_ClipVelocity
 fn do_clip_velocity(v_in: Vec3, normal: Vec3, overbounce: f32) -> Vec3 {
@@ -59,237 +12,154 @@ fn do_clip_velocity(v_in: Vec3, normal: Vec3, overbounce: f32) -> Vec3 {
     v_in - change
 }
 
-fn step_slidemove_try1(
-    contact_debug: &mut ContactDebug,
+pub fn slidemove_try2(
+    collision_system: &CollisionSystem,
+    // contact_debug: &mut ContactDebug,
     // debug_lines: &mut debug_lines::DebugLines,
-    collider_query: &QueryPipelineColliderComponentsQuery,
+    // collider_query: &QueryPipelineColliderComponentsQuery,
     origin: Vec3,
     mut velocity: Vec3,
     mut time: f32,
-    query_pipeline: &Res<QueryPipeline>,
-) -> Vec3 {
-    let (mut move_v, bump) = slidemove_try1(
-        contact_debug,
-        collider_query,
-        origin,
-        velocity,
-        time,
-        query_pipeline,
-    );
-    // info!("bump: {:?}", bump);
-    if !bump {
-        // goal reached without wall interaction -> done
-        return move_v;
-    }
-    const STEP_SIZE: f32 = 0.11;
-    let step_dir = -Vec3::Y;
-    // groundtrace
-    let res = trace::trace(collider_query, origin, step_dir, query_pipeline, STEP_SIZE);
-    info!("ground trace1: {:?}", res);
-    let toi = match res {
-        CastResult::NoHit | CastResult::Stuck | CastResult::Failed => {
-            return move_v - step_dir * STEP_SIZE
-        }
-        CastResult::Impact(toi, _) => toi,
-        // CastResult::Touch(_) => 0.0,
-    };
-
-    let mut move_v = step_dir * toi; // * 0.99;
-
-    // hop
-    let step_dir = Vec3::Y;
-
-    let res = trace::trace(
-        collider_query,
-        origin + move_v,
-        step_dir,
-        query_pipeline,
-        STEP_SIZE,
-    );
-
-    info!("hop: {:?}", res);
-
-    let toi = match res {
-        CastResult::Stuck | CastResult::Failed => return move_v,
-        CastResult::NoHit => STEP_SIZE,
-        CastResult::Impact(toi, _) => toi,
-        // CastResult::Touch(_) => 0.0,
-    };
-
-    move_v += step_dir * toi;
-
-    let (move_v2, bump) = slidemove_try1(
-        contact_debug,
-        collider_query,
-        origin + move_v,
-        velocity,
-        time,
-        query_pipeline,
-    );
-    move_v += move_v2;
-
-    // groundtrace
-    let step_dir = -Vec3::Y;
-
-    let res = trace::trace(
-        collider_query,
-        origin + move_v,
-        step_dir,
-        query_pipeline,
-        STEP_SIZE,
-    );
-    info!("ground trace2: {:?}", res);
-
-    let toi = match res {
-        CastResult::NoHit | CastResult::Stuck | CastResult::Failed => {
-            return move_v - step_dir * STEP_SIZE
-        }
-        CastResult::Impact(toi, _) => toi,
-        // CastResult::Touch(_) => 0.0,
-    };
-
-    move_v += step_dir * toi * 0.99;
-
-    move_v
-}
-pub fn slidemove_try1(
-    contact_debug: &mut ContactDebug,
-    // debug_lines: &mut debug_lines::DebugLines,
-    collider_query: &QueryPipelineColliderComponentsQuery,
-    origin: Vec3,
-    mut velocity: Vec3,
-    mut time: f32,
-    query_pipeline: &Res<QueryPipeline>,
-) -> (Vec3, bool) {
+    // query_pipeline: &Res<QueryPipeline>,
+) -> (Vec3, Vec3, bool) {
     let mut planes = Vec::new();
     let mut move_v = Vec3::ZERO;
 
-    // TODO: gravity and ground trace
-    // info!("slidemove");
+    let gravity = !true;
+    let gravity_normal = -Vec3::Y;
+    let gravity_vector = gravity_normal * 9.81;
+
+    let end_velocity = if gravity {
+        let end_velocity = velocity + gravity_vector * time;
+        velocity = (velocity + end_velocity) * 0.5;
+        end_velocity
+    // primal_velocity = endVelocity;
+    // if ( groundPlane ) {
+    // 	// slide along the ground plane
+    // 	current.velocity.ProjectOntoPlane( groundTrace.c.normal, OVERCLIP );
+    // }
+    } else {
+        velocity
+    };
+
+    info!("slidemove {:?} {:?} {}", origin, velocity, time);
     // initial velocity defines first clipping plane -> avoid to be nudged backwards (due to overclip?)
     planes.push(velocity.normalize());
     planes.push(Vec3::Y);
 
-    info!("start");
     'bump: for bump in 0..4 {
+        // check of end pos can be reached without collision
         let trace_start_pos = origin + move_v;
         let trace_dist = velocity * time;
 
-        let res = trace::trace2(collider_query, trace_start_pos, trace_dist, query_pipeline);
-        if res.stuck {
-            error!("stuck!");
-            return (Vec3::ZERO, true);
+        let mut res = collision_system.trace2(trace_start_pos, trace_dist);
+
+        time -= time * res.f;
+        move_v += res.dist;
+
+        if res.f >= 1.0 {
+            break;
         }
-        // info!(
-        //     "bump {} {:?} {} {:?} {}",
-        //     bump, trace_dist, res.f, velocity, time
-        // );
 
+        let mut stepped = false;
+        let can_step = true;
+
+        if can_step {
+            // todo: trace to ground
+            let near_ground = true;
+
+            if near_ground {
+                const MAX_STEP_HEIGHT: f32 = 0.12;
+
+                let mut step_v = move_v;
+
+                // step up
+                let trace_start_pos = origin + step_v;
+                let trace_dist = -gravity_normal * MAX_STEP_HEIGHT;
+                let up_res = collision_system.trace2(trace_start_pos, trace_dist);
+                step_v += up_res.dist;
+
+                // step along velocity
+                let trace_start_pos = origin + step_v;
+                let trace_dist = velocity * time;
+
+                let step_res = collision_system.trace2(trace_start_pos, trace_dist);
+                step_v += step_res.dist;
+
+                // step down
+                let trace_start_pos = origin + step_v;
+                let trace_dist = gravity_normal * MAX_STEP_HEIGHT;
+                let down_res = collision_system.trace2(trace_start_pos, trace_dist);
+                step_v += down_res.dist;
+
+                if step_res.f >= 1.0 {
+                    time = 0.0;
+                    move_v = step_v;
+                    break;
+                }
+
+                if step_res.f > res.f {
+                    time -= time * step_res.f;
+                    move_v = step_v;
+                    stepped = true;
+                    res = step_res;
+                }
+            }
+        }
+        //
+        // if this is the same plane we hit before, nudge velocity
+        // out along it, which fixes some epsilon issues with
+        // non-axial planes
+        //
         if let Some(contact) = res.contact {
-            contact_debug
-                .add
-                .push((contact.clone(), trace_start_pos + res.dist));
-
-            // use contact normal as clip plane
-            move_v += res.dist;
-            time -= time * res.f;
-
-            //
-            // if this is the same plane we hit before, nudge velocity
-            // out along it, which fixes some epsilon issues with
-            // non-axial planes
-            //
             for plane in planes.iter() {
-                let dot = contact.collider_normal.dot(*plane);
-                if dot > 0.99 {
-                    info!("dot: {} {:?} {:?}", dot, contact.collider_normal, plane);
-
+                if contact.collider_normal.dot(*plane) > 0.999 {
                     velocity += contact.collider_normal;
-                    info!("nudge");
                     continue 'bump;
                 }
-                info!("dot: {} {:?} {:?}", dot, contact.collider_normal, plane);
             }
             planes.push(contact.collider_normal);
-        } else {
-            info!("done");
-            return (move_v + res.dist, false);
         }
 
-        // if bump >= 1 {
-        //     info!("bump: {}", bump);
-        // }
-
-        // actual clipping: try to make velocity parallel to all clip planes
-        // find first plane we intersect
-        for (i, plane) in planes.iter().enumerate() {
-            let into = velocity.normalize().dot(*plane);
+        for (i, plane_i) in planes.iter().cloned().enumerate() {
+            let into = velocity.dot(plane_i);
             if into >= 0.1 {
-                continue; // move doesn't interact with the plane
+                continue;
             }
-            // TODO: store impact speed
-
-            // slide along the plane
             const OVERCLIP: f32 = 1.001;
-            let mut clip_velocity = do_clip_velocity(velocity, *plane, OVERCLIP);
-            // TODO: end velocity for gravity
-            info!(
-                "clip velocity1 {:?} {:?} {:?} {} {}",
-                velocity, clip_velocity, plane, i, into
-            );
-            // find second plane
-            for (j, plane2) in planes.iter().enumerate() {
+            let mut clip_velocity = do_clip_velocity(velocity, plane_i, OVERCLIP);
+
+            for (j, plane_j) in planes.iter().cloned().enumerate() {
                 if j == i {
                     continue;
                 }
-
-                if clip_velocity.dot(*plane2) >= 0.1 {
+                if clip_velocity.dot(plane_j) >= 0.1 {
                     continue;
                 }
+                clip_velocity = do_clip_velocity(clip_velocity, plane_j, OVERCLIP);
 
-                // re-clip velocity with second plane
-                let xc = clip_velocity;
-                clip_velocity = do_clip_velocity(clip_velocity, *plane2, OVERCLIP);
-                if clip_velocity.dot(*plane) >= 0.0 {
-                    info!(
-                        "clip velocity1.5 {:?} {:?} {:?} {}",
-                        xc, clip_velocity, plane2, j
-                    );
-
+                if clip_velocity.dot(plane_i) >= 0.0 {
                     continue;
                 }
-                // info!(
-                //     "clip velocity2 {:?} {:?} {:?} {}",
-                //     xc, clip_velocity, plane2, j
-                // );
+                let dir = plane_i.cross(plane_j).normalize();
+                let d = dir * velocity;
+                clip_velocity = d * dir;
 
-                // slide along the crease of the two planes (based on original velocity!)
-                let dir = plane.cross(*plane2).normalize();
-
-                let d = dir.dot(velocity);
-                clip_velocity = dir * d;
-
-                // is there a third plane we clip?
-                for (k, plane3) in planes.iter().enumerate() {
+                for (k, plane_k) in planes.iter().cloned().enumerate() {
                     if k == i || k == j {
                         continue;
                     }
-                    if clip_velocity.dot(*plane3) >= 0.1 {
+                    if clip_velocity.dot(plane_k) >= 0.1 {
                         continue;
                     }
-
-                    // give up on triple plane intersections
-                    warn!(
-                        "triple plane interaction {:?} {:?} {:?}",
-                        plane, plane2, plane3
-                    );
-                    return (Vec3::ZERO, false);
+                    velocity = Vec3::ZERO;
+                    return (Vec3::ZERO, end_velocity, true);
                 }
             }
-            // all interactions should be fixed -> try another move
             velocity = clip_velocity;
             break;
         }
     }
-    (move_v, true)
+    (move_v, end_velocity, true)
+    // todo!()
 }

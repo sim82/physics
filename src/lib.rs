@@ -1,13 +1,14 @@
 use std::{collections::VecDeque, time::Duration};
 
 use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*, render::mesh};
+use bevy_egui::egui::plot::Corner;
 // use bevy_rapier3d::physics::{
 //     QueryPipelineColliderComponentsQuery, QueryPipelineColliderComponentsSet,
 // };
 use bevy_rapier3d::prelude::*;
 use contact_debug::ContactDebug;
 
-use crate::trace::CastResult;
+use crate::trace::{CastResult, CollisionSystem};
 
 pub mod contact_debug;
 pub mod debug_lines;
@@ -103,7 +104,7 @@ impl InputMapping {
     }
 }
 
-struct InputState {
+pub struct InputState {
     time: Time,
     serial: usize,
     forward: bool,
@@ -157,6 +158,7 @@ pub struct CharacterState {
     yaw: f32,
     up: Vec3,
     right: Vec3,
+    velocity: Vec3,
 }
 
 impl Default for CharacterState {
@@ -167,6 +169,7 @@ impl Default for CharacterState {
             yaw: 0.0,
             up: Vec3::Y,
             right: Vec3::X,
+            velocity: Vec3::ZERO,
         }
     }
 }
@@ -193,6 +196,97 @@ impl CharacterState {
 
     pub fn right_on_groudplane(&self) -> Vec3 {
         self.rotation_up().mul_vec3(self.right).normalize()
+    }
+
+    pub fn apply_friction(&mut self, time: f32) {
+        let vel = self.velocity;
+        let speed = vel.length();
+        if speed <= 0.0 {
+            return;
+        }
+        const FRICTION: f32 = 10.0;
+        let drop = FRICTION * time;
+        let newspeed = f32::max(speed - drop, 0.0);
+        self.velocity *= newspeed / speed;
+        // info!("friction: {:?}", self.velocity);
+    }
+
+    pub fn apply_acceleration(&mut self, wish_velocity: Vec3, time: f32, accel: f32) {
+        let push_v = wish_velocity - self.velocity;
+        let push_len = push_v.length(); // TODO: combine?
+        if push_len == 0.0 {
+            return;
+        }
+        let push_dir = push_v.normalize();
+        let wish_speed = wish_velocity.length();
+
+        let can_push = accel * time * wish_speed;
+        let can_push = if can_push > push_len {
+            push_len
+        } else {
+            can_push
+        };
+        debug!(
+            "apply acceleration: {} {} {}",
+            self.velocity, can_push, push_dir
+        );
+        self.velocity += can_push * push_dir;
+    }
+
+    pub fn apply_user_input(
+        &mut self,
+        input_state: &InputState,
+        translation: Vec3,
+        collision_system: CollisionSystem,
+    ) -> Vec3 {
+        const WALK_SPEED: f32 = 0.5; // ms⁻¹
+        const RUN_SPEED: f32 = 6.0; // ms⁻¹
+
+        self.last_serial = input_state.serial;
+        self.yaw += input_state.delta_yaw;
+        self.pitch += input_state.delta_pitch;
+
+        let forward_vec = self.forward_on_groudplane();
+        let right_vec = self.right_on_groudplane();
+
+        debug!("forward: {:?} right: {:?}", forward_vec, right_vec);
+
+        // let trans_start = trans;
+        let dt = input_state.time.delta_seconds();
+        let speed = if input_state.walk {
+            WALK_SPEED
+        } else {
+            RUN_SPEED
+        };
+        let mut trans = Vec3::ZERO;
+
+        if input_state.forward {
+            trans += forward_vec * speed;
+        }
+        if input_state.backward {
+            trans += forward_vec * -speed;
+        }
+
+        if input_state.strafe_right {
+            trans += right_vec * speed;
+        }
+        if input_state.strafe_left {
+            trans += right_vec * -speed;
+        }
+        self.apply_friction(dt);
+        self.apply_acceleration(trans, dt, 10.0);
+
+        let (trans, new_velocity, clip) = slidemove::slidemove_try2(
+            // &mut debug_lines,
+            &collision_system,
+            // &collider_query,
+            translation,
+            self.velocity,
+            dt,
+            // &query_pipeline,
+        );
+        self.velocity = new_velocity;
+        trans
     }
 }
 
@@ -246,52 +340,18 @@ fn apply_input_states(
 
     for (mut character_state, mut transform) in query.iter_mut() {
         let mut trans_all = Vec3::ZERO;
-        const WALK_SPEED: f32 = 0.5; // ms⁻¹
-        const RUN_SPEED: f32 = 6.0; // ms⁻¹
         debug!("pending input states: {}", queue.len());
         for input_state in queue.iter() {
-            character_state.last_serial = input_state.serial;
-            character_state.yaw += input_state.delta_yaw;
-            character_state.pitch += input_state.delta_pitch;
-
-            let forward_vec = character_state.forward_on_groudplane();
-            let right_vec = character_state.right_on_groudplane();
-
-            debug!("forward: {:?} right: {:?}", forward_vec, right_vec);
-
-            // let trans_start = trans;
-            let dt = input_state.time.delta_seconds();
-            let speed = if input_state.walk {
-                WALK_SPEED
-            } else {
-                RUN_SPEED
+            let collision_system = CollisionSystem {
+                query_pipeline: &query_pipeline,
+                collider_query: &collider_query,
+                contact_debug: &mut contact_debug,
             };
-            let mut trans = Vec3::ZERO;
-
-            if input_state.forward {
-                trans += forward_vec * speed;
-            }
-            if input_state.backward {
-                trans += forward_vec * -speed;
-            }
-
-            if input_state.strafe_right {
-                trans += right_vec * speed;
-            }
-            if input_state.strafe_left {
-                trans += right_vec * -speed;
-            }
-
-            trans = slidemove::slidemove_try1(
-                // &mut debug_lines,
-                &mut contact_debug,
-                &collider_query,
+            let trans = character_state.apply_user_input(
+                input_state,
                 transform.translation + trans_all,
-                trans,
-                dt,
-                &query_pipeline,
-            )
-            .0;
+                collision_system,
+            );
             trans_all += trans;
         }
 
@@ -301,6 +361,8 @@ fn apply_input_states(
         debug!("{:?} {:?}", *character_state, transform.rotation);
     }
 }
+
+fn player_move(character_state: &mut CharacterState) {}
 
 #[derive(Default)]
 pub struct CharacterStateInputPlugin;
