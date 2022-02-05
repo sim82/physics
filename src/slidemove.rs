@@ -3,7 +3,7 @@ use crate::trace::CollisionTraceable;
 use bevy::{math::Vec3, prelude::*};
 
 // port of quake 3 PM_ClipVelocity
-fn do_clip_velocity(v_in: Vec3, normal: Vec3, overbounce: f32) -> Vec3 {
+pub fn do_clip_velocity(v_in: Vec3, normal: Vec3, overbounce: f32) -> Vec3 {
     let backoff = match v_in.dot(normal) {
         dot if dot < 0.0 => dot * overbounce,
         dot => dot / overbounce,
@@ -42,7 +42,7 @@ pub fn slidemove_try2(
         velocity
     };
 
-    info!("slidemove {:?} {:?} {}", origin, velocity, time);
+    // info!("slidemove {:?} {:?} {}", origin, velocity, time);
     // initial velocity defines first clipping plane -> avoid to be nudged backwards (due to overclip?)
     planes.push(velocity.normalize());
     planes.push(Vec3::Y);
@@ -95,6 +95,7 @@ pub fn slidemove_try2(
                 if step_res.f >= 1.0 {
                     // time = 0.0;
                     move_v = step_v;
+                    info!("full move in step ({})", res.f);
                     break;
                 }
 
@@ -126,8 +127,7 @@ pub fn slidemove_try2(
             if into >= 0.1 {
                 continue;
             }
-            const OVERCLIP: f32 = 1.001;
-            let mut clip_velocity = do_clip_velocity(velocity, plane_i, OVERCLIP);
+            let mut clip_velocity = do_clip_velocity(velocity, plane_i, crate::OVERCLIP);
 
             for (j, plane_j) in planes.iter().cloned().enumerate() {
                 if j == i {
@@ -136,7 +136,7 @@ pub fn slidemove_try2(
                 if clip_velocity.dot(plane_j) >= 0.1 {
                     continue;
                 }
-                clip_velocity = do_clip_velocity(clip_velocity, plane_j, OVERCLIP);
+                clip_velocity = do_clip_velocity(clip_velocity, plane_j, crate::OVERCLIP);
 
                 if clip_velocity.dot(plane_i) >= 0.0 {
                     continue;
@@ -159,7 +159,12 @@ pub fn slidemove_try2(
             velocity = clip_velocity;
             break;
         }
+
+        if stepped {
+            info!("stepped");
+        }
     }
+
     (move_v, end_velocity, true)
     // todo!()
 }

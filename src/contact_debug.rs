@@ -9,7 +9,7 @@ pub struct ContactDebugMesh {
 
 #[derive(Default)]
 pub struct ContactDebug {
-    pub add: Vec<(trace::Contact, Vec3)>,
+    pub add: Vec<(trace::TraceContact, Vec3)>,
     add_pointer: Vec<(Vec3, Vec3)>,
     plane_mesh: Option<Handle<Mesh>>,
 }

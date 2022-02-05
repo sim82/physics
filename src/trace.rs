@@ -4,7 +4,7 @@ use bevy::{math::Vec3, prelude::*};
 use bevy_rapier3d::prelude::*;
 
 #[derive(Debug, Clone)]
-pub struct Contact {
+pub struct TraceContact {
     pub collider_normal: Vec3,
     pub collider_point: Vec3,
     pub shape_normal: Vec3,
@@ -12,7 +12,7 @@ pub struct Contact {
 }
 
 pub struct TraceResult {
-    pub contact: Option<Contact>,
+    pub contact: Option<TraceContact>,
     pub stuck: bool,
     pub dist: Vec3,
     pub f: f32,
@@ -21,7 +21,7 @@ pub struct TraceResult {
 #[derive(Debug, Clone)]
 pub enum CastResult {
     NoHit,
-    Impact(f32, Contact),
+    Impact(f32, TraceContact),
     // Touch(Contact),
     Stuck,
     Failed,
@@ -75,7 +75,7 @@ impl<'a, 'x, 'world, 'state> CollisionTraceable for CollisionSystem<'a, 'x, 'wor
         ) {
             use bevy_rapier3d::rapier::parry::query::TOIStatus;
 
-            let contact = Contact {
+            let contact = TraceContact {
                 collider_normal: (*hit.normal1).into(),
                 collider_point: hit.witness1.into(),
                 shape_normal: (*hit.normal2).into(),

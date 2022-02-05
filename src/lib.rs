@@ -4,12 +4,14 @@ use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*};
 use bevy_rapier3d::prelude::*;
 use contact_debug::ContactDebug;
 use std::collections::VecDeque;
-use trace::CollisionTraceable;
+use trace::{CollisionTraceable, TraceContact};
 
 pub mod contact_debug;
 pub mod debug_lines;
 pub mod slidemove;
 pub mod trace;
+pub const OVERCLIP: f32 = 1.001;
+
 pub mod test_texture {
     pub const TW: usize = 256;
     pub const TH: usize = 256;
@@ -196,7 +198,18 @@ impl CharacterState {
         self.rotation_up().mul_vec3(self.right).normalize()
     }
 
-    pub fn ground_trace(&mut self) {}
+    pub fn ground_trace(
+        &mut self,
+        translation: Vec3,
+        collision_system: &dyn CollisionTraceable,
+    ) -> Option<TraceContact> {
+        let down = -Vec3::Y * 0.02;
+        let res = collision_system.trace2(translation, down);
+        if res.f < 1.0 {
+            // info!("on gound");
+        }
+        res.contact
+    }
 
     pub fn apply_friction(&mut self, time: f32) {
         let vel = self.velocity;
@@ -239,7 +252,7 @@ impl CharacterState {
         translation: Vec3,
         collision_system: &dyn CollisionTraceable,
     ) -> Vec3 {
-        const WALK_SPEED: f32 = 0.5; // ms⁻¹
+        const WALK_SPEED: f32 = 2.0; // ms⁻¹
         const RUN_SPEED: f32 = 6.0; // ms⁻¹
 
         self.last_serial = input_state.serial;
@@ -273,9 +286,19 @@ impl CharacterState {
         if input_state.strafe_left {
             trans += right_vec * -speed;
         }
-        self.ground_trace();
+        let ground_contact = self.ground_trace(translation, collision_system);
         self.apply_friction(dt);
         self.apply_acceleration(trans, dt, 10.0);
+
+        if let Some(ground_contact) = ground_contact {
+            let old_velocity = self.velocity;
+            self.velocity = slidemove::do_clip_velocity(
+                self.velocity,
+                ground_contact.collider_normal,
+                OVERCLIP,
+            );
+            debug!("ground clip {} -> {}", old_velocity, self.velocity);
+        }
 
         let (trans, new_velocity, _clip) =
             slidemove::slidemove_try2(collision_system, translation, self.velocity, dt);
