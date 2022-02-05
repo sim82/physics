@@ -1,14 +1,9 @@
-use std::{collections::VecDeque, time::Duration};
+use crate::trace::CollisionSystem;
 
-use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*, render::mesh};
-use bevy_egui::egui::plot::Corner;
-// use bevy_rapier3d::physics::{
-//     QueryPipelineColliderComponentsQuery, QueryPipelineColliderComponentsSet,
-// };
+use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*};
 use bevy_rapier3d::prelude::*;
 use contact_debug::ContactDebug;
-
-use crate::trace::{CastResult, CollisionSystem};
+use std::collections::VecDeque;
 
 pub mod contact_debug;
 pub mod debug_lines;
@@ -31,7 +26,6 @@ pub mod test_texture {
                         .min()
                         .unwrap()) as i32;
 
-                // std::cmp::min
                 let d = std::cmp::min(
                     50,
                     std::cmp::max(
@@ -49,12 +43,15 @@ pub mod test_texture {
                 let r = (!x & !y) & 255;
                 let g = (x & !y) & 255;
                 let b = (!x & y) & 255;
-                // let color = std::cmp::min(std::cmp::max(r - d, l), 255) * 65536
-                //     + std::cmp::min(std::cmp::max(g - d, l), 255) * 256
-                //     + std::cmp::min(std::cmp::max(b - d, l), 255);
-                // bitmap[y as usize * TW + x as usize] = color as u32;
-
-                bitmap.extend([r as u8, g as u8, b as u8, 0u8].iter());
+                bitmap.extend(
+                    [
+                        (l.max(r - d)).clamp(0, 255) as u8,
+                        (l.max(g - d)).clamp(0, 255) as u8,
+                        (l.max(b - d)).clamp(0, 255) as u8,
+                        0u8,
+                    ]
+                    .iter(),
+                );
             }
         }
         bitmap
@@ -276,7 +273,7 @@ impl CharacterState {
         self.apply_friction(dt);
         self.apply_acceleration(trans, dt, 10.0);
 
-        let (trans, new_velocity, clip) = slidemove::slidemove_try2(
+        let (trans, new_velocity, _clip) = slidemove::slidemove_try2(
             // &mut debug_lines,
             &collision_system,
             // &collider_query,
@@ -361,8 +358,6 @@ fn apply_input_states(
         debug!("{:?} {:?}", *character_state, transform.rotation);
     }
 }
-
-fn player_move(character_state: &mut CharacterState) {}
 
 #[derive(Default)]
 pub struct CharacterStateInputPlugin;

@@ -1,8 +1,7 @@
-use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*, render::mesh};
-use bevy_rapier3d::prelude::*;
-use std::{collections::VecDeque, time::Duration};
-
 use crate::contact_debug::ContactDebug;
+
+use bevy::{math::Vec3, prelude::*};
+use bevy_rapier3d::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct Contact {
@@ -34,48 +33,6 @@ pub struct CollisionSystem<'a, 'x, 'world, 'state> {
     pub collider_query: &'a QueryPipelineColliderComponentsQuery<'world, 'state, 'x>,
 }
 
-// pub fn trace(
-//     collider_query: &QueryPipelineColliderComponentsQuery,
-//     origin: Vec3,
-//     velocity: Vec3,
-//     query_pipeline: &Res<QueryPipeline>,
-//     time: f32,
-// ) -> CastResult {
-//     let collider_set = QueryPipelineColliderComponentsSet(collider_query);
-//     let shape = Cylinder::new(0.9, 0.2);
-//     let shape_pos = Isometry::translation(origin.x, origin.y, origin.z);
-//     let shape_vel = velocity.into();
-//     let groups = InteractionGroups::all();
-//     let filter = None;
-//     if let Some((handle, hit)) = query_pipeline.cast_shape(
-//         &collider_set,
-//         &shape_pos,
-//         &shape_vel,
-//         &shape,
-//         time,
-//         groups,
-//         filter,
-//     ) {
-//         use bevy_rapier3d::rapier::parry::query::TOIStatus;
-
-//         let contact = Contact {
-//             collider_normal: (*hit.normal1).into(),
-//             collider_point: hit.witness1.into(),
-//             shape_normal: (*hit.normal2).into(),
-//             shape_point: hit.witness2.into(),
-//         };
-//         match hit.status {
-//             TOIStatus::Converged if hit.toi > 0.01 => CastResult::Impact(hit.toi * 0.99, contact),
-//             TOIStatus::Converged => CastResult::Impact(0.0, contact),
-//             // TOIStatus::Converged => CastResult::Touch(contact),
-//             TOIStatus::Failed | TOIStatus::OutOfIterations => CastResult::Failed,
-//             TOIStatus::Penetrating => CastResult::Stuck,
-//         }
-//     } else {
-//         CastResult::NoHit
-//     }
-// }
-
 impl<'a, 'x, 'world, 'state> CollisionSystem<'a, 'x, 'world, 'state> {
     pub fn trace2(&self, start: Vec3, dist: Vec3) -> TraceResult {
         let collider_set = QueryPipelineColliderComponentsSet(self.collider_query);
@@ -103,7 +60,7 @@ impl<'a, 'x, 'world, 'state> CollisionSystem<'a, 'x, 'world, 'state> {
 
         // info!("minfrac: {:?} {} {}", dist, d, minfrac);
 
-        let trace_result = if let Some((handle, hit)) = self.query_pipeline.cast_shape(
+        let trace_result = if let Some((_handle, hit)) = self.query_pipeline.cast_shape(
             &collider_set,
             &shape_pos,
             &shape_vel,
@@ -146,7 +103,7 @@ impl<'a, 'x, 'world, 'state> CollisionSystem<'a, 'x, 'world, 'state> {
         } else {
             TraceResult {
                 contact: None,
-                dist: dist,
+                dist,
                 stuck: false,
                 f: 1.0,
             }

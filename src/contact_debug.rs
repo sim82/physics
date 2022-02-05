@@ -1,12 +1,6 @@
-use std::{collections::VecDeque, time::Duration};
-
-use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*, render::mesh};
-// use bevy_rapier3d::physics::{
-//     QueryPipelineColliderComponentsQuery, QueryPipelineColliderComponentsSet,
-// };
-use bevy_rapier3d::prelude::*;
-
 use crate::{debug_lines, trace};
+
+use bevy::{math::Vec3, prelude::*, render::mesh};
 
 #[derive(Component)]
 pub struct ContactDebugMesh {
@@ -26,7 +20,7 @@ pub fn contact_debug(
     mut contact_debug: ResMut<ContactDebug>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut reaper_query: Query<(Entity, &mut ContactDebugMesh)>,
-    mut debug_lines: ResMut<debug_lines::DebugLines>,
+    mut _debug_lines: ResMut<debug_lines::DebugLines>,
 ) {
     let mut cv = Vec::new();
     std::mem::swap(&mut contact_debug.add, &mut cv);

@@ -25,7 +25,7 @@ pub fn slidemove_try2(
     let mut planes = Vec::new();
     let mut move_v = Vec3::ZERO;
 
-    let gravity = !true;
+    let gravity = false;
     let gravity_normal = -Vec3::Y;
     let gravity_vector = gravity_normal * 9.81;
 
@@ -47,7 +47,7 @@ pub fn slidemove_try2(
     planes.push(velocity.normalize());
     planes.push(Vec3::Y);
 
-    'bump: for bump in 0..4 {
+    'bump: for _bump in 0..4 {
         // check of end pos can be reached without collision
         let trace_start_pos = origin + move_v;
         let trace_dist = velocity * time;
@@ -93,7 +93,7 @@ pub fn slidemove_try2(
                 step_v += down_res.dist;
 
                 if step_res.f >= 1.0 {
-                    time = 0.0;
+                    // time = 0.0;
                     move_v = step_v;
                     break;
                 }
@@ -152,7 +152,7 @@ pub fn slidemove_try2(
                     if clip_velocity.dot(plane_k) >= 0.1 {
                         continue;
                     }
-                    velocity = Vec3::ZERO;
+                    // velocity = Vec3::ZERO;
                     return (Vec3::ZERO, end_velocity, true);
                 }
             }

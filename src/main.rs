@@ -1,15 +1,12 @@
-use std::collections::HashMap;
-
 use bevy::{
     input::system::exit_on_esc_system,
     prelude::*,
     render::{
-        mesh::{self, Indices, VertexAttributeValues},
-        render_resource::{Extent3d, PrimitiveTopology, TextureDimension, TextureFormat},
+        mesh::{self},
+        render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
 };
-use bevy_rapier3d::{na::OPoint, prelude::*};
-use gltf::Semantic;
+use bevy_rapier3d::prelude::*;
 use physics::test_texture;
 
 fn main() {
@@ -82,17 +79,17 @@ fn spawn_sphere(
         .insert(RigidBodyPositionSync::Discrete);
 }
 fn spawn_gltf(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     asset_server: &AssetServer,
     filename: &str,
     position: Vec3,
-    materials: &mut Assets<StandardMaterial>,
-    meshes: &mut Assets<Mesh>,
+    _materials: &mut Assets<StandardMaterial>,
+    _meshes: &mut Assets<Mesh>,
 ) {
     let path = format!("assets/models/{}", filename);
     let bevy_path = format!("models/{}", filename);
 
-    let (document, buffers, images) = gltf::import(&path).unwrap();
+    let (document, buffers, _images) = gltf::import(&path).unwrap();
     let mut anvil_collider = None;
     // let mut debug_mesh = Mesh::new(PrimitiveTopology::TriangleList);
     for mesh in document.meshes() {
@@ -103,7 +100,7 @@ fn spawn_gltf(
             let pos = reader
                 .read_positions()
                 .unwrap()
-                .map(|p| nalgebra::Point3::new(p[0], p[1], p[2]))
+                .map(|p| p.into())
                 .collect::<Vec<_>>();
             let indices = reader
                 .read_indices()
@@ -124,26 +121,6 @@ fn spawn_gltf(
                 .map(|(_, s)| s.as_convex_polyhedron().unwrap().points().len())
                 .collect::<Vec<_>>();
             println!("collider: {:?} {:?}", compound.aabbs(), shapes);
-
-            // compound
-            //     .shapes()
-            //     .first()
-            //     .unwrap()
-            //     .1
-            //     .as_convex_polyhedron()
-            //     .unwrap()
-            //     .points()
-            //     .iter()
-            //     .map(|p| p.coords.data.0[0]);
-            // debug_mesh = Mesh::new(PrimitiveTopology::TriangleList);
-            // // let mut debug_mesh = Mesh::new(PrimitiveTopology::TriangleList);
-            // debug_mesh.set_attribute(
-            //     Mesh::ATTRIBUTE_POSITION,
-            //     VertexAttributeValues::Float32x3(reader.read_positions().unwrap().collect()),
-            // );
-            // debug_mesh.set_indices(Some(Indices::U32(
-            //     reader.read_indices().unwrap().into_u32().collect(),
-            // )));
 
             anvil_collider = Some(collider);
         }
