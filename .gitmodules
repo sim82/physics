@@ -1,0 +1,9 @@
+[submodule "bevy_editor_pls"]
+	path = bevy_editor_pls
+	url = git@github.com:jakobhellermann/bevy_editor_pls.git
+[submodule "bevy_mod_raycast"]
+	path = bevy_mod_raycast
+	url = git@github.com:aevyrie/bevy_mod_raycast.git
+[submodule "bevy_debug_lines"]
+	path = bevy_debug_lines
+	url = git@github.com:Toqozz/bevy_debug_lines.git

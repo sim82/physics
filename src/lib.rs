@@ -1,13 +1,15 @@
-use crate::trace::CollisionSystem;
-
-use bevy::{input::mouse::MouseMotion, math::Vec3, prelude::*};
+use bevy::{
+    input::{keyboard::KeyboardInput, mouse::MouseMotion},
+    math::Vec3,
+    prelude::*,
+};
 use bevy_rapier3d::prelude::*;
 use contact_debug::ContactDebug;
 use std::collections::VecDeque;
 use trace::{CollisionTraceable, TraceContact};
 
 pub mod contact_debug;
-pub mod debug_lines;
+// pub mod debug_lines;
 pub mod slidemove;
 pub mod trace;
 pub const OVERCLIP: f32 = 1.001;
@@ -151,7 +153,8 @@ impl InputStateQueue {
     // }
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
+#[reflect(Component)]
 pub struct CharacterState {
     last_serial: usize,
     pitch: f32,
@@ -256,8 +259,8 @@ impl CharacterState {
         const RUN_SPEED: f32 = 6.0; // ms⁻¹
 
         self.last_serial = input_state.serial;
-        self.yaw += input_state.delta_yaw;
-        self.pitch += input_state.delta_pitch;
+        self.yaw = modulo_range(self.yaw + input_state.delta_yaw, 360.0);
+        self.pitch = modulo_range(self.pitch + input_state.delta_pitch, 360.0);
 
         let forward_vec = self.forward_on_groudplane();
         let right_vec = self.right_on_groudplane();
@@ -313,15 +316,17 @@ fn capture_input_state(
     input: ResMut<Input<KeyCode>>,
     mut queue: ResMut<InputStateQueue>,
     input_mapping: Res<InputMapping>,
+    mouse_input_state: Res<MouseInputState>,
 ) {
     let mut delta: Vec2 = Vec2::ZERO;
-    for event in mouse_motion_event_reader.iter() {
-        delta += event.delta;
+    if mouse_input_state.use_mouse_input {
+        for event in mouse_motion_event_reader.iter() {
+            delta += event.delta;
+        }
+        if delta.is_nan() {
+            return;
+        }
     }
-    if delta.is_nan() {
-        return;
-    }
-
     const SCALE: f32 = 0.25;
     debug!("send input state: {:?}", time);
     queue.push(InputState {
@@ -337,6 +342,16 @@ fn capture_input_state(
     })
 }
 
+fn modulo_range(mut v: f32, max: f32) -> f32 {
+    while v > max {
+        v -= max;
+    }
+    while v < 0.0 {
+        v += max;
+    }
+    v
+}
+
 #[derive(Component)]
 pub struct InputTarget;
 
@@ -347,8 +362,10 @@ fn apply_input_states(
     mut crappify_timer: ResMut<Timer>,
     mut queue: ResMut<InputStateQueue>,
     mut query: Query<(&mut CharacterState, &mut Transform), With<InputTarget>>,
-    query_pipeline: Res<QueryPipeline>,
-    collider_query: QueryPipelineColliderComponentsQuery,
+    // query_pipeline: Res<QueryPipeline>,
+    // collider_query: QueryPipelineColliderComponentsQuery,
+    rapier_context: Res<RapierContext>,
+    mut debug_lines: ResMut<bevy_prototype_debug_lines::DebugLines>,
 ) {
     crappify_timer.tick(time.delta());
     // if !crappify_timer.just_finished() {
@@ -359,23 +376,49 @@ fn apply_input_states(
         let mut trans_all = Vec3::ZERO;
         debug!("pending input states: {}", queue.len());
         for input_state in queue.iter() {
-            let collision_system = CollisionSystem {
-                query_pipeline: &query_pipeline,
-                collider_query: &collider_query,
-                contact_debug: &mut contact_debug,
-            };
+            // let collision_system = CollisionSystem {
+            //     query_pipeline: &query_pipeline,
+            //     collider_query: &collider_query,
+            //     contact_debug: &mut contact_debug,
+            // };
             let trans = character_state.apply_user_input(
                 input_state,
                 transform.translation + trans_all,
-                &collision_system,
+                &*rapier_context,
             );
             trans_all += trans;
         }
+        debug_lines.line(
+            transform.translation,
+            transform.translation + trans_all,
+            5.0,
+        );
 
         queue.retire_up_to(character_state.last_serial);
         transform.rotation = character_state.rotation_full();
         transform.translation += trans_all;
         debug!("{:?} {:?}", *character_state, transform.rotation);
+    }
+}
+
+pub struct MouseInputState {
+    use_mouse_input: bool,
+}
+
+impl Default for MouseInputState {
+    fn default() -> Self {
+        Self {
+            use_mouse_input: true,
+        }
+    }
+}
+
+fn update_mouse_input_state(
+    mut mouse_input_state: ResMut<MouseInputState>,
+    input: ResMut<Input<KeyCode>>,
+) {
+    if input.just_pressed(KeyCode::Grave) {
+        mouse_input_state.use_mouse_input = !mouse_input_state.use_mouse_input;
     }
 }
 
@@ -390,6 +433,9 @@ impl Plugin for CharacterStateInputPlugin {
             .insert_resource(InputMapping::default())
             .insert_resource(Timer::from_seconds(0.5, true))
             .insert_resource(InputStateQueue::default())
-            .insert_resource(ContactDebug::default());
+            .insert_resource(ContactDebug::default())
+            .insert_resource(MouseInputState::default())
+            .add_system(update_mouse_input_state)
+            .register_type::<CharacterState>();
     }
 }

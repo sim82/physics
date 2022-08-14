@@ -1,4 +1,4 @@
-use crate::{debug_lines, trace};
+use crate::trace;
 
 use bevy::{math::Vec3, prelude::*, render::mesh};
 
@@ -20,7 +20,7 @@ pub fn contact_debug(
     mut contact_debug: ResMut<ContactDebug>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut reaper_query: Query<(Entity, &mut ContactDebugMesh)>,
-    mut _debug_lines: ResMut<debug_lines::DebugLines>,
+    mut _debug_lines: ResMut<bevy_prototype_debug_lines::DebugLines>,
 ) {
     let mut cv = Vec::new();
     std::mem::swap(&mut contact_debug.add, &mut cv);

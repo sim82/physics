@@ -7,18 +7,24 @@ edition = "2021"
 
 [dependencies]
 # ] }
-bevy = { version = "0.6", features = ["dynamic"] }
+bevy = { version = "0.8", features = ["dynamic"] }
 # bevy_egui = { git = "https://github.com/jakobhellermann/bevy_egui.git", branch = "bevy-main", default-features = false }
-bevy_egui = { version = "0.11", default-features = false }
+bevy_egui = { version = "0.15", default-features = false }
 log = "0.4"
 anyhow = { version = "1" }
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-serde_yaml = "0.8"
-bevy_rapier3d = { version = "0.12", features = ["render", "simd-stable"] }
+serde_yaml = "0.9"
+bevy_rapier3d = { version = "0.16", features = ["debug-render"] }
 gltf = "*"
-bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls.git" }
+# bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls.git" }
+# bevy_editor_pls = { path = "./bevy_editor_pls/crates/bevy_editor_pls" }
+# bevy_prototype_debug_lines = { path = "bevy_debug_lines", features = ["3d"] }
+bevy_prototype_debug_lines = { version = "0.8", features = ["3d"] }
+
+# [patch.crates-io]
+# bevy_mod_raycast = { path = "bevy_mod_raycast" }
 
 [profile.dev]
 opt-level = 2

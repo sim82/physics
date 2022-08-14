@@ -1,12 +1,14 @@
 use bevy::{
-    input::system::exit_on_esc_system,
+    diagnostic::FrameTimeDiagnosticsPlugin,
+    // input::system::exit_on_esc_system,
     prelude::*,
     render::{
         mesh::{self},
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
 };
-use bevy_editor_pls::prelude::*;
+// use bevy_editor_pls::prelude::*;
+use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier3d::prelude::*;
 use physics::test_texture;
 
@@ -22,17 +24,19 @@ fn main() {
             color: Color::WHITE,
             brightness: 1.0 / 5.0f32,
         })
-        .insert_resource(Msaa::default())
+        // .insert_resource(Msaa::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugin(RapierRenderPlugin)
-        .add_plugin(physics::debug_lines::DebugLinesPlugin::default())
-        .add_plugin(EditorPlugin)
+        .add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(bevy_prototype_debug_lines::DebugLinesPlugin::default())
+        // .add_plugin(EditorPlugin)
         .add_startup_system(setup)
         .add_system(animate_light_direction)
         .add_system(rotation_system)
         .add_plugin(physics::CharacterStateInputPlugin::default())
-        .add_system(exit_on_esc_system)
+        // .add_system(exit_on_esc_system)
+        .add_plugin(FrameTimeDiagnosticsPlugin)
+        .add_system(debug_line_test)
         // .add_system(mesh_loaded)
         .run();
 }
@@ -44,41 +48,31 @@ fn spawn_sphere(
     material: Handle<StandardMaterial>,
     meshes: &mut Assets<Mesh>,
 ) {
-    let rigid_body = RigidBodyBundle {
-        forces: RigidBodyForces {
-            gravity_scale: 1.0,
-            ..Default::default()
-        }
-        .into(),
-        position: position.into(),
-        ..Default::default()
-    };
-    let collider = ColliderBundle {
-        shape: ColliderShape::ball(radius).into(),
-        material: ColliderMaterial {
-            restitution: 0.2,
-            ..Default::default()
-        }
-        .into(),
-        ..Default::default()
-    };
     commands
-        .spawn_bundle(PbrBundle {
-            mesh: meshes.add(
-                mesh::shape::Icosphere {
-                    radius,
-                    subdivisions: 6,
-                }
-                .into(),
-            ),
-            material,
-            // transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
-            ..Default::default()
-        })
+        // .spawn_bundle(PbrBundle {
+        //     mesh: meshes.add(
+        //         mesh::shape::Icosphere {
+        //             radius,
+        //             subdivisions: 6,
+        //         }
+        //         .into(),
+        //     ),
+        //     material,
+        //     transform: Transform::from_translation(position),
+        //     ..Default::default()
+        // })
+        .spawn_bundle(VisibilityBundle::default())
+        .insert_bundle(TransformBundle::from_transform(
+            Transform::from_translation(position),
+        ))
         .insert(Rotation { vel: 1.0 })
-        .insert_bundle(rigid_body)
-        .insert_bundle(collider)
-        .insert(RigidBodyPositionSync::Discrete);
+        .insert(RigidBody::Dynamic)
+        .insert(Collider::ball(radius))
+        .insert(Restitution {
+            coefficient: 0.2,
+            ..default()
+        });
+    // .insert(Rigid);
 }
 fn spawn_gltf(
     commands: &mut Commands,
@@ -115,58 +109,35 @@ fn spawn_gltf(
                 .map(|c| [c[0], c[1], c[2]])
                 .collect::<Vec<_>>();
 
-            let collider = ColliderShape::convex_decomposition(&pos[..], &indices[..]);
+            let collider = Collider::convex_decomposition(&pos[..], &indices[..]);
             let compound = collider.as_compound().unwrap();
-            let shapes = compound
-                .shapes()
-                .iter()
-                .map(|(_, s)| s.as_convex_polyhedron().unwrap().points().len())
-                .collect::<Vec<_>>();
-            println!("collider: {:?} {:?}", compound.aabbs(), shapes);
+            // let shapes = compound
+            //     .shapes()
+            //     .iter()
+            //     .map(|(_, s)| s.as_convex_polyhedron().unwrap().points().len())
+            //     .collect::<Vec<_>>();
+            // println!("collider: {:?} {:?}", compound.aabbs(), shapes);
 
             anvil_collider = Some(collider);
         }
     }
-
-    let rigid_body = RigidBodyBundle {
-        forces: RigidBodyForces {
-            gravity_scale: 1.0,
-            ..Default::default()
-        }
-        .into(),
-        position: position.into(),
-        ..Default::default()
-    };
-    let collider = ColliderBundle {
-        shape: anvil_collider.unwrap().into(),
-        material: ColliderMaterial {
-            restitution: 0.2,
-            ..Default::default()
-        }
-        .into(),
-        ..Default::default()
-    };
 
     let anvil_mesh = asset_server.load(&format!("{}#Mesh0/Primitive0", bevy_path));
     let anvil_material = asset_server.load(&format!("{}#Material0", bevy_path));
 
     commands
         .spawn_bundle(PbrBundle {
-            // mesh: meshes.add(debug_mesh),
-            // material: materials.add(StandardMaterial {
-            //     base_color: Color::BISQUE,
-            //     ..Default::default()
-            // }),
             mesh: anvil_mesh,
             material: anvil_material,
-            // transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
+            transform: Transform::from_translation(position),
             ..Default::default()
         })
-        .insert(Rotation { vel: 1.0 })
-        .insert_bundle(rigid_body)
-        .insert_bundle(collider)
-        // .insert(ColliderDebugRender::default())
-        .insert(RigidBodyPositionSync::Discrete);
+        .insert(RigidBody::Dynamic)
+        .insert(anvil_collider.unwrap())
+        .insert(Restitution {
+            coefficient: 0.2,
+            ..default()
+        });
 }
 
 fn setup(
@@ -175,6 +146,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    mut debug_lines: ResMut<bevy_prototype_debug_lines::DebugLines>,
 ) {
     let uv_test = images.add(Image::new(
         Extent3d {
@@ -211,11 +183,13 @@ fn setup(
         &mut meshes,
     );
 
-    let collider = ColliderBundle {
-        shape: ColliderShape::cuboid(100.0, 0.1, 100.0).into(),
+    // let collider = ColliderBundle {
+    //     shape: ColliderShape::cuboid(100.0, 0.1, 100.0).into(),
 
-        ..Default::default()
-    };
+    //     ..Default::default()
+    // };
+
+    let collider = Collider::cuboid(100.0, 0.1, 100.0);
     commands
         .spawn_bundle(PbrBundle {
             mesh: meshes.add(
@@ -232,7 +206,7 @@ fn setup(
             material: material.clone(),
             ..Default::default()
         })
-        .insert_bundle(collider);
+        .insert(collider);
 
     {
         let mut size = 10.0;
@@ -240,11 +214,13 @@ fn setup(
         for _ in 0..10 {
             let mut collider_pos = pos;
             collider_pos.y += 0.05;
-            let collider = ColliderBundle {
-                shape: ColliderShape::cuboid(size / 2.0, 0.1 / 2.0, size / 2.0).into(),
-                position: collider_pos.into(),
-                ..Default::default()
-            };
+            // let collider = ColliderBundle {
+            //     shape: ColliderShape::cuboid(size / 2.0, 0.1 / 2.0, size / 2.0).into(),
+            //     position: collider_pos.into(),
+            //     ..Default::default()
+            // };
+
+            let collider = Collider::cuboid(size / 2.0, 0.1 / 2.0, size / 2.0);
             commands
                 .spawn_bundle(PbrBundle {
                     mesh: meshes.add(
@@ -262,13 +238,18 @@ fn setup(
                     transform: Transform::from_translation(pos),
                     ..Default::default()
                 })
-                .insert_bundle(collider);
+                .insert(collider);
             pos.y += 0.1;
             size -= 0.4;
         }
     }
     commands
-        .spawn_bundle(PerspectiveCameraBundle {
+        // .spawn_bundle(PerspectiveCameraBundle {
+        //     transform: Transform::from_xyz(5.0, 1.01, 10.0)
+        //         .looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
+        //     ..Default::default()
+        // })
+        .spawn_bundle(Camera3dBundle {
             transform: Transform::from_xyz(5.0, 1.01, 10.0)
                 .looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
             ..Default::default()
@@ -311,10 +292,18 @@ fn setup(
         &mut meshes,
     );
 
-    commands
-        .spawn()
-        .insert(physics::CharacterState::default())
-        .insert(physics::InputTarget);
+    // commands
+    //     .spawn()
+    //     .insert(physics::CharacterState::default())
+    //     .insert(physics::InputTarget);
+    // for i in 0..100 {
+    //     debug_lines.line_colored(
+    //         Vec3::Y * 5.0 + Vec3::X * i as f32,
+    //         Vec3::Y * -5.0,
+    //         100.0,
+    //         Color::WHITE,
+    //     );
+    // }
 }
 
 fn animate_light_direction(
@@ -340,4 +329,14 @@ fn rotation_system(time: Res<Time>, mut query: Query<(&mut Transform, &Rotation)
     for (mut transform, rotation) in query.iter_mut() {
         transform.rotation *= Quat::from_rotation_y(rotation.vel * 1.0e-1 * time.delta_seconds());
     }
+}
+
+fn debug_line_test(time: Res<Time>, mut lines: ResMut<DebugLines>) {
+    let seconds = time.seconds_since_startup() as f32;
+    let offset = Vec3::new(20.0, 0.0, 20.0);
+    lines.line(
+        Vec3::new(-1.0, 2.0 + f32::sin(seconds), -1.0) + offset,
+        Vec3::new(1.0, 2.0 + f32::sin(seconds + std::f32::consts::PI), 1.0) + offset,
+        5.0,
+    );
 }
