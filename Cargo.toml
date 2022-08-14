@@ -3,28 +3,34 @@ name = "physics"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+inspector = ["bevy-inspector-egui"]
+default = ["inspector"]
 
 [dependencies]
 # ] }
 bevy = { version = "0.8", features = ["dynamic"] }
-# bevy_egui = { git = "https://github.com/jakobhellermann/bevy_egui.git", branch = "bevy-main", default-features = false }
-bevy_egui = { version = "0.15", default-features = false }
+bevy-inspector-egui = { version = "0.12", optional = true }
 log = "0.4"
 anyhow = { version = "1" }
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 serde_yaml = "0.9"
+# bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [
+#     "debug-render",
+# ] }
 bevy_rapier3d = { version = "0.16", features = ["debug-render"] }
 gltf = "*"
-# bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls.git" }
-# bevy_editor_pls = { path = "./bevy_editor_pls/crates/bevy_editor_pls" }
-# bevy_prototype_debug_lines = { path = "bevy_debug_lines", features = ["3d"] }
 bevy_prototype_debug_lines = { version = "0.8", features = ["3d"] }
-
+bevy_fps_controller = "0.1.2-dev"
 # [patch.crates-io]
 # bevy_mod_raycast = { path = "bevy_mod_raycast" }
 
+
 [profile.dev]
-opt-level = 2
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
