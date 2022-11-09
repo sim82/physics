@@ -1,4 +1,8 @@
-use std::f32::consts::TAU;
+use std::{
+    f32::consts::TAU,
+    fs::File,
+    io::{Read, Write},
+};
 
 use bevy::{
     diagnostic::FrameTimeDiagnosticsPlugin,
@@ -9,12 +13,15 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
 };
+use bevy_atmosphere::prelude::*;
 // use bevy_editor_pls::prelude::*;
 use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier3d::{prelude::*, rapier::prelude::ColliderMassProps};
+use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::test_texture;
 
-use bevy_fps_controller::controller::*;
+// use bevy_fps_controller::controller::*;
+use serde::Serialize;
 
 fn main() {
     let mut app = App::new();
@@ -42,7 +49,8 @@ fn main() {
     .add_plugin(FrameTimeDiagnosticsPlugin)
     .add_system(debug_line_test)
     .add_system(update_deferred_mesh_system)
-    .add_plugin(FpsControllerPlugin);
+    // .add_plugin(FpsControllerPlugin)
+    .add_plugin(AtmospherePlugin);
     // .add_system(mesh_loaded)
 
     #[cfg(feature = "inspector")]
@@ -87,6 +95,7 @@ struct DeferredMesh {
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
     transform: Transform,
+    id: String,
 }
 
 fn spawn_gltf2(
@@ -94,6 +103,7 @@ fn spawn_gltf2(
     asset_server: &AssetServer,
     filename: &str,
     position: Vec3,
+    id: &str,
 ) {
     let bevy_path = format!("models/{}", filename);
 
@@ -106,6 +116,7 @@ fn spawn_gltf2(
             mesh,
             material,
             transform: Transform::from_translation(position),
+            id: id.to_string(),
         })
         .insert(Name::new("gltf"));
 }
@@ -117,11 +128,49 @@ fn update_deferred_mesh_system(
 ) {
     for (entity, deferred_mesh) in &query {
         if let Some(mesh) = meshes.get(&deferred_mesh.mesh) {
-            let mut collider = Collider::from_bevy_mesh(
-                mesh,
-                &ComputedColliderShape::ConvexDecomposition(VHACDParameters::default()),
-            )
-            .unwrap();
+            let collider = if let Ok(mut f) = File::open(&deferred_mesh.id) {
+                // read pre-calculated collider
+                let mut buf = Vec::new();
+                f.read_to_end(&mut buf).unwrap();
+                let x: Vec<(Vec3, Quat, ConvexPolyhedron)> =
+                    flexbuffers::from_slice(&buf[..]).unwrap();
+
+                Collider::compound(
+                    x.into_iter()
+                        .map(|(pos, rot, cp)| (pos, rot, SharedShape::new(cp).into()))
+                        .collect(),
+                )
+            } else {
+                // copmpute and store convex decomposition
+                let collider = Collider::from_bevy_mesh(
+                    mesh,
+                    &ComputedColliderShape::ConvexDecomposition(VHACDParameters::default()),
+                )
+                .unwrap();
+
+                if let Some(compound) = collider.as_compound() {
+                    let x = compound
+                        .shapes()
+                        .filter_map(|(pos, rot, shape)| {
+                            if let ColliderView::ConvexPolyhedron(ch) = shape {
+                                Some((pos, rot, ch))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    let y = x
+                        .iter()
+                        .map(|(pos, rot, ch)| (pos, rot, ch.raw))
+                        .collect::<Vec<_>>();
+
+                    let mut f = File::create(&deferred_mesh.id).unwrap();
+                    let buf = flexbuffers::to_vec(&y).unwrap();
+                    f.write_all(&buf[..]).unwrap();
+                }
+                collider
+            };
 
             commands
                 .entity(entity)
@@ -266,19 +315,20 @@ fn setup(
         .insert(AdditionalMassProperties::Mass(1.0))
         .insert(GravityScale(0.0))
         .insert(Ccd { enabled: true }) // Prevent clipping when going fast
-        .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y))
-        .insert(LogicalPlayer(0))
-        .insert(FpsControllerInput {
-            pitch: -TAU / 12.0,
-            yaw: TAU * 5.0 / 8.0,
-            ..default()
-        })
-        .insert(FpsController { ..default() });
+        .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
+    // .insert(LogicalPlayer(0))
+    // .insert(FpsControllerInput {
+    //     pitch: -TAU / 12.0,
+    //     yaw: TAU * 5.0 / 8.0,
+    //     ..default()
+    // })
+    // .insert(FpsController { ..default() });
 
     commands
         .spawn_bundle(Camera3dBundle::default())
         // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
-        .insert(RenderPlayer(0));
+        // .insert(RenderPlayer(0))
+        .insert(AtmosphereCamera(None));
 
     const HALF_SIZE: f32 = 5.0;
     commands.spawn_bundle(DirectionalLightBundle {
@@ -303,6 +353,7 @@ fn setup(
         &asset_server,
         "donut_gltf/donut.gltf",
         Vec3::new(-0.1, 2.0, -1.0),
+        "donut",
     );
 
     spawn_gltf2(
@@ -310,6 +361,7 @@ fn setup(
         &asset_server,
         "anvil_gltf/anvil.gltf",
         Vec3::new(-0.1, 7.0, -1.0),
+        "anvil",
     );
 }
 

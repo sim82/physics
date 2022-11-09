@@ -10,23 +10,29 @@ default = ["inspector"]
 [dependencies]
 # ] }
 bevy = { version = "0.8", features = ["dynamic"] }
-bevy-inspector-egui = { version = "0.12", optional = true }
+bevy-inspector-egui = { version = "0.13", optional = true }
 log = "0.4"
 anyhow = { version = "1" }
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 serde_yaml = "0.9"
+ron = "0.8"
+flexbuffers = "*"
 # bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [
 #     "debug-render",
 # ] }
-bevy_rapier3d = { version = "0.16", features = ["debug-render"] }
+bevy_rapier3d = { version = "0.18", features = ["debug-render"] }
 gltf = "*"
 bevy_prototype_debug_lines = { version = "0.8", features = ["3d"] }
-bevy_fps_controller = "0.1.2-dev"
+# bevy_fps_controller = "0.1.2-dev"
+parry3d = { version = "*", features = ["serde-serialize"] }
+# nalgebra = { version = "*", features = ["serde-serialize-no-std"] }
+bevy_ecs_ldtk = "0.4"
 # [patch.crates-io]
 # bevy_mod_raycast = { path = "bevy_mod_raycast" }
 
+bevy_atmosphere = "0.4"
 
 [profile.dev]
 opt-level = 1

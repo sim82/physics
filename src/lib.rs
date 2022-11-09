@@ -422,6 +422,11 @@ fn update_mouse_input_state(
     }
 }
 
+pub mod player_controller {
+    use bevy::prelude::*;
+    use bevy_rapier3d::prelude::*;
+}
+
 #[derive(Default)]
 pub struct CharacterStateInputPlugin;
 
