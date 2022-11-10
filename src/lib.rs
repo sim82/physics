@@ -1,4 +1,5 @@
 use bevy::{
+    app::AppExit,
     input::{keyboard::KeyboardInput, mouse::MouseMotion},
     math::Vec3,
     prelude::*,
@@ -422,10 +423,7 @@ fn update_mouse_input_state(
     }
 }
 
-pub mod player_controller {
-    use bevy::prelude::*;
-    use bevy_rapier3d::prelude::*;
-}
+pub mod player_controller;
 
 #[derive(Default)]
 pub struct CharacterStateInputPlugin;
@@ -442,5 +440,14 @@ impl Plugin for CharacterStateInputPlugin {
             .insert_resource(MouseInputState::default())
             .add_system(update_mouse_input_state)
             .register_type::<CharacterState>();
+    }
+}
+
+pub fn exit_on_esc_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut app_exit_events: EventWriter<AppExit>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        app_exit_events.send_default();
     }
 }

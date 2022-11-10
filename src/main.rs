@@ -18,7 +18,11 @@ use bevy_atmosphere::prelude::*;
 use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier3d::{prelude::*, rapier::prelude::ColliderMassProps};
 use parry3d::shape::{ConvexPolyhedron, SharedShape};
-use physics::test_texture;
+use physics::{
+    exit_on_esc_system,
+    player_controller::{self, PlayerCamera, PlayerControllerBundle},
+    test_texture,
+};
 
 // use bevy_fps_controller::controller::*;
 use serde::Serialize;
@@ -45,7 +49,8 @@ fn main() {
     .add_system(animate_light_direction)
     .add_system(rotation_system)
     .add_plugin(physics::CharacterStateInputPlugin::default())
-    // .add_system(exit_on_esc_system)
+    .add_plugin(player_controller::PlayerControllerPlugin)
+    .add_system(exit_on_esc_system)
     .add_plugin(FrameTimeDiagnosticsPlugin)
     .add_system(debug_line_test)
     .add_system(update_deferred_mesh_system)
@@ -305,17 +310,21 @@ fn setup(
     //     .insert(physics::InputTarget);
 
     commands
-        .spawn()
+        .spawn_bundle(SpatialBundle::default())
+        .insert_bundle(PlayerControllerBundle::default())
+        .insert(Name::new("player"))
         .insert(Collider::capsule(Vec3::Y * 0.5, Vec3::Y * 1.5, 0.2))
-        .insert(ActiveEvents::COLLISION_EVENTS)
-        .insert(Velocity::zero())
-        .insert(RigidBody::Dynamic)
-        .insert(Sleeping::disabled())
+        // .insert(ActiveEvents::COLLISION_EVENTS)
+        // .insert(Velocity::zero())
+        .insert(RigidBody::KinematicPositionBased)
+        // .insert(Sleeping::disabled())
         .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(AdditionalMassProperties::Mass(1.0))
-        .insert(GravityScale(0.0))
-        .insert(Ccd { enabled: true }) // Prevent clipping when going fast
-        .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
+        // .insert(AdditionalMassProperties::Mass(1.0))
+        // .insert(GravityScale(0.0))
+        // .insert(Ccd { enabled: true }); // Prevent clipping when going fast
+        .insert(
+            Transform::from_xyz(10.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
+        );
     // .insert(LogicalPlayer(0))
     // .insert(FpsControllerInput {
     //     pitch: -TAU / 12.0,
@@ -323,11 +332,11 @@ fn setup(
     //     ..default()
     // })
     // .insert(FpsController { ..default() });
-
     commands
         .spawn_bundle(Camera3dBundle::default())
         // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
         // .insert(RenderPlayer(0))
+        .insert(PlayerCamera)
         .insert(AtmosphereCamera(None));
 
     const HALF_SIZE: f32 = 5.0;
