@@ -50,7 +50,7 @@ fn main() {
     .add_startup_system(setup)
     .add_system(animate_light_direction)
     .add_system(rotation_system)
-    .add_plugin(physics::CharacterStateInputPlugin::default())
+    // .add_plugin(physics::CharacterStateInputPlugin::default())
     .add_plugin(player_controller::PlayerControllerPlugin)
     .add_system(exit_on_esc_system)
     .add_plugin(FrameTimeDiagnosticsPlugin)
