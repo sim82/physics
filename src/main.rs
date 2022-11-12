@@ -194,7 +194,7 @@ fn update_deferred_mesh_system(
                     ..default()
                 })
                 .insert(ColliderScale::Absolute(Vec3::ONE))
-                .insert(ColliderMassProperties::Mass(1000.0));
+                .insert(ColliderMassProperties::Density(0.1));
         }
     }
 }
@@ -316,7 +316,7 @@ fn setup(
         Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, GROUND_PLANE_HALFSIZE),
     );
 
-    {
+    if false {
         // build stairs
         {
             let mut x = 5.0;
@@ -350,26 +350,10 @@ fn setup(
         .spawn_bundle(SpatialBundle::default())
         .insert_bundle(PlayerControllerBundle::default())
         .insert(Name::new("player"))
-        // .insert(Collider::capsule(Vec3::Y * 0.5, Vec3::Y * 1.5, 0.2))
-        .insert(Collider::cuboid(0.2, 0.9, 0.2))
-        // .insert(ActiveEvents::COLLISION_EVENTS)
-        // .insert(Velocity::zero())
-        // .insert(RigidBody::KinematicPositionBased)
-        // .insert(Sleeping::disabled())
-        // .insert(LockedAxes::ROTATION_LOCKED)
-        // .insert(AdditionalMassProperties::Mass(1.0))
-        // .insert(GravityScale(0.0))
-        // .insert(Ccd { enabled: true }); // Prevent clipping when going fast
         .insert(
             Transform::from_xyz(10.0, 1.01, 10.0), //.looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
         );
-    // .insert(LogicalPlayer(0))
-    // .insert(FpsControllerInput {
-    //     pitch: -TAU / 12.0,
-    //     yaw: TAU * 5.0 / 8.0,
-    //     ..default()
-    // })
-    // .insert(FpsController { ..default() });
+
     commands
         .spawn_bundle(Camera3dBundle::default())
         // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
