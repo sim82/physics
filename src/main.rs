@@ -2,6 +2,7 @@ use std::{
     f32::consts::TAU,
     fs::File,
     io::{Read, Write},
+    thread::spawn,
 };
 
 use bevy::{
@@ -198,6 +199,36 @@ fn update_deferred_mesh_system(
     }
 }
 
+fn spawn_box(
+    commands: &mut Commands,
+    material: Handle<StandardMaterial>,
+    meshes: &mut Assets<Mesh>,
+    min: Vec3,
+    max: Vec3,
+) {
+    let center = (min + max) / 2.0;
+    let hs = (max - min) / 2.0;
+
+    commands
+        .spawn_bundle(PbrBundle {
+            mesh: meshes.add(
+                mesh::shape::Box {
+                    min_x: -hs.x,
+                    max_x: hs.x,
+                    min_y: -hs.y,
+                    max_y: hs.y,
+                    min_z: -hs.z,
+                    max_z: hs.z,
+                }
+                .into(),
+            ),
+            material,
+            transform: Transform::from_translation(center),
+            ..Default::default()
+        })
+        .insert(Collider::cuboid(hs.x, hs.y, hs.z));
+}
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -241,89 +272,96 @@ fn setup(
         &mut meshes,
     );
 
-    let collider = Collider::cuboid(100.0, 0.1, 100.0);
-    commands
-        .spawn_bundle(PbrBundle {
-            mesh: meshes.add(
-                mesh::shape::Box {
-                    min_x: -50.0,
-                    max_x: 50.0,
-                    min_y: 0.0,
-                    max_y: 0.1,
-                    min_z: -50.0,
-                    max_z: 50.0,
-                }
-                .into(),
-            ),
-            material: material.clone(),
-            ..Default::default()
-        })
-        .insert(collider);
+    // groundplane
+    const GROUND_PLANE_HALFSIZE: f32 = 25.0;
+    spawn_box(
+        &mut commands,
+        material.clone(),
+        &mut meshes,
+        Vec3::new(-GROUND_PLANE_HALFSIZE, -0.1, -GROUND_PLANE_HALFSIZE),
+        Vec3::new(GROUND_PLANE_HALFSIZE, 0.0, GROUND_PLANE_HALFSIZE),
+    );
+
+    // x-fence
+    spawn_box(
+        &mut commands,
+        material.clone(),
+        &mut meshes,
+        Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, -GROUND_PLANE_HALFSIZE),
+        Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, -GROUND_PLANE_HALFSIZE + 0.1),
+    );
+
+    spawn_box(
+        &mut commands,
+        material.clone(),
+        &mut meshes,
+        Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, GROUND_PLANE_HALFSIZE - 0.1),
+        Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, GROUND_PLANE_HALFSIZE),
+    );
+
+    // z-fence
+    spawn_box(
+        &mut commands,
+        material.clone(),
+        &mut meshes,
+        Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, -GROUND_PLANE_HALFSIZE),
+        Vec3::new(-GROUND_PLANE_HALFSIZE + -0.1, 0.5, GROUND_PLANE_HALFSIZE),
+    );
+
+    spawn_box(
+        &mut commands,
+        material.clone(),
+        &mut meshes,
+        Vec3::new(GROUND_PLANE_HALFSIZE - 0.1, 0.0, -GROUND_PLANE_HALFSIZE),
+        Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, GROUND_PLANE_HALFSIZE),
+    );
 
     {
-        let mut size = 10.0;
-        let mut pos = Vec3::new(5.0, 0.1, 0.0);
-        for _ in 0..10 {
-            let mut collider_pos = pos;
-            collider_pos.y += 0.05;
-            // let collider = ColliderBundle {
-            //     shape: ColliderShape::cuboid(size / 2.0, 0.1 / 2.0, size / 2.0).into(),
-            //     position: collider_pos.into(),
-            //     ..Default::default()
-            // };
+        // build stairs
+        {
+            let mut x = 5.0;
+            let mut y = 0.0;
+            let mut z = 5.0;
 
-            let collider = Collider::cuboid(size / 2.0, 0.1 / 2.0, size / 2.0);
-            commands
-                .spawn_bundle(PbrBundle {
-                    mesh: meshes.add(
-                        mesh::shape::Box {
-                            min_x: -size / 2.0,
-                            max_x: size / 2.0,
-                            min_y: 0.0,
-                            max_y: 0.1,
-                            min_z: -size / 2.0,
-                            max_z: size / 2.0,
-                        }
-                        .into(),
-                    ),
-                    material: material.clone(),
-                    transform: Transform::from_translation(pos),
-                    ..Default::default()
-                })
-                .insert(collider);
-            pos.y += 0.1;
-            size -= 0.4;
+            for _ in 0..10 {
+                spawn_box(
+                    &mut commands,
+                    material.clone(),
+                    &mut meshes,
+                    Vec3::new(-x, y, -z),
+                    Vec3::new(x, y + 0.1, z),
+                );
+                x -= 0.4;
+                z -= 0.4;
+                y += 0.1;
+            }
         }
     }
-    // commands
-    //     // .spawn_bundle(PerspectiveCameraBundle {
-    //     //     transform: Transform::from_xyz(5.0, 1.01, 10.0)
-    //     //         .looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
-    //     //     ..Default::default()
-    //     // })
-    //     .spawn_bundle(Camera3dBundle {
-    //         transform: Transform::from_xyz(5.0, 1.01, 10.0)
-    //             .looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
-    //         ..Default::default()
-    //     })
-    //     .insert(physics::CharacterState::default())
-    //     .insert(physics::InputTarget);
+
+    spawn_box(
+        &mut commands,
+        material,
+        &mut meshes,
+        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(5.0, 2.5, 0.3),
+    );
 
     commands
         .spawn_bundle(SpatialBundle::default())
         .insert_bundle(PlayerControllerBundle::default())
         .insert(Name::new("player"))
-        .insert(Collider::capsule(Vec3::Y * 0.5, Vec3::Y * 1.5, 0.2))
+        // .insert(Collider::capsule(Vec3::Y * 0.5, Vec3::Y * 1.5, 0.2))
+        .insert(Collider::cuboid(0.2, 0.9, 0.2))
         // .insert(ActiveEvents::COLLISION_EVENTS)
         // .insert(Velocity::zero())
-        .insert(RigidBody::KinematicPositionBased)
+        // .insert(RigidBody::KinematicPositionBased)
         // .insert(Sleeping::disabled())
-        .insert(LockedAxes::ROTATION_LOCKED)
+        // .insert(LockedAxes::ROTATION_LOCKED)
         // .insert(AdditionalMassProperties::Mass(1.0))
         // .insert(GravityScale(0.0))
         // .insert(Ccd { enabled: true }); // Prevent clipping when going fast
         .insert(
-            Transform::from_xyz(10.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
+            Transform::from_xyz(10.0, 1.01, 10.0), //.looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
         );
     // .insert(LogicalPlayer(0))
     // .insert(FpsControllerInput {
