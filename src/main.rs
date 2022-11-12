@@ -2,6 +2,7 @@ use std::{
     f32::consts::TAU,
     fs::File,
     io::{Read, Write},
+    path::Path,
     thread::spawn,
 };
 
@@ -134,7 +135,9 @@ fn update_deferred_mesh_system(
 ) {
     for (entity, deferred_mesh) in &query {
         if let Some(mesh) = meshes.get(&deferred_mesh.mesh) {
-            let collider = if let Ok(mut f) = File::open(&deferred_mesh.id) {
+            let cache_dir = Path::new("cache");
+
+            let collider = if let Ok(mut f) = File::open(cache_dir.join(&deferred_mesh.id)) {
                 // read pre-calculated collider
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf).unwrap();
@@ -171,7 +174,8 @@ fn update_deferred_mesh_system(
                         .map(|(pos, rot, ch)| (pos, rot, ch.raw))
                         .collect::<Vec<_>>();
 
-                    let mut f = File::create(&deferred_mesh.id).unwrap();
+                    std::fs::create_dir_all(cache_dir).expect("could not create cache dir");
+                    let mut f = File::create(cache_dir.join(&deferred_mesh.id)).unwrap();
                     let buf = flexbuffers::to_vec(&y).unwrap();
                     f.write_all(&buf[..]).unwrap();
                 }

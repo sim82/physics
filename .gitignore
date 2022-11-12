@@ -1,3 +1,8 @@
 /target
 /assets
 .cargo/*
+.vscode/*
+ext/*
+*.cap
+*.ron
+cache/*
