@@ -1,13 +1,4 @@
-use bevy::{
-    app::AppExit,
-    input::{keyboard::KeyboardInput, mouse::MouseMotion},
-    math::Vec3,
-    prelude::*,
-};
-use bevy_rapier3d::prelude::*;
-use contact_debug::ContactDebug;
-use std::collections::VecDeque;
-use trace::{CollisionTraceable, TraceContact};
+use bevy::{app::AppExit, prelude::*};
 
 pub mod contact_debug;
 // pub mod debug_lines;

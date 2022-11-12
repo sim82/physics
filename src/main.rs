@@ -1,9 +1,7 @@
 use std::{
-    f32::consts::TAU,
     fs::File,
     io::{Read, Write},
     path::Path,
-    thread::spawn,
 };
 
 use bevy::{
@@ -18,7 +16,7 @@ use bevy::{
 use bevy_atmosphere::prelude::*;
 // use bevy_editor_pls::prelude::*;
 use bevy_prototype_debug_lines::DebugLines;
-use bevy_rapier3d::{prelude::*, rapier::prelude::ColliderMassProps};
+use bevy_rapier3d::prelude::*;
 use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::{
     exit_on_esc_system,
@@ -27,7 +25,6 @@ use physics::{
 };
 
 // use bevy_fps_controller::controller::*;
-use serde::Serialize;
 
 fn main() {
     let mut app = App::new();
@@ -239,7 +236,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
-    mut debug_lines: ResMut<bevy_prototype_debug_lines::DebugLines>,
+    mut _debug_lines: ResMut<bevy_prototype_debug_lines::DebugLines>,
 ) {
     let uv_test = images.add(Image::new(
         Extent3d {

@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use bevy::{input::mouse::MouseMotion, prelude::*};
-use bevy_rapier3d::{na::Quaternion, prelude::*};
+use bevy_rapier3d::prelude::*;
 
 #[derive(Component, Default, Debug)]
 pub struct PlayerState {
@@ -138,7 +138,8 @@ pub fn player_controller_apply_system(
         &mut PlayerInputQueue,
     )>,
 ) {
-    for (mut transform, mut character_controller, mut player_state, mut input_queue) in &mut query {
+    for (mut _transform, mut character_controller, mut player_state, mut input_queue) in &mut query
+    {
         // let (discard, apply) = if let Some(last_applied) = player_state.last_applied_serial {
         //     if let Some((first_newer, _)) = input_queue
         //         .queue

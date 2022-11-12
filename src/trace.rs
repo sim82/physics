@@ -1,5 +1,3 @@
-use crate::contact_debug::ContactDebug;
-
 use bevy::{math::Vec3, prelude::*};
 use bevy_rapier3d::prelude::*;
 
@@ -38,7 +36,7 @@ impl CollisionTraceable for RapierContext {
 
         let shape_pos = start;
         let shape_rot = Quat::default();
-        let shape_vel = dist.into();
+        let shape_vel = dist;
         let filter = QueryFilter::default();
 
         let d = dist.length();
@@ -61,10 +59,10 @@ impl CollisionTraceable for RapierContext {
             self.cast_shape(shape_pos, shape_rot, shape_vel, &shape, 1.0, filter)
         {
             let contact = TraceContact {
-                collider_normal: (hit.normal1).into(),
-                collider_point: hit.witness1.into(),
-                shape_normal: (hit.normal2).into(),
-                shape_point: hit.witness2.into(),
+                collider_normal: (hit.normal1),
+                collider_point: hit.witness1,
+                shape_normal: hit.normal2,
+                shape_point: hit.witness2,
             };
 
             match hit.status {
