@@ -3,6 +3,8 @@ use std::collections::VecDeque;
 use bevy::{input::mouse::MouseMotion, prelude::*};
 use bevy_rapier3d::prelude::*;
 
+use crate::AppState;
+
 #[derive(Component, Default, Debug)]
 pub struct PlayerState {
     pub last_applied_serial: Option<u32>,
@@ -108,13 +110,6 @@ pub fn player_controller_input_system(
             lon -= event.delta.x * SENSITIVITY;
             lat -= event.delta.y * SENSITIVITY;
         }
-        lat = lat.clamp(-85.0, 85.0);
-        while lon < 0.0 {
-            lon += 360.0;
-        }
-        while lon >= 360.0 {
-            lon -= 360.0;
-        }
 
         let player_input = PlayerInput {
             serial: input_source.next_serial,
@@ -179,6 +174,14 @@ pub fn player_controller_apply_system(
             player_state.last_applied_serial = Some(input.serial);
             player_state.lon += input.lon;
             player_state.lat += input.lat;
+
+            player_state.lat = player_state.lat.clamp(-85.0, 85.0);
+            while player_state.lon < 0.0 {
+                player_state.lon += 360.0;
+            }
+            while player_state.lon >= 360.0 {
+                player_state.lon -= 360.0;
+            }
 
             let y_rot = player_state.get_y_rotation();
             const DT: f32 = 1.0 / 60.0; // fixed timestep
@@ -260,11 +263,11 @@ pub struct PlayerControllerPlugin;
 
 impl Plugin for PlayerControllerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(player_controller_input_system)
-            .add_system(player_controller_apply_system.after(player_controller_input_system))
-            .add_system(
-                player_controller_apply_output_system.before(player_controller_apply_system),
-            )
-            .add_system(sync_player_camera_system.after(player_controller_apply_output_system));
+        app.add_system_set(
+            SystemSet::on_update(AppState::InGame).with_system(player_controller_input_system),
+        )
+        .add_system(player_controller_apply_system.after(player_controller_input_system))
+        .add_system(player_controller_apply_output_system.before(player_controller_apply_system))
+        .add_system(sync_player_camera_system.after(player_controller_apply_output_system));
     }
 }

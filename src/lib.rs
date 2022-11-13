@@ -57,6 +57,13 @@ pub mod test_texture {
 
 pub mod player_controller;
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum AppState {
+    DebugMenu,
+    InGame,
+    // Paused,
+}
+
 mod attic;
 pub fn exit_on_esc_system(
     keyboard_input: Res<Input<KeyCode>>,

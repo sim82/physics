@@ -21,8 +21,11 @@ use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::{
     exit_on_esc_system,
     player_controller::{self, PlayerCamera, PlayerControllerBundle},
-    test_texture,
+    test_texture, AppState,
 };
+
+#[cfg(feature = "inspector")]
+use bevy_inspector_egui::WorldInspectorParams;
 
 // use bevy_fps_controller::controller::*;
 
@@ -54,13 +57,58 @@ fn main() {
     .add_system(debug_line_test)
     .add_system(update_deferred_mesh_system)
     // .add_plugin(FpsControllerPlugin)
-    .add_plugin(AtmospherePlugin);
+    .add_plugin(AtmospherePlugin)
+    .insert_resource(Atmosphere {
+        ray_origin: Vec3::new(0.0, 7000e3, 0.0),
+        planet_radius: 7000e3,
+        atmosphere_radius: 7100e3,
+        ..default()
+    });
     // .add_system(mesh_loaded)
 
-    #[cfg(feature = "inspector")]
-    app.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
+    app.add_state(AppState::InGame);
+    app.add_system(toggle_debug_menu_system);
 
+    #[cfg(feature = "inspector")]
+    {
+        app.insert_resource(WorldInspectorParams {
+            enabled: false,
+            ..default()
+        });
+        app.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
+        app.add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin);
+        app.add_system_set(
+            SystemSet::on_enter(AppState::DebugMenu).with_system(open_world_inspector),
+        );
+        app.add_system_set(
+            SystemSet::on_exit(AppState::DebugMenu).with_system(close_world_inspector),
+        );
+    }
     app.run();
+
+    info!("after app.run");
+}
+
+#[cfg(feature = "inspector")]
+fn open_world_inspector(mut inspector_params: ResMut<WorldInspectorParams>) {
+    inspector_params.enabled = true;
+}
+
+#[cfg(feature = "inspector")]
+fn close_world_inspector(mut inspector_params: ResMut<WorldInspectorParams>) {
+    inspector_params.enabled = false;
+}
+
+fn toggle_debug_menu_system(
+    key_codes: Res<Input<KeyCode>>,
+    mut app_state: ResMut<State<AppState>>,
+) {
+    if key_codes.just_pressed(KeyCode::F3) {
+        match app_state.current() {
+            AppState::DebugMenu => app_state.set(AppState::InGame).unwrap(),
+            AppState::InGame => app_state.set(AppState::DebugMenu).unwrap(),
+        }
+    }
 }
 
 fn spawn_sphere(
