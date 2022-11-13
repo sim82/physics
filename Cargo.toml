@@ -44,6 +44,7 @@ parry3d = { version = "*", features = ["serde-serialize"] }
 # bevy_mod_raycast = { path = "bevy_mod_raycast" }
 
 bevy_atmosphere = "0.4"
+rscsg = { path = "ext/rscsg" }
 
 [patch.crates-io]
 bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }

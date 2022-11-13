@@ -19,6 +19,7 @@ use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier3d::prelude::*;
 use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::{
+    editor::{self, util::spawn_box},
     exit_on_esc_system,
     player_controller::{self, PlayerCamera, PlayerControllerBundle},
     test_texture, AppState,
@@ -68,6 +69,8 @@ fn main() {
 
     app.add_state(AppState::InGame);
     app.add_system(toggle_debug_menu_system);
+
+    app.add_plugin(editor::EditorPlugin);
 
     #[cfg(feature = "inspector")]
     {
@@ -246,36 +249,6 @@ fn update_deferred_mesh_system(
                 .insert(ColliderMassProperties::Density(0.1));
         }
     }
-}
-
-fn spawn_box(
-    commands: &mut Commands,
-    material: Handle<StandardMaterial>,
-    meshes: &mut Assets<Mesh>,
-    min: Vec3,
-    max: Vec3,
-) {
-    let center = (min + max) / 2.0;
-    let hs = (max - min) / 2.0;
-
-    commands
-        .spawn_bundle(PbrBundle {
-            mesh: meshes.add(
-                mesh::shape::Box {
-                    min_x: -hs.x,
-                    max_x: hs.x,
-                    min_y: -hs.y,
-                    max_y: hs.y,
-                    min_z: -hs.z,
-                    max_z: hs.z,
-                }
-                .into(),
-            ),
-            material,
-            transform: Transform::from_translation(center),
-            ..Default::default()
-        })
-        .insert(Collider::cuboid(hs.x, hs.y, hs.z));
 }
 
 fn setup(
