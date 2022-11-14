@@ -11,7 +11,8 @@ default = ["inspector"]
 
 [dependencies]
 # ] }
-bevy = { version = "0.8", features = ["dynamic"] }
+# bevy = { version = "0.8", features = ["dynamic"] }
+bevy = { version = "0.8" }
 bevy-inspector-egui = { version = "0.13", optional = true }
 bevy-inspector-egui-rapier = { version = "0.7", optional = true, features = [
     "rapier3d",
@@ -44,7 +45,7 @@ parry3d = { version = "*", features = ["serde-serialize"] }
 # bevy_mod_raycast = { path = "bevy_mod_raycast" }
 
 bevy_atmosphere = "0.4"
-rscsg = { path = "ext/rscsg" }
+bitflags = "1"
 
 [patch.crates-io]
 bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }

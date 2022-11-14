@@ -1,6 +1,8 @@
 use bevy::{prelude::*, render::mesh};
 use bevy_rapier3d::prelude::Collider;
 
+use crate::csg::Csg;
+
 pub fn spawn_box(
     commands: &mut Commands,
     material: Handle<StandardMaterial>,
@@ -62,4 +64,25 @@ pub fn add_box(
             ..Default::default()
         })
         .insert(Collider::cuboid(hs.x, hs.y, hs.z));
+}
+
+pub fn add_csg(
+    commands: &mut Commands,
+    entity: Entity,
+    material: Handle<StandardMaterial>,
+    meshes: &mut Assets<Mesh>,
+    csg: &Csg,
+) {
+    let center = Vec3::ZERO;
+
+    commands
+        .entity(entity)
+        .insert_bundle(PbrBundle {
+            mesh: meshes.add(csg.into()),
+            material,
+            transform: Transform::from_translation(center),
+            ..Default::default()
+        })
+        // .insert(Collider::cuboid(hs.x, hs.y, hs.z))
+        ;
 }

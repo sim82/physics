@@ -2,9 +2,11 @@ use bevy::{app::AppExit, prelude::*};
 
 pub mod contact_debug;
 // pub mod debug_lines;
+pub mod csg;
 pub mod editor;
 pub mod slidemove;
 pub mod trace;
+
 pub const OVERCLIP: f32 = 1.001;
 
 pub mod test_texture {

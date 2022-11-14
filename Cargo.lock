@@ -231,7 +231,6 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea147ef1ebb92d41294cfad804c40de151b174c711ce6e0a4a40eba23eae1a4"
 dependencies = [
- "bevy_dylib",
  "bevy_internal",
 ]
 
@@ -412,15 +411,6 @@ dependencies = [
  "bevy_log",
  "bevy_time",
  "bevy_utils",
-]
-
-[[package]]
-name = "bevy_dylib"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b9ac2612b037838ab2ded3222a21ef56c36a1e0f04e6be97493d4532972f32b"
-dependencies = [
- "bevy_internal",
 ]
 
 [[package]]
@@ -2891,13 +2881,13 @@ dependencies = [
  "bevy_atmosphere",
  "bevy_prototype_debug_lines",
  "bevy_rapier3d",
+ "bitflags",
  "flexbuffers",
  "gltf",
  "log",
  "parry3d",
  "rand",
  "ron 0.8.0",
- "rscsg",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -3153,13 +3143,6 @@ dependencies = [
  "base64 0.13.1",
  "bitflags",
  "serde",
-]
-
-[[package]]
-name = "rscsg"
-version = "0.2.0"
-dependencies = [
- "bitflags",
 ]
 
 [[package]]

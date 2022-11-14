@@ -5,7 +5,11 @@ use bevy::{
 };
 
 use super::{components::Brush, resources::Selection, util::add_box};
-use crate::test_texture;
+use crate::{
+    csg::{self, Cube},
+    editor::util::add_csg,
+    test_texture,
+};
 
 #[allow(clippy::too_many_arguments)]
 pub fn editor_input_system(
@@ -24,6 +28,35 @@ pub fn editor_input_system(
             .id();
 
         selection.primary = Some(entity);
+    }
+
+    if keycodes.just_pressed(KeyCode::L) {
+        let entity = commands
+            .spawn()
+            .insert(Brush::Csg(Cube::new(Vec3::splat(2.0), 0.5).into()))
+            .id();
+
+        selection.primary = Some(entity);
+    }
+    if keycodes.just_pressed(KeyCode::M) {
+        if let Some(selection) = selection.primary {
+            if let Ok(mut brush) = query.get_mut(selection) {
+                if let Brush::Csg(ref mut csg) = *brush {
+                    let tmp = csg.clone();
+                    *csg = csg::subtract(&tmp, &Cube::new(Vec3::new(1.5, 1.5, 1.5), 0.5).into())
+                        .unwrap();
+                }
+            }
+        }
+    }
+    if keycodes.just_pressed(KeyCode::N) {
+        if let Some(selection) = selection.primary {
+            if let Ok(mut brush) = query.get_mut(selection) {
+                if let Brush::Csg(ref mut csg) = *brush {
+                    csg.invert();
+                }
+            }
+        }
     }
 
     let mut dmin = Vec3::ZERO;
@@ -66,6 +99,12 @@ pub fn editor_input_system(
                         *min += dmin;
                         *max += dmax;
                     }
+                    Brush::Csg(ref mut csg) => {
+                        // FIXME: temp copy looks stupid
+                        let tmp = csg.clone();
+                        // *csg = tmp.translate(dmin.into());
+                        todo!("translate")
+                    }
                 }
             }
         }
@@ -87,24 +126,6 @@ pub fn update_brushes_system(
     query_cleanup: Query<(&Handle<Mesh>, &Handle<StandardMaterial>)>,
 ) {
     for (entity, brush) in &mut query {
-        let uv_test = images.add(Image::new(
-            Extent3d {
-                width: test_texture::TW as u32,
-                height: test_texture::TH as u32,
-                depth_or_array_layers: 1,
-            },
-            TextureDimension::D2,
-            test_texture::create(),
-            TextureFormat::Rgba8Unorm,
-        ));
-
-        let material = materials.add(StandardMaterial {
-            base_color_texture: Some(uv_test),
-            metallic: 0.9,
-            perceptual_roughness: 0.1,
-            ..Default::default()
-        });
-
         // let entity = spawn_box(
         //     &mut commands,
         //     material,
@@ -112,21 +133,47 @@ pub fn update_brushes_system(
         //     Vec3::splat(-1.0),
         //     Vec3::splat(1.0),
         // );
-
+        if let Ok((mesh, material)) = query_cleanup.get(entity) {
+            info!("cleanup {:?} {:?}", mesh, material);
+            meshes.remove(mesh);
+            if let Some(material) = materials.remove(material) {
+                if let Some(image) = material.base_color_texture {
+                    info!("cleanup {:?}", image);
+                    images.remove(image);
+                }
+            }
+        }
         match brush {
             Brush::MinMax(min, max) => {
-                if let Ok((mesh, material)) = query_cleanup.get(entity) {
-                    info!("cleanup {:?} {:?}", mesh, material);
-                    meshes.remove(mesh);
-                    if let Some(material) = materials.remove(material) {
-                        if let Some(image) = material.base_color_texture {
-                            info!("cleanup {:?}", image);
-                            images.remove(image);
-                        }
-                    }
-                }
+                let uv_test = images.add(Image::new(
+                    Extent3d {
+                        width: test_texture::TW as u32,
+                        height: test_texture::TH as u32,
+                        depth_or_array_layers: 1,
+                    },
+                    TextureDimension::D2,
+                    test_texture::create(),
+                    TextureFormat::Rgba8Unorm,
+                ));
+
+                let material = materials.add(StandardMaterial {
+                    base_color_texture: Some(uv_test),
+                    metallic: 0.9,
+                    perceptual_roughness: 0.1,
+                    ..Default::default()
+                });
 
                 add_box(&mut commands, entity, material, &mut meshes, *min, *max);
+            }
+            Brush::Csg(csg) => {
+                let material = materials.add(StandardMaterial {
+                    base_color: Color::BLUE,
+                    metallic: 0.9,
+                    perceptual_roughness: 0.1,
+                    ..Default::default()
+                });
+
+                add_csg(&mut commands, entity, material, &mut meshes, csg);
             }
         }
         info!("update brush mesh");
