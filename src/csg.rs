@@ -60,6 +60,9 @@ impl Plane {
             w: normal.dot(a),
         }
     }
+    pub fn from_points_slice(s: &[Vec3; 3]) -> Self {
+        Self::from_points(s[0], s[1], s[2])
+    }
     pub fn flip(&mut self) {
         self.normal = -self.normal;
         self.w = -self.w;
@@ -156,6 +159,11 @@ pub struct Polygon {
 }
 
 impl Polygon {
+    fn plane_from_vertices(vs: &[Vertex]) -> Plane {
+        assert!(vs.len() >= 3);
+        Plane::from_points(vs[0].position, vs[1].position, vs[2].position)
+    }
+
     pub fn flip(&mut self) {
         self.vertices.reverse();
         for v in &mut self.vertices {
@@ -164,16 +172,18 @@ impl Polygon {
         self.plane.flip();
     }
 
-    fn from_vertices(vertices: Vec<Vertex>) -> Polygon {
-        assert!(vertices.len() >= 3);
+    pub fn from_vertices(vertices: Vec<Vertex>) -> Polygon {
         Polygon {
-            plane: Plane::from_points(
-                vertices[0].position,
-                vertices[1].position,
-                vertices[2].position,
-            ),
+            plane: Polygon::plane_from_vertices(&vertices[0..3]),
             vertices,
         }
+    }
+    pub fn translate(&mut self, offset: Vec3) {
+        assert!(self.vertices.len() >= 3);
+        for v in &mut self.vertices {
+            v.position += offset;
+        }
+        self.plane = Polygon::plane_from_vertices(&self.vertices[0..3]);
     }
 }
 
@@ -612,14 +622,14 @@ impl From<Cube> for Csg {
     }
 }
 
-impl Into<Mesh> for &Csg {
-    fn into(self) -> Mesh {
+impl From<&Csg> for Mesh {
+    fn from(csg: &Csg) -> Self {
         let mut positions = Vec::new();
         let mut normals = Vec::new();
         let mut uvs = Vec::new();
         let mut indices = Vec::new();
 
-        let triangles = self.get_triangles();
+        let triangles = csg.get_triangles();
         for tri in &triangles {
             let idx0 = positions.len() as u32;
             // most obnoxiously functional style just for the lulz...
@@ -656,19 +666,4 @@ pub fn test_cube() {
     println!("union: {:?}", csg3);
 
     println!("size: {} {}", csg1.polygons.len(), csg3.polygons.len());
-}
-pub fn spawn_mesh_for_csg(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    csg: &Csg,
-) {
-    let triangles = csg.get_triangles();
-    for tri in &triangles {
-
-        // info!("{:?} {:?} {:?}", tri.0, tri.1, tri.2);
-        // for p in &tri.positions {
-
-        // }
-    }
 }
