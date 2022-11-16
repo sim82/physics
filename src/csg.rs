@@ -52,6 +52,21 @@ bitflags::bitflags! {
     }
 }
 
+pub struct SplitPolygonsResult {
+    coplanar_front: Vec<Polygon>,
+    coplanar_back: Vec<Polygon>,
+    front: Vec<Polygon>,
+    back: Vec<Polygon>,
+}
+
+impl SplitPolygonsResult {
+    pub fn into_merged(mut self) -> (Vec<Polygon>, Vec<Polygon>) {
+        self.coplanar_front.append(&mut self.front);
+        self.coplanar_back.append(&mut self.back);
+        (self.coplanar_front, self.coplanar_back)
+    }
+}
+
 impl Plane {
     pub fn from_points(a: Vec3, b: Vec3, c: Vec3) -> Self {
         let normal = (b - a).cross(c - a).normalize_or_zero(); // TODO: error handling for degenerated cases?
@@ -150,6 +165,29 @@ impl Plane {
             _ => unreachable!(),
         }
     }
+
+    pub fn split_polygons(&self, polygons: &[Polygon]) -> SplitPolygonsResult {
+        let mut front = Vec::new();
+        let mut back = Vec::new();
+        let mut coplanar_front = Vec::new();
+        let mut coplanar_back = Vec::new();
+
+        for polygon in polygons {
+            self.split_polygon(
+                polygon,
+                &mut coplanar_front,
+                &mut coplanar_back,
+                &mut front,
+                &mut back,
+            )
+        }
+        SplitPolygonsResult {
+            coplanar_front,
+            coplanar_back,
+            front,
+            back,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -244,6 +282,12 @@ impl Csg {
             p.flip();
         }
     }
+
+    pub fn translate(&mut self, offset: Vec3) {
+        for p in &mut self.polygons {
+            p.translate(offset);
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -255,35 +299,45 @@ struct Node {
 }
 
 impl Node {
-    pub fn from_polygons(polygons: &Vec<Polygon>) -> Option<Node> {
+    pub fn from_polygons(polygons: &[Polygon]) -> Option<Node> {
         // build: function(polygons) {
         if polygons.is_empty() {
             return None;
         }
-        // if (!polygons.length) return;
-        // if (!this.plane) this.plane = polygons[0].plane.clone();
-        let plane = polygons[0].plane;
-        // var front = [], back = [];
-        let mut front = Vec::new();
-        let mut back = Vec::new();
-        let mut coplanar_front = Vec::new();
-        let mut coplanar_back = Vec::new();
+        // // if (!polygons.length) return;
+        // // if (!this.plane) this.plane = polygons[0].plane.clone();
+        // let plane = polygons[0].plane;
+        // // var front = [], back = [];
+        // let mut front = Vec::new();
+        // let mut back = Vec::new();
+        // let mut coplanar_front = Vec::new();
+        // let mut coplanar_back = Vec::new();
 
-        for p in polygons {
-            plane.split_polygon(
-                p,
-                &mut coplanar_front,
-                &mut coplanar_back,
-                &mut front,
-                &mut back,
-            );
-        }
+        // for p in polygons {
+        //     plane.split_polygon(
+        //         p,
+        //         &mut coplanar_front,
+        //         &mut coplanar_back,
+        //         &mut front,
+        //         &mut back,
+        //     );
+        // }
 
-        let mut polygons = coplanar_front;
-        polygons.append(&mut coplanar_back);
+        // let mut polygons = coplanar_front;
+        // polygons.append(&mut coplanar_back);
         // if !front.is_empty() {
         //     if !
         // }
+
+        let plane = polygons[0].plane;
+        let SplitPolygonsResult {
+            coplanar_front: mut polygons,
+            mut coplanar_back,
+            front,
+            back,
+        } = plane.split_polygons(polygons);
+
+        polygons.append(&mut coplanar_back);
 
         let front = Node::from_polygons(&front).map(Box::new);
         let back = Node::from_polygons(&back).map(Box::new);
@@ -307,26 +361,17 @@ impl Node {
         // }
     }
 
-    pub fn insert(&mut self, polygons: &Vec<Polygon>) {
+    pub fn insert(&mut self, polygons: &[Polygon]) {
         // build: function(polygons) {
         if polygons.is_empty() {
             return;
         }
-        let mut front = Vec::new();
-        let mut back = Vec::new();
-
-        let mut coplanar_front = Vec::new();
-        let mut coplanar_back = Vec::new();
-
-        for p in polygons {
-            self.plane.split_polygon(
-                p,
-                &mut coplanar_front,
-                &mut coplanar_back,
-                &mut front,
-                &mut back,
-            );
-        }
+        let SplitPolygonsResult {
+            mut coplanar_front,
+            mut coplanar_back,
+            front,
+            back,
+        } = self.plane.split_polygons(polygons);
 
         self.polygons.append(&mut coplanar_front);
         self.polygons.append(&mut coplanar_back);
@@ -418,24 +463,26 @@ impl Node {
         //   },
     }
 
-    fn clip_polygons(&self, polygons: &Vec<Polygon>) -> Vec<Polygon> {
-        let mut front = Vec::new();
-        let mut back = Vec::new();
-        let mut coplanar_front = Vec::new();
-        let mut coplanar_back = Vec::new();
+    fn clip_polygons(&self, polygons: &[Polygon]) -> Vec<Polygon> {
+        // let mut front = Vec::new();
+        // let mut back = Vec::new();
+        // let mut coplanar_front = Vec::new();
+        // let mut coplanar_back = Vec::new();
 
-        for polygon in polygons {
-            self.plane.split_polygon(
-                polygon,
-                &mut coplanar_front,
-                &mut coplanar_back,
-                &mut front,
-                &mut back,
-            )
-        }
+        // for polygon in polygons {
+        //     self.plane.split_polygon(
+        //         polygon,
+        //         &mut coplanar_front,
+        //         &mut coplanar_back,
+        //         &mut front,
+        //         &mut back,
+        //     )
+        // }
 
-        front.append(&mut coplanar_front);
-        back.append(&mut coplanar_back);
+        // front.append(&mut coplanar_front);
+        // back.append(&mut coplanar_back);
+
+        let (front, back) = self.plane.split_polygons(polygons).into_merged();
 
         let mut front = if let Some(front_node) = &self.front {
             front_node.clip_polygons(&front)

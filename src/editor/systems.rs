@@ -100,10 +100,7 @@ pub fn editor_input_system(
                         *max += dmax;
                     }
                     Brush::Csg(ref mut csg) => {
-                        // FIXME: temp copy looks stupid
-                        let tmp = csg.clone();
-                        // *csg = tmp.translate(dmin.into());
-                        todo!("translate")
+                        csg.translate(dmin.into());
                     }
                 }
             }
