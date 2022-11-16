@@ -1,3 +1,46 @@
+// Constructive Solid Geometry (CSG) is a modeling technique that uses Boolean
+// operations like union and intersection to combine 3D solids. This library
+// implements CSG operations on meshes elegantly and concisely using BSP trees,
+// and is meant to serve as an easily understandable implementation of the
+// algorithm. All edge cases involving overlapping coplanar polygons in both
+// solids are correctly handled.
+//
+// Example usage:
+//
+//     let cube :Csg = Cube::default().into();
+//     var sphere :Csg = Sphere{ radius: 1.3 }.into();
+//     var triangles = subtract(&cube, &sphere).all_triangles();
+//
+// ## Implementation Details
+//
+// All CSG operations are implemented in terms of two functions, `clip_to()` and
+// `invert()`, which remove parts of a BSP tree inside another BSP tree and swap
+// solid and empty space, respectively. To find the union of `a` and `b`, we
+// want to remove everything in `a` inside `b` and everything in `b` inside `a`,
+// then combine polygons from `a` and `b` into one solid:
+//
+//     a.clip_to(b);
+//     b.clip_to(a);
+//     a.build(b.all_polygons());
+//
+// The only tricky part is handling overlapping coplanar polygons in both trees.
+// The code above keeps both copies, but we need to keep them in one tree and
+// remove them in the other tree. To remove them from `b` we can clip the
+// inverse of `b` against `a`. The code for union now looks like this:
+//
+//     a.clip_to(b);
+//     b.clip_to(a);
+//     b.invert();
+//     b.clip_to(a);
+//     b.invert();
+//     a.build(b.all_polygons());
+//
+// Subtraction and intersection naturally follow from set operations. If
+// union is `A | B`, subtraction is `A - B = ~(~A | B)` and intersection is
+// `A & B = ~(~A | ~B)` where `~` is the complement operator.
+//
+// Original code and comments copyright (c) 2011 Evan Wallace (http://madebyevan.com/), under the MIT license.
+
 use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
@@ -15,9 +58,16 @@ impl Vertex {
     pub fn new(position: Vec3, normal: Vec3) -> Self {
         Vertex { position, normal }
     }
+
+    // Invert all orientation-specific data (e.g. vertex normal). Called when the
+    // orientation of a polygon is flipped.
     pub fn flip(&mut self) {
         self.normal = -self.normal;
     }
+
+    // Create a new vertex between this vertex and `other` by linearly
+    // interpolating all properties using a parameter of `t`. Subclasses should
+    // override this to interpolate additional properties.
     pub fn interpolated(&self, other: &Vertex, f: f32) -> Self {
         Self {
             position: self.position.lerp(other.position, f),
@@ -26,6 +76,8 @@ impl Vertex {
     }
 }
 
+// `CSG.Plane.EPSILON` is the tolerance used by `splitPolygon()` to decide if a
+// point is on the plane.
 pub const PLANE_EPSILON: f32 = 1e-5;
 
 #[derive(Clone, Debug, Default, Copy)]
@@ -74,6 +126,12 @@ impl Plane {
         self.normal = -self.normal;
         self.w = -self.w;
     }
+
+    // Split `polygon` by this plane if needed, then put the polygon or polygon
+    // fragments in the appropriate lists. Coplanar polygons go into either
+    // `coplanarFront` or `coplanarBack` depending on their orientation with
+    // respect to this plane. Polygons in front or in back of this plane go into
+    // either `front` or `back`.
     pub fn split_polygon(
         &self,
         polygon: &Polygon,
@@ -82,6 +140,8 @@ impl Plane {
         front: &mut Vec<Polygon>,
         back: &mut Vec<Polygon>,
     ) {
+        // Classify each point as well as the entire polygon into one of the above
+        // four classes.
         let mut polygon_type = Location::NONE;
         let mut types = Vec::new();
 
@@ -98,6 +158,8 @@ impl Plane {
             polygon_type |= location;
             types.push(location);
         }
+
+        // Put the polygon in the correct list, splitting it when necessary.
         match polygon_type {
             Location::COPLANAR if self.normal.dot(polygon.plane.normal) > 0.0 => {
                 coplanar_front.push(polygon.clone())
@@ -166,6 +228,12 @@ impl Plane {
     }
 }
 
+// Represents a convex polygon. The vertices used to initialize a polygon must
+// be coplanar and form a convex loop.
+//
+// TODO: Each convex polygon has a `shared` property, which is shared between all
+// polygons that are clones of each other or were split from the same polygon.
+// This can be used to define per-polygon properties (such as surface color).
 #[derive(Clone, Debug, Default)]
 pub struct Polygon {
     pub vertices: Vec<Vertex>,
@@ -201,6 +269,8 @@ impl Polygon {
     }
 }
 
+// Holds a binary space partition tree representing a 3D solid. Two solids can
+// be combined using the `union()`, `subtract()`, and `intersect()` functions.
 #[derive(Clone, Debug, Default)]
 pub struct Csg {
     pub polygons: Vec<Polygon>,
@@ -248,6 +318,11 @@ impl Csg {
     }
 }
 
+// Holds a node in a BSP tree. A BSP tree is built from a collection of polygons
+// by picking a polygon to split along. That polygon (and all other coplanar
+// polygons) are added directly to that node and the other polygons are added to
+// the front and/or back subtrees. This is not a leafy BSP tree since there is
+// no distinction between internal and leaf nodes.
 #[derive(Clone, Debug, Default)]
 struct Node {
     pub plane: Plane,
@@ -257,6 +332,9 @@ struct Node {
 }
 
 impl Node {
+    // Build a BSP tree out of `polygons`.
+    // Each set of polygons is partitioned using the first polygon
+    // (no heuristic is used to pick a good split).
     pub fn from_polygons(polygons: &[Polygon]) -> Option<Node> {
         if polygons.is_empty() {
             return None;
@@ -283,6 +361,9 @@ impl Node {
         })
     }
 
+    // Insert polygons into existing tree. The new polygons are filtered down to the bottom
+    // of the tree and become new nodes there. Each set of polygons is partitioned using the
+    // first polygon (no heuristic is used to pick a good split).
     pub fn insert(&mut self, polygons: &[Polygon]) {
         // build: function(polygons) {
         if polygons.is_empty() {
@@ -322,6 +403,7 @@ impl Node {
         }
     }
 
+    // Convert solid space to empty space and empty space to solid space.
     fn invert(&mut self) {
         self.polygons.iter_mut().for_each(Polygon::flip);
         self.plane.flip();
@@ -345,6 +427,8 @@ impl Node {
         polygons
     }
 
+    // Recursively remove all polygons in `polygons` that are inside this BSP
+    // tree.
     fn clip_polygons(&self, polygons: &[Polygon]) -> Vec<Polygon> {
         let (front, back) = self.plane.split_polygons(polygons).into_merged();
 
@@ -397,13 +481,13 @@ pub fn union(a: &Csg, b: &Csg) -> Option<Csg> {
     //   union: function(csg) {
     //     var a = new CSG.Node(this.clone().polygons);
     //     var b = new CSG.Node(csg.clone().polygons);
-    //     a.clipTo(b);
-    //     b.clipTo(a);
+    //     a.clip_to(b);
+    //     b.clip_to(a);
     //     b.invert();
-    //     b.clipTo(a);
+    //     b.clip_to(a);
     //     b.invert();
-    //     a.build(b.allPolygons());
-    //     return CSG.fromPolygons(a.allPolygons());
+    //     a.build(b.all_polygons());
+    //     return CSG.fromPolygons(a.all_polygons());
     //   },
 }
 
@@ -493,30 +577,6 @@ impl From<Cube> for Csg {
             .collect();
 
         Csg::from_polygons(polygons)
-
-        // CSG.cube = function(options) {
-        //     options = options || {};
-        //     var c = new CSG.Vector(options.center || [0, 0, 0]);
-        //     var r = !options.radius ? [1, 1, 1] : options.radius.length ?
-        //              options.radius : [options.radius, options.radius, options.radius];
-        //     return CSG.fromPolygons([
-        //       [[0, 4, 6, 2], [-1, 0, 0]],
-        //       [[1, 3, 7, 5], [+1, 0, 0]],
-        //       [[0, 1, 5, 4], [0, -1, 0]],
-        //       [[2, 6, 7, 3], [0, +1, 0]],
-        //       [[0, 2, 3, 1], [0, 0, -1]],
-        //       [[4, 5, 7, 6], [0, 0, +1]]
-        //     ].map(function(info) {
-        //       return new CSG.Polygon(info[0].map(function(i) {
-        //         var pos = new CSG.Vector(
-        //           c.x + r[0] * (2 * !!(i & 1) - 1),
-        //           c.y + r[1] * (2 * !!(i & 2) - 1),
-        //           c.z + r[2] * (2 * !!(i & 4) - 1)
-        //         );
-        //         return new CSG.Vertex(pos, new CSG.Vector(info[1]));
-        //       }));
-        //     }));
-        //   };
     }
 }
 
