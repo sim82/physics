@@ -34,14 +34,6 @@ pub struct Plane {
     pub w: f32,
 }
 
-// #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// pub enum Location {
-//     Coplanar,
-//     Front,
-//     Back,
-//     Spanning,
-// }
-
 bitflags::bitflags! {
     struct Location : u32 {
         const NONE = 0;
@@ -145,22 +137,6 @@ impl Plane {
                 if b.len() >= 3 {
                     back.push(Polygon::from_vertices(b))
                 }
-                // for (var i = 0; i < polygon.vertices.length; i++) {
-                //   var j = (i + 1) % polygon.vertices.length;
-                //   var ti = types[i], tj = types[j];
-                //   var vi = polygon.vertices[i], vj = polygon.vertices[j];
-                //   if (ti != BACK) f.push(vi);
-                //   if (ti != FRONT) b.push(ti != BACK ? vi.clone() : vi);
-                //   if ((ti | tj) == SPANNING) {
-                //     var t = (this.w - this.normal.dot(vi.pos)) / this.normal.dot(vj.pos.minus(vi.pos));
-                //     var v = vi.interpolate(vj, t);
-                //     f.push(v);
-                //     b.push(v.clone());
-                //   }
-                // }
-                // if (f.length >= 3) front.push(new CSG.Polygon(f, polygon.shared));
-                // if (b.length >= 3) back.push(new CSG.Polygon(b, polygon.shared));
-                // break
             }
             _ => unreachable!(),
         }
@@ -235,25 +211,6 @@ impl Csg {
         Csg { polygons }
     }
 
-    // pub fn get_triangles(&self) -> Vec<Triangle> {
-    //     let mut result = Vec::new();
-
-    //     for poly in &self.polygons {
-    //         for i in 1..(poly.vertices.len() - 1) {
-    //             let v0 = poly.vertices[0].position;
-    //             let v1 = poly.vertices[i].position;
-    //             let v2 = poly.vertices[i + 1].position;
-
-    //             result.push(Triangle {
-    //                 positions: [v0, v1, v2],
-    //                 normal: poly.plane.0,
-    //             });
-    //         }
-    //     }
-
-    //     result
-    // }
-
     pub fn get_triangles(&self) -> Vec<([Vec3; 3], Vec3)> {
         let mut res = Vec::new();
 
@@ -264,7 +221,8 @@ impl Csg {
             // premature and completely unnecessary optimization
             res.reserve(p.vertices.len() - 2);
 
-            // crate triangle 'fans': all triangles share 1st point
+            // crate triangle 'fans':
+            // all triangles share 1st point
             let v0 = p.vertices[0];
             // sweep over 2-windows of the remaining vertices to get 2nd and 3rd points
             for vs in p.vertices[1..].windows(2) {
@@ -300,34 +258,9 @@ struct Node {
 
 impl Node {
     pub fn from_polygons(polygons: &[Polygon]) -> Option<Node> {
-        // build: function(polygons) {
         if polygons.is_empty() {
             return None;
         }
-        // // if (!polygons.length) return;
-        // // if (!this.plane) this.plane = polygons[0].plane.clone();
-        // let plane = polygons[0].plane;
-        // // var front = [], back = [];
-        // let mut front = Vec::new();
-        // let mut back = Vec::new();
-        // let mut coplanar_front = Vec::new();
-        // let mut coplanar_back = Vec::new();
-
-        // for p in polygons {
-        //     plane.split_polygon(
-        //         p,
-        //         &mut coplanar_front,
-        //         &mut coplanar_back,
-        //         &mut front,
-        //         &mut back,
-        //     );
-        // }
-
-        // let mut polygons = coplanar_front;
-        // polygons.append(&mut coplanar_back);
-        // if !front.is_empty() {
-        //     if !
-        // }
 
         let plane = polygons[0].plane;
         let SplitPolygonsResult {
@@ -341,8 +274,6 @@ impl Node {
 
         let front = Node::from_polygons(&front).map(Box::new);
         let back = Node::from_polygons(&back).map(Box::new);
-        // let front = Box::new(Node::from_polygons(front));
-        // let back = Box::new(Node::from_polygons(back));
 
         Some(Node {
             plane,
@@ -350,15 +281,6 @@ impl Node {
             back,
             polygons,
         })
-
-        // if (front.length) {
-        //   if (!this.front) this.front = new CSG.Node();
-        //   this.front.build(front);
-        // }
-        // if (back.length) {
-        //   if (!this.back) this.back = new CSG.Node();
-        //   this.back.build(back);
-        // }
     }
 
     pub fn insert(&mut self, polygons: &[Polygon]) {
@@ -386,32 +308,11 @@ impl Node {
         } else {
             self.back = Node::from_polygons(&back).map(Box::new);
         }
-
-        // if !front.is_empty() {
-        //     if !
-        // }
-
-        // let front = Node::from_polygons(front).map(Box::new);
-        // let back = Node::from_polygons(back).map(Box::new);
-        // let front = Box::new(Node::from_polygons(front));
-        // let back = Box::new(Node::from_polygons(back));
-
-        // if (front.length) {
-        //   if (!this.front) this.front = new CSG.Node();
-        //   this.front.build(front);
-        // }
-        // if (back.length) {
-        //   if (!this.back) this.back = new CSG.Node();
-        //   this.back.build(back);
-        // }
     }
 
     // Remove all polygons in this BSP tree that are inside the other BSP tree
     // `bsp`.
     pub fn clip_to(&mut self, other: &Node) {
-        // this.polygons = bsp.clipPolygons(this.polygons);
-        // if (this.front) this.front.clipTo(bsp);
-        // if (this.back) this.back.clipTo(bsp);
         self.polygons = other.clip_polygons(&self.polygons);
         if let Some(front) = &mut self.front {
             front.clip_to(other);
@@ -431,23 +332,9 @@ impl Node {
             back.invert();
         }
         std::mem::swap(&mut self.front, &mut self.back);
-        //  // Convert solid space to empty space and empty space to solid space.
-        //  invert: function() {
-        //     for (var i = 0; i < this.polygons.length; i++) {
-        //       this.polygons[i].flip();
-        //     }
-        //     this.plane.flip();
-        //     if (this.front) this.front.invert();
-        //     if (this.back) this.back.invert();
-        //     var temp = this.front;
-        //     this.front = this.back;
-        //     this.back = temp;
-        //   },
     }
 
     pub fn all_polygons(&self) -> Vec<Polygon> {
-        // Return a list of all polygons in this BSP tree.
-        //   allPolygons: function() {
         let mut polygons = self.polygons.clone();
         if let Some(front) = &self.front {
             polygons.append(&mut front.all_polygons());
@@ -456,32 +343,9 @@ impl Node {
             polygons.append(&mut back.all_polygons());
         }
         polygons
-        // var polygons = this.polygons.slice();
-        // if (this.front) polygons = polygons.concat(this.front.allPolygons());
-        // if (this.back) polygons = polygons.concat(this.back.allPolygons());
-        // return polygons;
-        //   },
     }
 
     fn clip_polygons(&self, polygons: &[Polygon]) -> Vec<Polygon> {
-        // let mut front = Vec::new();
-        // let mut back = Vec::new();
-        // let mut coplanar_front = Vec::new();
-        // let mut coplanar_back = Vec::new();
-
-        // for polygon in polygons {
-        //     self.plane.split_polygon(
-        //         polygon,
-        //         &mut coplanar_front,
-        //         &mut coplanar_back,
-        //         &mut front,
-        //         &mut back,
-        //     )
-        // }
-
-        // front.append(&mut coplanar_front);
-        // back.append(&mut coplanar_back);
-
         let (front, back) = self.plane.split_polygons(polygons).into_merged();
 
         let mut front = if let Some(front_node) = &self.front {
@@ -498,19 +362,6 @@ impl Node {
 
         front.append(&mut back);
         front
-        //   // Recursively remove all polygons in `polygons` that are inside this BSP
-        // // tree.
-        // clipPolygons: function(polygons) {
-        // if (!this.plane) return polygons.slice();
-        // var front = [], back = [];
-        // for (var i = 0; i < polygons.length; i++) {
-        //   this.plane.splitPolygon(polygons[i], front, back, front, back);
-        // }
-        // if (this.front) front = this.front.clipPolygons(front);
-        // if (this.back) back = this.back.clipPolygons(back);
-        // else back = [];
-        // return front.concat(back);
-        //   },
     }
 }
 
