@@ -12,7 +12,7 @@ use super::{
     util::add_box,
 };
 use crate::{
-    csg::{self, Cube, Cylinder, Sphere},
+    csg::{self, Cube, Cylinder},
     editor::util::add_csg,
     test_texture,
 };
@@ -123,7 +123,7 @@ pub fn editor_input_system(
                         *max += dmax;
                     }
                     Brush::Csg(ref mut csg) => {
-                        csg.translate(dmin.into());
+                        csg.translate(dmin);
                     }
                 }
             }

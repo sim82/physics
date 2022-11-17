@@ -2,10 +2,7 @@ use bevy::prelude::*;
 
 use crate::AppState;
 
-use self::{
-    resources::Selection,
-    systems::{update_brush_csg_system, update_brushes_system},
-};
+use self::{resources::Selection, systems::update_brush_csg_system};
 
 pub mod components;
 pub mod resources;

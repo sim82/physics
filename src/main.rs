@@ -6,7 +6,7 @@ use std::{
 
 use bevy::{
     diagnostic::FrameTimeDiagnosticsPlugin,
-    pbr::wireframe::{Wireframe, WireframePlugin},
+    pbr::wireframe::WireframePlugin,
     // input::system::exit_on_esc_system,
     prelude::*,
     render::{
