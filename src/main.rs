@@ -6,6 +6,7 @@ use std::{
 
 use bevy::{
     diagnostic::FrameTimeDiagnosticsPlugin,
+    pbr::wireframe::{Wireframe, WireframePlugin},
     // input::system::exit_on_esc_system,
     prelude::*,
     render::{
@@ -59,6 +60,7 @@ fn main() {
     .add_system(update_deferred_mesh_system)
     // .add_plugin(FpsControllerPlugin)
     .add_plugin(AtmospherePlugin)
+    .add_plugin(WireframePlugin)
     .insert_resource(Atmosphere {
         ray_origin: Vec3::new(0.0, 7000e3, 0.0),
         planet_radius: 7000e3,

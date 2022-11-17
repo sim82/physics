@@ -6,3 +6,6 @@ pub enum Brush {
     MinMax(Vec3, Vec3),
     Csg(Csg),
 }
+
+#[derive(Component)]
+pub struct CsgOutput;
