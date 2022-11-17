@@ -41,12 +41,19 @@
 //
 // Original code and comments copyright (c) 2011 Evan Wallace (http://madebyevan.com/), under the MIT license.
 
-use std::f32::consts::{PI, TAU};
-
 use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
 };
+
+mod cube;
+pub use cube::Cube;
+
+mod cylinder;
+pub use cylinder::Cylinder;
+
+mod sphere;
+pub use sphere::Sphere;
 
 // clean slate, bevy flavoured, port of csg.js
 
@@ -550,221 +557,6 @@ pub fn subtract(a: &Csg, b: &Csg) -> Option<Csg> {
         Some(Csg::from_polygons(a.all_polygons()))
     } else {
         None
-    }
-}
-
-pub struct Cube {
-    c: Vec3,
-    r: f32,
-}
-
-impl Default for Cube {
-    fn default() -> Self {
-        Self {
-            c: Vec3::ZERO,
-            r: 1.0,
-        }
-    }
-}
-
-impl Cube {
-    pub fn new(c: Vec3, r: f32) -> Self {
-        Cube { c, r }
-    }
-}
-
-impl From<Cube> for Csg {
-    fn from(cube: Cube) -> Csg {
-        let info = [
-            ([0, 4, 6, 2], (-1, 0, 0)),
-            ([1, 3, 7, 5], (1, 0, 0)),
-            ([0, 1, 5, 4], (0, -1, 0)),
-            ([2, 6, 7, 3], (0, 1, 0)),
-            ([0, 2, 3, 1], (0, 0, -1)),
-            ([4, 5, 7, 6], (0, 0, 1)),
-        ];
-        let c = cube.c;
-        let r = Vec3::splat(cube.r);
-        let polygons = info
-            .iter()
-            .map(|(points, normal)| {
-                let vtx = points
-                    .iter()
-                    .map(|i| {
-                        Vertex::new(
-                            c + r * Vec3::new(
-                                if (i & 1) != 0 { 2.0 } else { 0.0 } - 1.0,
-                                if (i & 2) != 0 { 2.0 } else { 0.0 } - 1.0,
-                                if (i & 4) != 0 { 2.0 } else { 0.0 } - 1.0,
-                            ),
-                            Vec3::new(normal.0 as f32, normal.1 as f32, normal.2 as f32),
-                        )
-                    })
-                    .collect();
-                Polygon::from_vertices(vtx)
-            })
-            .collect();
-
-        Csg::from_polygons(polygons)
-    }
-}
-
-pub struct Sphere {
-    pub center: Vec3,
-    pub r: f32,
-    pub slices: usize,
-    pub stacks: usize,
-}
-
-impl Default for Sphere {
-    fn default() -> Self {
-        Self {
-            center: Vec3::ZERO,
-            r: 0.5,
-            slices: 16,
-            stacks: 8,
-        }
-    }
-}
-
-impl Sphere {
-    pub fn new(center: Vec3, r: f32, slices: usize, stacks: usize) -> Self {
-        Self {
-            center,
-            r,
-            slices,
-            stacks,
-        }
-    }
-}
-
-impl From<Sphere> for Csg {
-    fn from(sphere: Sphere) -> Self {
-        let mut polygons = Vec::new();
-
-        let vertex = |theta: f32, phi: f32| {
-            let theta = theta * TAU;
-            let phi = phi * PI;
-            let dir = Vec3::new(theta.cos() * phi.sin(), phi.cos(), theta.sin() * phi.sin());
-            //   vertices.push(Vertex::new(c + dir*r), dir);
-            Vertex::new(sphere.center + dir * sphere.r, dir)
-        };
-        for i in 0..sphere.slices {
-            for j in 0..sphere.stacks {
-                let mut vertices = Vec::new();
-
-                vertices.push(vertex(
-                    i as f32 / sphere.slices as f32,
-                    j as f32 / sphere.stacks as f32,
-                ));
-
-                if j > 0 {
-                    vertices.push(vertex(
-                        (i + 1) as f32 / sphere.slices as f32,
-                        j as f32 / sphere.stacks as f32,
-                    ));
-                }
-                if j < sphere.stacks - 1 {
-                    vertices.push(vertex(
-                        (i + 1) as f32 / sphere.slices as f32,
-                        (j + 1) as f32 / sphere.stacks as f32,
-                    ));
-                }
-                vertices.push(vertex(
-                    i as f32 / sphere.slices as f32,
-                    (j + 1) as f32 / sphere.stacks as f32,
-                ));
-
-                polygons.push(Polygon::from_vertices(vertices));
-            }
-        }
-        Csg::from_polygons(polygons)
-    }
-}
-
-// Construct a solid cylinder. Optional parameters are `start`, `end`,
-// `radius`, and `slices`, which default to `[0, -1, 0]`, `[0, 1, 0]`, `1`, and
-// `16`. The `slices` parameter controls the tessellation.
-//
-// Example usage:
-//
-//     var cylinder = CSG.cylinder({
-//       start: [0, -1, 0],
-//       end: [0, 1, 0],
-//       radius: 1,
-//       slices: 16
-//     });
-
-pub struct Cylinder {
-    pub start: Vec3,
-    pub end: Vec3,
-    pub radius: f32,
-    pub slices: usize,
-}
-
-impl Default for Cylinder {
-    fn default() -> Self {
-        Self {
-            start: -Vec3::Y,
-            end: Vec3::Y,
-            radius: 1.0,
-            slices: 16,
-        }
-    }
-}
-impl Cylinder {
-    pub fn new(start: Vec3, end: Vec3, radius: f32, slices: usize) -> Cylinder {
-        Cylinder {
-            start,
-            end,
-            radius,
-            slices,
-        }
-    }
-}
-
-impl From<Cylinder> for Csg {
-    fn from(cylinder: Cylinder) -> Self {
-        let ray = cylinder.end - cylinder.start;
-        let axis_z = ray.normalize();
-        let (is_y, not_is_y) = if axis_z.y > 0.5 {
-            (1.0, 0.0)
-        } else {
-            (0.0, 1.0)
-        };
-        let axis_x = Vec3::new(is_y, not_is_y, 0.0).cross(axis_z).normalize();
-        let axis_y = axis_x.cross(axis_z).normalize();
-        let start = Vertex::new(cylinder.start, -axis_z);
-        let end = Vertex::new(cylinder.end, axis_z.normalize());
-        let mut polygons = Vec::new();
-        let point = |stack: f32, slice: f32, normal_blend: f32| {
-            let angle = slice * TAU;
-            let out = axis_x * angle.cos() + axis_y * angle.sin();
-            let pos = cylinder.start + ray * stack + out * cylinder.radius;
-            let normal = out * (1.0 - normal_blend.abs()) + axis_z * normal_blend;
-            Vertex::new(pos, normal)
-        };
-        for i in 0..cylinder.slices {
-            let t0 = i as f32 / cylinder.slices as f32;
-            let t1 = (i + 1) as f32 / cylinder.slices as f32;
-            polygons.push(Polygon::from_vertices(vec![
-                start,
-                point(0.0, t0, -1.0),
-                point(0.0, t1, -1.0),
-            ]));
-            polygons.push(Polygon::from_vertices(vec![
-                point(0.0, t1, 0.0),
-                point(0.0, t0, 0.0),
-                point(1.0, t0, 0.0),
-                point(1.0, t1, 0.0),
-            ]));
-            polygons.push(Polygon::from_vertices(vec![
-                end,
-                point(1.0, t1, 1.0),
-                point(1.0, t0, 1.0),
-            ]));
-        }
-        Csg::from_polygons(polygons)
     }
 }
 
