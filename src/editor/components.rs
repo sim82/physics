@@ -10,3 +10,6 @@ pub enum EditorObject {
 
 #[derive(Component)]
 pub struct CsgOutput;
+
+#[derive(Component)]
+pub struct SelectionVis;

@@ -27,8 +27,15 @@ impl Default for Brush {
     }
 }
 
-impl From<Brush> for Csg {
-    fn from(brush: Brush) -> Self {
+#[derive(Debug)]
+pub enum BrushError {
+    Degenerated(Brush),
+}
+
+impl TryFrom<Brush> for Csg {
+    type Error = BrushError;
+
+    fn try_from(brush: Brush) -> Result<Self, Self::Error> {
         let mut polygons = Vec::new();
         for (i, base_plane) in brush.planes.iter().enumerate() {
             let mut polygon = create_base_polygon(base_plane, 128.0);
@@ -60,6 +67,14 @@ impl From<Brush> for Csg {
 
                 // check degenerated cases. the split polygon must either be cut in two or must be completely behind the plane
                 // coplanar or no back result would mean the planes describe an empty volume
+
+                if !(coplanar_back.is_empty() && coplanar_front.is_empty())
+                    || back.len() != 1
+                    || front.len() > 1
+                {
+                    // TODO: include more info about degenrated case?
+                    return Err(BrushError::Degenerated(brush));
+                }
                 assert!(coplanar_back.is_empty());
                 assert!(coplanar_front.is_empty());
                 assert!(back.len() == 1);
@@ -69,7 +84,7 @@ impl From<Brush> for Csg {
             }
             polygons.push(polygon);
         }
-        Csg::from_polygons(polygons)
+        Ok(Csg::from_polygons(polygons))
     }
 }
 
@@ -97,7 +112,7 @@ fn test_create_base_polygon() {
 #[test]
 fn test_csg_from_brush() {
     let brush = Brush::default();
-    let csg: Csg = brush.into();
+    let csg: Csg = brush.try_into().unwrap();
 
     println!("{:?}", csg);
 }

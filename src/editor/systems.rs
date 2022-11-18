@@ -1,18 +1,22 @@
 use bevy::{
     input::mouse::MouseWheel,
     pbr::wireframe::Wireframe,
-    prelude::*,
-    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
+    prelude::{shape::Cube, *},
+    render::{
+        primitives::Aabb,
+        render_resource::{Extent3d, TextureDimension, TextureFormat},
+    },
     utils::Instant,
 };
+use gltf::json::material;
 
 use super::{
-    components::{CsgOutput, EditorObject},
+    components::{CsgOutput, EditorObject, SelectionVis},
     resources::Selection,
     util::add_box,
 };
 use crate::{
-    csg::{self, Brush, Cube, Cylinder},
+    csg::{self},
     editor::util::add_csg,
     test_texture,
 };
@@ -42,7 +46,7 @@ pub fn editor_input_system(
     if keycodes.just_pressed(KeyCode::B) {
         let entity = commands
             .spawn()
-            .insert(EditorObject::Brush(Brush::default()))
+            .insert(EditorObject::Brush(csg::Brush::default()))
             .id();
 
         selection.primary = Some(entity);
@@ -50,7 +54,9 @@ pub fn editor_input_system(
     if keycodes.just_pressed(KeyCode::L) {
         let entity = commands
             .spawn()
-            .insert(EditorObject::Csg(Cube::new(Vec3::splat(2.0), 0.5).into()))
+            .insert(EditorObject::Csg(
+                csg::Cube::new(Vec3::splat(2.0), 0.5).into(),
+            ))
             .id();
 
         selection.primary = Some(entity);
@@ -65,7 +71,7 @@ pub fn editor_input_system(
                     .spawn()
                     // .insert(Brush::Csg(Cube::new(*offset, 0.5).into()))
                     .insert(EditorObject::Csg(
-                        Cylinder {
+                        csg::Cylinder {
                             start: Vec3::new(0.0, -1.0, 0.0) + *offset,
                             end: Vec3::new(0.0, 1.0, 0.0) + *offset,
                             radius: 2.0,
@@ -135,12 +141,16 @@ pub fn editor_input_system(
                         csg.translate(dmin);
                     }
                     EditorObject::Brush(ref mut brush) => {
-                        brush.planes[0].w += dmax.x;
-                        brush.planes[1].w -= dmin.x;
-                        brush.planes[2].w += dmax.y;
-                        brush.planes[3].w -= dmin.y;
-                        brush.planes[4].w += dmax.z;
-                        brush.planes[5].w -= dmin.z;
+                        let mut new_brush = brush.clone();
+                        new_brush.planes[0].w += dmax.x;
+                        new_brush.planes[1].w -= dmin.x;
+                        new_brush.planes[2].w += dmax.y;
+                        new_brush.planes[3].w -= dmin.y;
+                        new_brush.planes[4].w += dmax.z;
+                        new_brush.planes[5].w -= dmin.z;
+                        if std::convert::TryInto::<csg::Csg>::try_into(new_brush.clone()).is_ok() {
+                            *brush = new_brush
+                        }
                     }
                 }
             }
@@ -253,7 +263,7 @@ pub fn update_brush_csg_system(
         .iter()
         .filter_map(|brush| match brush {
             EditorObject::Csg(csg) => Some(csg.clone()),
-            EditorObject::Brush(brush) => Some(brush.clone().into()),
+            EditorObject::Brush(brush) => brush.clone().try_into().ok(),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -285,4 +295,34 @@ pub fn update_brush_csg_system(
     add_csg(&mut commands, entity, material, &mut meshes, &u);
 
     info!("csg update: {:?}", start.elapsed());
+}
+
+pub fn track_primary_selection(
+    selection: Res<Selection>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    brush_query: Query<&EditorObject, Changed<EditorObject>>,
+    mut query: Query<(&Handle<Mesh>, &mut Aabb), With<SelectionVis>>,
+) {
+    let Some(ref primary) = selection.primary else { return };
+    let Ok(EditorObject::Brush(brush)) = brush_query.get(*primary) else { return };
+    let Ok((vis,mut aabb)) = query.get_single_mut() else { return };
+    let Some(mesh) = meshes.get_mut(vis) else { return };
+    let Ok(csg): Result<csg::Csg, _> = brush.clone().try_into() else {return};
+    *aabb = csg.get_aabb();
+    *mesh = (&csg).into();
+}
+
+pub fn setup_selection_vis_system(
+    mut command: Commands,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    command
+        .spawn_bundle(PbrBundle {
+            mesh: meshes.add(Cube::default().into()),
+            material: materials.add(Color::rgba(0.5, 0.5, 1.0, 0.2).into()),
+            ..default()
+        })
+        .insert(SelectionVis)
+        .insert(Name::new("selection"));
 }

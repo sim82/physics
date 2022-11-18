@@ -43,7 +43,7 @@
 
 use bevy::{
     prelude::*,
-    render::{mesh::Indices, render_resource::PrimitiveTopology},
+    render::{mesh::Indices, primitives::Aabb, render_resource::PrimitiveTopology},
 };
 
 mod cube;
@@ -357,6 +357,21 @@ impl Csg {
         for p in &mut self.polygons {
             p.translate(offset);
         }
+    }
+    pub fn get_aabb(&self) -> Aabb {
+        let mut min = Vec3::splat(1e10);
+        let mut max = Vec3::splat(-1e10);
+        for polygon in &self.polygons {
+            for Vertex {
+                position,
+                normal: _,
+            } in &polygon.vertices
+            {
+                min = min.min(*position);
+                max = max.max(*position);
+            }
+        }
+        Aabb::from_min_max(min, max)
     }
 }
 
