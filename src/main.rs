@@ -13,6 +13,7 @@ use bevy::{
         mesh::{self},
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
+    window::WindowId,
 };
 use bevy_atmosphere::prelude::*;
 // use bevy_editor_pls::prelude::*;
@@ -54,7 +55,8 @@ fn main() {
     .add_system(rotation_system)
     // .add_plugin(physics::CharacterStateInputPlugin::default())
     .add_plugin(player_controller::PlayerControllerPlugin)
-    .add_system(exit_on_esc_system)
+    // .add_system(exit_on_esc_system)
+    .add_system(bevy::window::close_on_esc)
     .add_plugin(FrameTimeDiagnosticsPlugin)
     .add_system(debug_line_test)
     .add_system(update_deferred_mesh_system)
@@ -89,6 +91,7 @@ fn main() {
             SystemSet::on_exit(AppState::DebugMenu).with_system(close_world_inspector),
         );
     }
+
     app.run();
 
     info!("after app.run");

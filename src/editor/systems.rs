@@ -3,22 +3,21 @@ use bevy::{
     pbr::wireframe::Wireframe,
     prelude::{shape::Cube, *},
     render::{
+        camera::{Projection, RenderTarget},
         primitives::Aabb,
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
     utils::Instant,
+    window::{CreateWindow, WindowId},
 };
-use gltf::json::material;
 
 use super::{
     components::{CsgOutput, EditorObject, SelectionVis},
     resources::Selection,
-    util::add_box,
 };
 use crate::{
     csg::{self},
     editor::util::add_csg,
-    test_texture,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -325,4 +324,33 @@ pub fn setup_selection_vis_system(
         })
         .insert(SelectionVis)
         .insert(Name::new("selection"));
+}
+
+pub fn setup_editor_window(
+    mut commands: Commands,
+    mut create_window_events: EventWriter<CreateWindow>,
+) {
+    let window_id = WindowId::new();
+
+    // sends out a "CreateWindow" event, which will be received by the windowing backend
+    create_window_events.send(CreateWindow {
+        id: window_id,
+        descriptor: WindowDescriptor {
+            width: 800.,
+            height: 600.,
+            title: "Second window".to_string(),
+            ..default()
+        },
+    });
+
+    // second window camera
+    commands.spawn_bundle(Camera3dBundle {
+        transform: Transform::from_xyz(6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+        camera: Camera {
+            target: RenderTarget::Window(window_id),
+            ..default()
+        },
+        projection: Projection::Orthographic(OrthographicProjection::default()),
+        ..default()
+    });
 }
