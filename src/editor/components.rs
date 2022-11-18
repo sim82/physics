@@ -1,10 +1,11 @@
-use crate::csg::Csg;
+use crate::csg::{Brush, Csg};
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub enum Brush {
+pub enum EditorObject {
     MinMax(Vec3, Vec3),
     Csg(Csg),
+    Brush(Brush),
 }
 
 #[derive(Component)]

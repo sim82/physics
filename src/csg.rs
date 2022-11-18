@@ -55,6 +55,9 @@ pub use cylinder::Cylinder;
 mod sphere;
 pub use sphere::Sphere;
 
+mod brush;
+pub use brush::Brush;
+
 // clean slate, bevy flavoured, port of csg.js
 
 #[derive(Clone, Copy, Default, Debug)]
@@ -127,6 +130,9 @@ impl SplitPolygonsResult {
 }
 
 impl Plane {
+    pub fn new(normal: Vec3, w: f32) -> Self {
+        Plane { normal, w }
+    }
     pub fn from_points(a: Vec3, b: Vec3, c: Vec3) -> Self {
         let normal = (b - a).cross(c - a).normalize_or_zero(); // TODO: error handling for degenerated cases?
         Plane {

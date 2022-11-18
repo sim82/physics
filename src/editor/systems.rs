@@ -7,12 +7,12 @@ use bevy::{
 };
 
 use super::{
-    components::{Brush, CsgOutput},
+    components::{CsgOutput, EditorObject},
     resources::Selection,
     util::add_box,
 };
 use crate::{
-    csg::{self, Cube, Cylinder},
+    csg::{self, Brush, Cube, Cylinder},
     editor::util::add_csg,
     test_texture,
 };
@@ -28,21 +28,29 @@ pub fn editor_input_system(
 
     mut selection: ResMut<Selection>,
 
-    mut query: Query<&mut Brush>,
+    mut query: Query<&mut EditorObject>,
 ) {
     if keycodes.just_pressed(KeyCode::K) {
         let entity = commands
             .spawn()
-            .insert(Brush::MinMax(Vec3::splat(-1.0), Vec3::splat(1.0)))
+            .insert(EditorObject::MinMax(Vec3::splat(-1.0), Vec3::splat(1.0)))
             .id();
 
         selection.primary = Some(entity);
     }
 
+    if keycodes.just_pressed(KeyCode::B) {
+        let entity = commands
+            .spawn()
+            .insert(EditorObject::Brush(Brush::default()))
+            .id();
+
+        selection.primary = Some(entity);
+    }
     if keycodes.just_pressed(KeyCode::L) {
         let entity = commands
             .spawn()
-            .insert(Brush::Csg(Cube::new(Vec3::splat(2.0), 0.5).into()))
+            .insert(EditorObject::Csg(Cube::new(Vec3::splat(2.0), 0.5).into()))
             .id();
 
         selection.primary = Some(entity);
@@ -56,13 +64,14 @@ pub fn editor_input_system(
                 let entity = commands
                     .spawn()
                     // .insert(Brush::Csg(Cube::new(*offset, 0.5).into()))
-                    .insert(Brush::Csg(
+                    .insert(EditorObject::Csg(
                         Cylinder {
                             start: Vec3::new(0.0, -1.0, 0.0) + *offset,
                             end: Vec3::new(0.0, 1.0, 0.0) + *offset,
-
+                            radius: 2.0,
                             ..default()
                         }
+                        // csg::Sphere::new(*offset, 1.0, 16, 8)
                         .into(),
                     ))
                     .id();
@@ -75,7 +84,7 @@ pub fn editor_input_system(
     if keycodes.just_pressed(KeyCode::N) {
         if let Some(selection) = selection.primary {
             if let Ok(mut brush) = query.get_mut(selection) {
-                if let Brush::Csg(ref mut csg) = *brush {
+                if let EditorObject::Csg(ref mut csg) = *brush {
                     csg.invert();
                 }
             }
@@ -118,12 +127,20 @@ pub fn editor_input_system(
         if let Ok(mut brush) = query.get_mut(selection) {
             if dmin.length() > 0.0 || dmax.length() > 0.0 {
                 match *brush {
-                    Brush::MinMax(ref mut min, ref mut max) => {
+                    EditorObject::MinMax(ref mut min, ref mut max) => {
                         *min += dmin;
                         *max += dmax;
                     }
-                    Brush::Csg(ref mut csg) => {
+                    EditorObject::Csg(ref mut csg) => {
                         csg.translate(dmin);
+                    }
+                    EditorObject::Brush(ref mut brush) => {
+                        brush.planes[0].w += dmax.x;
+                        brush.planes[1].w -= dmin.x;
+                        brush.planes[2].w += dmax.y;
+                        brush.planes[3].w -= dmin.y;
+                        brush.planes[4].w += dmax.z;
+                        brush.planes[5].w -= dmin.z;
                     }
                 }
             }
@@ -142,62 +159,63 @@ pub fn update_brushes_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
 
-    mut query: Query<(Entity, &Brush), Changed<Brush>>,
+    mut query: Query<(Entity, &EditorObject), Changed<EditorObject>>,
     query_cleanup: Query<(&Handle<Mesh>, &Handle<StandardMaterial>)>,
 ) {
-    for (entity, brush) in &mut query {
-        // let entity = spawn_box(
-        //     &mut commands,
-        //     material,
-        //     &mut meshes,
-        //     Vec3::splat(-1.0),
-        //     Vec3::splat(1.0),
-        // );
-        if let Ok((mesh, material)) = query_cleanup.get(entity) {
-            info!("cleanup {:?} {:?}", mesh, material);
-            meshes.remove(mesh);
-            if let Some(material) = materials.remove(material) {
-                if let Some(image) = material.base_color_texture {
-                    info!("cleanup {:?}", image);
-                    images.remove(image);
-                }
-            }
-        }
-        match brush {
-            Brush::MinMax(min, max) => {
-                let uv_test = images.add(Image::new(
-                    Extent3d {
-                        width: test_texture::TW as u32,
-                        height: test_texture::TH as u32,
-                        depth_or_array_layers: 1,
-                    },
-                    TextureDimension::D2,
-                    test_texture::create(),
-                    TextureFormat::Rgba8Unorm,
-                ));
+    // for (entity, brush) in &mut query {
+    //     // let entity = spawn_box(
+    //     //     &mut commands,
+    //     //     material,
+    //     //     &mut meshes,
+    //     //     Vec3::splat(-1.0),
+    //     //     Vec3::splat(1.0),
+    //     // );
+    //     if let Ok((mesh, material)) = query_cleanup.get(entity) {
+    //         info!("cleanup {:?} {:?}", mesh, material);
+    //         meshes.remove(mesh);
+    //         if let Some(material) = materials.remove(material) {
+    //             if let Some(image) = material.base_color_texture {
+    //                 info!("cleanup {:?}", image);
+    //                 images.remove(image);
+    //             }
+    //         }
+    //     }
+    //     match brush {
+    //         EditorObject::MinMax(min, max) => {
+    //             let uv_test = images.add(Image::new(
+    //                 Extent3d {
+    //                     width: test_texture::TW as u32,
+    //                     height: test_texture::TH as u32,
+    //                     depth_or_array_layers: 1,
+    //                 },
+    //                 TextureDimension::D2,
+    //                 test_texture::create(),
+    //                 TextureFormat::Rgba8Unorm,
+    //             ));
 
-                let material = materials.add(StandardMaterial {
-                    base_color_texture: Some(uv_test),
-                    metallic: 0.9,
-                    perceptual_roughness: 0.1,
-                    ..Default::default()
-                });
+    //             let material = materials.add(StandardMaterial {
+    //                 base_color_texture: Some(uv_test),
+    //                 metallic: 0.9,
+    //                 perceptual_roughness: 0.1,
+    //                 ..Default::default()
+    //             });
 
-                add_box(&mut commands, entity, material, &mut meshes, *min, *max);
-            }
-            Brush::Csg(csg) => {
-                let material = materials.add(StandardMaterial {
-                    base_color: Color::BLUE,
-                    metallic: 0.9,
-                    perceptual_roughness: 0.1,
-                    ..Default::default()
-                });
+    //             add_box(&mut commands, entity, material, &mut meshes, *min, *max);
+    //         }
+    //         EditorObject::Csg(csg) => {
+    //             let material = materials.add(StandardMaterial {
+    //                 base_color: Color::BLUE,
+    //                 metallic: 0.9,
+    //                 perceptual_roughness: 0.1,
+    //                 ..Default::default()
+    //             });
 
-                add_csg(&mut commands, entity, material, &mut meshes, csg);
-            }
-        }
-        info!("update brush mesh");
-    }
+    //             add_csg(&mut commands, entity, material, &mut meshes, csg);
+    //         }
+
+    //     }
+    //     info!("update brush mesh");
+    // }
 }
 
 #[allow(clippy::type_complexity)]
@@ -208,8 +226,8 @@ pub fn update_brush_csg_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
 
-    query: Query<&Brush>,
-    query_changed: Query<Entity, Changed<Brush>>,
+    query: Query<&EditorObject>,
+    query_changed: Query<Entity, Changed<EditorObject>>,
     query_cleanup: Query<(Entity, &Handle<Mesh>, &Handle<StandardMaterial>), With<CsgOutput>>,
 ) {
     if query_changed.is_empty() {
@@ -234,18 +252,19 @@ pub fn update_brush_csg_system(
     let mut csgs = query
         .iter()
         .filter_map(|brush| match brush {
-            Brush::Csg(csg) => Some(csg),
+            EditorObject::Csg(csg) => Some(csg.clone()),
+            EditorObject::Brush(brush) => Some(brush.clone().into()),
             _ => None,
         })
         .collect::<Vec<_>>();
 
-    let Some(mut u) = csgs.pop().cloned() else {
+    let Some(mut u) = csgs.pop() else {
         info!( "no Csg brushes");
         return;
     };
 
     for csg in csgs {
-        u = csg::union(&u, csg).unwrap();
+        u = csg::union(&u, &csg).unwrap();
     }
 
     u.invert();
