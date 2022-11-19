@@ -1,9 +1,10 @@
 use crate::csg::{Brush, Csg};
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use super::util::Ray;
 
-#[derive(Component)]
+#[derive(Component, Serialize, Deserialize)]
 pub enum EditorObject {
     MinMax(Vec3, Vec3),
     Csg(Csg),

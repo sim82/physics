@@ -25,6 +25,7 @@ impl Plugin for EditorPlugin {
         .add_system(systems::track_window_props)
         .add_system(systems::track_focused_window)
         .add_system(systems::editor_windows_2d_input_system)
+        .add_system(systems::load_save_editor_objects)
         .init_resource::<resources::Selection>()
         .init_resource::<resources::EditorWindows2d>();
 

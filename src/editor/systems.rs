@@ -639,3 +639,32 @@ pub fn editor_windows_2d_input_system(
     }
 }
 
+pub fn load_save_editor_objects(
+    mut commands: Commands,
+    keycodes: Res<Input<KeyCode>>,
+    existing_objects: Query<(Entity, &EditorObject), With<EditorObject>>,
+) {
+
+    if keycodes.just_pressed(KeyCode::F5) {
+        let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
+        if let Ok(file) = std::fs::File::create("scene.yaml") {
+            let _ = serde_yaml::to_writer(file, &objects);
+        }
+    }
+
+    if keycodes.just_pressed(KeyCode::F6) {
+        // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
+        if let Ok(file) = std::fs::File::open("scene.yaml") {
+            let objects : Vec<EditorObject> = serde_yaml::from_reader(file).unwrap_or_default();
+
+            for (entity,_) in existing_objects.iter() {
+                commands.entity(entity).despawn();
+            }
+            for obj in objects {
+                commands.spawn().insert(obj);
+            }
+
+        }
+    }
+
+}

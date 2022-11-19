@@ -7,3 +7,4 @@ ext/*
 *.ron
 cache/*
 windows.yaml
+scene.yaml

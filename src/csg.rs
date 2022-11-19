@@ -53,6 +53,7 @@ mod cylinder;
 pub use cylinder::Cylinder;
 
 mod sphere;
+use serde::{Deserialize, Serialize};
 pub use sphere::Sphere;
 
 mod brush;
@@ -60,7 +61,7 @@ pub use brush::Brush;
 
 // clean slate, bevy flavoured, port of csg.js
 
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize)]
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
@@ -98,7 +99,7 @@ impl Vertex {
 // point is on the plane.
 pub const PLANE_EPSILON: f32 = 1e-5;
 
-#[derive(Clone, Debug, Default, Copy)]
+#[derive(Clone, Debug, Default, Copy, Serialize, Deserialize)]
 pub struct Plane {
     pub normal: Vec3,
     pub w: f32,
@@ -267,7 +268,7 @@ impl Plane {
 // TODO: Each convex polygon has a `shared` property, which is shared between all
 // polygons that are clones of each other or were split from the same polygon.
 // This can be used to define per-polygon properties (such as surface color).
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Polygon {
     pub vertices: Vec<Vertex>,
     pub plane: Plane,
@@ -316,7 +317,7 @@ impl Polygon {
 
 // Holds a binary space partition tree representing a 3D solid. Two solids can
 // be combined using the `union()`, `subtract()`, and `intersect()` functions.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Csg {
     pub polygons: Vec<Polygon>,
 }
