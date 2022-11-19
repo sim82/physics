@@ -157,8 +157,9 @@ impl Orientation2d {
         }
     }
     pub fn get_transform(&self) -> Transform {
+        // TODO: check if this is all plausible...
+        // TODO: better solution for near/far clipping in ortho projection(and where to put the camera...)
         const ORTHO_OFFSET: f32 = 100.0;
-
         match self {
             Orientation2d::DownFront => {
                 Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, Vec3::X)
