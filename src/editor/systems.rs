@@ -1,19 +1,21 @@
+use std::{collections::BTreeMap, str::FromStr};
+
 use bevy::{
     input::mouse::MouseWheel,
     pbr::wireframe::Wireframe,
     prelude::{shape::Cube, *},
     render::{
-        camera::{Projection, RenderTarget},
+        camera::{Projection, RenderTarget, ScalingMode},
         primitives::Aabb,
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
-    utils::Instant,
-    window::{CreateWindow, WindowId},
+    utils::{HashMap, Instant, Uuid},
+    window::{CreateWindow, WindowId, WindowResized},
 };
 
 use super::{
     components::{CsgOutput, EditorObject, SelectionVis},
-    resources::Selection,
+    resources::{self, EditorWindowSettings, Selection, LOWER_WINDOW, UPPER_WINDOW},
 };
 use crate::{
     csg::{self},
@@ -327,30 +329,125 @@ pub fn setup_selection_vis_system(
 }
 
 pub fn setup_editor_window(
+    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut commands: Commands,
     mut create_window_events: EventWriter<CreateWindow>,
 ) {
-    let window_id = WindowId::new();
+    // FIXME: this whole function looks a bit goofy...
 
-    // sends out a "CreateWindow" event, which will be received by the windowing backend
-    create_window_events.send(CreateWindow {
-        id: window_id,
-        descriptor: WindowDescriptor {
-            width: 800.,
-            height: 600.,
-            title: "Second window".to_string(),
-            ..default()
-        },
-    });
+    let settings_map = if let Ok(file) = std::fs::File::open("windows.yaml") {
+        serde_yaml::from_reader(file).unwrap_or_default()
+    } else {
+        HashMap::<String, EditorWindowSettings>::new()
+    };
 
-    // second window camera
-    commands.spawn_bundle(Camera3dBundle {
-        transform: Transform::from_xyz(6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-        camera: Camera {
-            target: RenderTarget::Window(window_id),
-            ..default()
-        },
-        projection: Projection::Orthographic(OrthographicProjection::default()),
-        ..default()
-    });
+    let mut transforms = vec![
+        (
+            UPPER_WINDOW,
+            None,
+            Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::X),
+        ),
+        (
+            LOWER_WINDOW,
+            None,
+            Transform::from_xyz(-6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+        ),
+    ];
+    for (i, (name, window2d, t)) in transforms.iter_mut().enumerate() {
+        let settings = settings_map
+            .get(*name)
+            .cloned()
+            .unwrap_or(EditorWindowSettings {
+                pos_x: 0,
+                pos_y: 0,
+                width: 800,
+                height: 600,
+            });
+
+        let window_id = WindowId::new();
+
+        // sends out a "CreateWindow" event, which will be received by the windowing backend
+        create_window_events.send(CreateWindow {
+            id: window_id,
+            descriptor: WindowDescriptor {
+                width: settings.width as f32,
+                height: settings.height as f32,
+                position: WindowPosition::At(Vec2::new(
+                    settings.pos_x as f32,
+                    settings.pos_y as f32,
+                )),
+                title: format!("window {}: {}", i, name),
+                ..default()
+            },
+        });
+
+        // second window camera
+        let entity = commands
+            .spawn_bundle(Camera3dBundle {
+                transform: *t,
+                camera: Camera {
+                    target: RenderTarget::Window(window_id),
+                    ..default()
+                },
+                projection: Projection::Orthographic(OrthographicProjection {
+                    scaling_mode: ScalingMode::FixedHorizontal(10.0),
+                    ..default()
+                }),
+                ..default()
+            })
+            .id();
+
+        *window2d = Some(resources::EditorWindow2d {
+            camera: entity,
+            window_id,
+            settings,
+        });
+    }
+
+    // extract name and Some(Window2d) values into name -> Window2d map
+    editor_windows_2d.windows = transforms
+        .drain(..)
+        .filter_map(|(name, window2d, _)| window2d.map(|window2d| (name.to_owned(), window2d)))
+        .collect()
+}
+
+pub fn track_window_props(
+    mut last_written_settings: Local<BTreeMap<String, EditorWindowSettings>>,
+    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
+
+    mut resize_events: EventReader<WindowResized>,
+    mut move_events: EventReader<WindowMoved>,
+) {
+    for event in resize_events.iter() {
+        for (name, window2d) in &mut editor_windows_2d.windows {
+            if event.id == window2d.window_id {
+                info!("{} resize: {} {}", name, event.width, event.height);
+                window2d.settings.width = event.width as i32;
+                window2d.settings.height = event.height as i32;
+            }
+        }
+    }
+    for event in move_events.iter() {
+        for (name, window2d) in &mut editor_windows_2d.windows {
+            if event.id == window2d.window_id {
+                info!("{} move: {} {}", name, event.position.x, event.position.y);
+                window2d.settings.pos_x = event.position.x;
+                window2d.settings.pos_y = event.position.y;
+            }
+        }
+    }
+
+    let settings = editor_windows_2d
+        .windows
+        .iter()
+        .map(|(name, window)| (name.clone(), window.settings))
+        .collect::<BTreeMap<_, _>>();
+
+    if settings != *last_written_settings {
+        if let Ok(file) = std::fs::File::create("windows.yaml") {
+            let _ = serde_yaml::to_writer(file, &settings);
+            *last_written_settings = settings;
+            info!("window settings written");
+        }
+    }
 }

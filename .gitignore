@@ -6,3 +6,4 @@ ext/*
 *.cap
 *.ron
 cache/*
+windows.yaml

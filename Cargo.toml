@@ -11,8 +11,8 @@ default = ["inspector"]
 
 [dependencies]
 # ] }
-# bevy = { version = "0.8", features = ["dynamic"] }
-bevy = { version = "0.8" }
+bevy = { version = "0.8", features = ["dynamic"] }
+# bevy = { version = "0.8" }
 bevy-inspector-egui = { version = "0.13", optional = true }
 bevy-inspector-egui-rapier = { version = "0.7", optional = true, features = [
     "rapier3d",
@@ -48,8 +48,8 @@ bevy_atmosphere = "0.4"
 bitflags = "1"
 
 [patch.crates-io]
-bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
-rapier3d = { path = "ext/rapier/crates/rapier3d" }
+#bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
+#rapier3d = { path = "ext/rapier/crates/rapier3d" }
 # bevy = { path = "ext/bevy" }
 
 [profile.dev]

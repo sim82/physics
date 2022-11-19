@@ -71,7 +71,7 @@ fn main() {
     });
     // .add_system(mesh_loaded)
 
-    app.add_state(AppState::InGame);
+    app.add_state(AppState::DebugMenu);
     app.add_system(toggle_debug_menu_system);
 
     app.add_plugin(editor::EditorPlugin);
