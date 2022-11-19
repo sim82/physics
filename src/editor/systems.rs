@@ -603,15 +603,12 @@ pub fn editor_windows_2d_input_system(
             for (face, start_w) in &drag_action.affected_faces {
                 
                 let normal = brush.planes[*face].normal;
-                
-                let projected = drag_delta.project_onto(normal);
-                // let d = projected.x + projected.y + projected.z;
-                let d = projected.dot(normal);
-                // info!( "d: {}", d);
+                let d = drag_delta.dot(normal);
 
-                // check if target is degenerated
                 let mut new_brush = brush.clone();
                 new_brush.planes[*face].w = *start_w + d;
+
+                // apply only if target is not degenerated
                 if std::convert::TryInto::<csg::Csg>::try_into(new_brush.clone()).is_ok() {
                     *brush = new_brush
                 }
