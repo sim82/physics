@@ -387,25 +387,25 @@ fn setup(
         .insert(PlayerCamera)
         .insert(AtmosphereCamera(None));
 
-    const HALF_SIZE: f32 = 5.0;
-    commands.spawn_bundle(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            shadow_projection: OrthographicProjection {
-                left: -HALF_SIZE,
-                right: HALF_SIZE,
-                bottom: -HALF_SIZE,
-                top: HALF_SIZE,
-                near: -10.0 * HALF_SIZE,
-                far: 10.0 * HALF_SIZE,
+    if SPAWN_STUFF {
+        const HALF_SIZE: f32 = 5.0;
+        commands.spawn_bundle(DirectionalLightBundle {
+            directional_light: DirectionalLight {
+                shadow_projection: OrthographicProjection {
+                    left: -HALF_SIZE,
+                    right: HALF_SIZE,
+                    bottom: -HALF_SIZE,
+                    top: HALF_SIZE,
+                    near: -10.0 * HALF_SIZE,
+                    far: 10.0 * HALF_SIZE,
+                    ..Default::default()
+                },
+                shadows_enabled: true,
                 ..Default::default()
             },
-            shadows_enabled: true,
             ..Default::default()
-        },
-        ..Default::default()
-    });
+        });
 
-    if SPAWN_STUFF {
         spawn_gltf2(
             &mut commands,
             &asset_server,

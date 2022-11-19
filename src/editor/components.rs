@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::util::Ray;
 
-#[derive(Component, Serialize, Deserialize)]
+#[derive(Debug, Clone, Component, Serialize, Deserialize)]
 pub enum EditorObject {
     MinMax(Vec3, Vec3),
     Csg(Csg),

@@ -47,6 +47,17 @@ pub fn editor_input_system(
 
         selection.primary = Some(entity);
     }
+
+    if keycodes.just_pressed(KeyCode::D) {
+        if let Some(primary) = selection.primary {
+            if let Ok(obj) = query.get(primary) {
+                let entity = commands.spawn().insert(obj.clone()).id();
+
+                selection.primary = Some(entity);
+            }
+        }
+    }
+
     if keycodes.just_pressed(KeyCode::L) {
         let entity = commands
             .spawn()
