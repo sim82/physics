@@ -67,7 +67,6 @@ pub enum AppState {
     // Paused,
 }
 
-mod attic;
 pub fn exit_on_esc_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut app_exit_events: EventWriter<AppExit>,

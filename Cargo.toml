@@ -4,19 +4,26 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-inspector = ["bevy-inspector-egui", "bevy-inspector-egui-rapier"]
+inspector = [
+    "bevy-inspector-egui",
+    # "bevy-inspector-egui-rapier"
+]
+
+
 default = ["inspector"]
 # default = []
 
 
 [dependencies]
 # ] }
-bevy = { version = "0.8", features = ["dynamic"] }
+bevy = { version = "0.9", features = ["dynamic"] }
 # bevy = { version = "0.8" }
-bevy-inspector-egui = { version = "0.13", optional = true }
-bevy-inspector-egui-rapier = { version = "0.7", optional = true, features = [
-    "rapier3d",
-] }
+bevy-inspector-egui = { version = "0.14", optional = true }
+
+# TODO: bevy 0.9
+# bevy-inspector-egui-rapier = { version = "0.7", optional = true, features = [
+#     "rapier3d",
+# ] }
 
 log = "0.4"
 anyhow = { version = "1" }
@@ -29,14 +36,14 @@ flexbuffers = "*"
 # bevy_rapier3d = { version = "0.18", path = "ext/bevy_rapier/bevy_rapier3d", features = [
 #     "debug-render",
 # ] }
-bevy_rapier3d = { version = "0.18", features = ["debug-render"] }
+bevy_rapier3d = { version = "0.19", features = ["debug-render"] }
 
 # rapier3d = { version = "0.16.0" }
 # bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [
 #     "debug-render",
 # ] }
 gltf = "*"
-bevy_prototype_debug_lines = { version = "0.8", features = ["3d"] }
+bevy_prototype_debug_lines = { version = "0.9", features = ["3d"] }
 # bevy_fps_controller = "0.1.2-dev"
 parry3d = { version = "*", features = ["serde-serialize"] }
 # nalgebra = { version = "*", features = ["serde-serialize-no-std"] }
@@ -44,7 +51,8 @@ parry3d = { version = "*", features = ["serde-serialize"] }
 # [patch.crates-io]
 # bevy_mod_raycast = { path = "bevy_mod_raycast" }
 
-bevy_atmosphere = "0.4"
+# bevy_atmosphere = "0.4"
+bevy_atmosphere = { git = "https://github.com/JonahPlusPlus/bevy_atmosphere.git" }
 bitflags = "1"
 
 [patch.crates-io]

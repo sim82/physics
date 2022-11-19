@@ -7,7 +7,7 @@ pub struct ContactDebugMesh {
     elapsed: Timer,
 }
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct ContactDebug {
     pub add: Vec<(trace::TraceContact, Vec3)>,
     add_pointer: Vec<(Vec3, Vec3)>,
@@ -52,7 +52,7 @@ pub fn contact_debug(
                 ..Default::default()
             })
             .insert(ContactDebugMesh {
-                elapsed: Timer::from_seconds(5.0, false),
+                elapsed: Timer::from_seconds(5.0, TimerMode::Repeating),
             });
     }
 
@@ -85,7 +85,7 @@ pub fn contact_debug(
                 ..Default::default()
             })
             .insert(ContactDebugMesh {
-                elapsed: Timer::from_seconds(5.0, false),
+                elapsed: Timer::from_seconds(5.0, TimerMode::Once),
             });
     }
 

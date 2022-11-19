@@ -88,49 +88,49 @@ pub fn add_csg(
         ;
 }
 
-// TODO: throw out with bevy 0.9
-#[derive(Debug, Clone, Copy)]
-pub struct Ray {
-    pub origin: Vec3,
-    pub direction: Vec3,
-}
+// // TODO: throw out with bevy 0.9
+// #[derive(Debug, Clone, Copy)]
+// pub struct Ray {
+//     pub origin: Vec3,
+//     pub direction: Vec3,
+// }
 
-pub trait HackViewportToWorld {
-    fn viewport_to_world(
-        &self,
-        camera_transform: &GlobalTransform,
-        viewport_position: Vec2,
-    ) -> Option<Ray>;
-}
+// pub trait HackViewportToWorld {
+//     fn viewport_to_world(
+//         &self,
+//         camera_transform: &GlobalTransform,
+//         viewport_position: Vec2,
+//     ) -> Option<Ray>;
+// }
 
-impl HackViewportToWorld for Camera {
-    /// Returns a ray originating from the camera, that passes through everything beyond `viewport_position`.
-    ///
-    /// The resulting ray starts on the near plane of the camera.
-    ///
-    /// If the camera's projection is orthographic the direction of the ray is always equal to `camera_transform.forward()`.
-    ///
-    /// To get the world space coordinates with Normalized Device Coordinates, you should use
-    /// [`ndc_to_world`](Self::ndc_to_world).
-    fn viewport_to_world(
-        &self,
-        camera_transform: &GlobalTransform,
-        viewport_position: Vec2,
-    ) -> Option<Ray> {
-        let target_size = self.logical_viewport_size()?;
-        let ndc = viewport_position * 2. / target_size - Vec2::ONE;
+// impl HackViewportToWorld for Camera {
+//     /// Returns a ray originating from the camera, that passes through everything beyond `viewport_position`.
+//     ///
+//     /// The resulting ray starts on the near plane of the camera.
+//     ///
+//     /// If the camera's projection is orthographic the direction of the ray is always equal to `camera_transform.forward()`.
+//     ///
+//     /// To get the world space coordinates with Normalized Device Coordinates, you should use
+//     /// [`ndc_to_world`](Self::ndc_to_world).
+//     fn viewport_to_world(
+//         &self,
+//         camera_transform: &GlobalTransform,
+//         viewport_position: Vec2,
+//     ) -> Option<Ray> {
+//         let target_size = self.logical_viewport_size()?;
+//         let ndc = viewport_position * 2. / target_size - Vec2::ONE;
 
-        let ndc_to_world = camera_transform.compute_matrix() * self.projection_matrix().inverse();
-        let world_near_plane = ndc_to_world.project_point3(ndc.extend(1.));
-        // Using EPSILON because an ndc with Z = 0 returns NaNs.
-        let world_far_plane = ndc_to_world.project_point3(ndc.extend(f32::EPSILON));
+//         let ndc_to_world = camera_transform.compute_matrix() * self.projection_matrix().inverse();
+//         let world_near_plane = ndc_to_world.project_point3(ndc.extend(1.));
+//         // Using EPSILON because an ndc with Z = 0 returns NaNs.
+//         let world_far_plane = ndc_to_world.project_point3(ndc.extend(f32::EPSILON));
 
-        (!world_near_plane.is_nan() && !world_far_plane.is_nan()).then_some(Ray {
-            origin: world_near_plane,
-            direction: (world_far_plane - world_near_plane).normalize(),
-        })
-    }
-}
+//         (!world_near_plane.is_nan() && !world_far_plane.is_nan()).then_some(Ray {
+//             origin: world_near_plane,
+//             direction: (world_far_plane - world_near_plane).normalize(),
+//         })
+//     }
+// }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
 pub enum Orientation2d {

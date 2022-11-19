@@ -1,9 +1,6 @@
+use super::{Csg, Location, Plane, Polygon, Vertex};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-
-use crate::editor::util::Ray;
-
-use super::{Csg, Location, Plane, Polygon, Vertex};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Brush {

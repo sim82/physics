@@ -81,7 +81,7 @@ fn main() {
             ..default()
         });
         app.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
-        app.add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin);
+        // app.add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin);
         app.add_system_set(
             SystemSet::on_enter(AppState::DebugMenu).with_system(open_world_inspector),
         );
@@ -169,8 +169,7 @@ fn spawn_gltf2(
     let material = asset_server.load(&format!("{}#Material0", bevy_path));
 
     commands
-        .spawn()
-        .insert(DeferredMesh {
+        .spawn(DeferredMesh {
             mesh,
             material,
             transform: Transform::from_translation(position),
@@ -432,7 +431,7 @@ fn animate_light_direction(
         transform.rotation = Quat::from_euler(
             EulerRot::ZYX,
             0.0,
-            time.seconds_since_startup() as f32 * std::f32::consts::TAU / 10.0,
+            time.elapsed_seconds() as f32 * std::f32::consts::TAU / 10.0,
             -std::f32::consts::FRAC_PI_4,
         );
     }
@@ -450,7 +449,7 @@ fn rotation_system(time: Res<Time>, mut query: Query<(&mut Transform, &Rotation)
 }
 
 fn debug_line_test(time: Res<Time>, mut lines: ResMut<DebugLines>) {
-    let seconds = time.seconds_since_startup() as f32;
+    let seconds = time.elapsed_seconds() as f32;
     let offset = Vec3::new(20.0, 0.0, 20.0);
     lines.line(
         Vec3::new(-1.0, 2.0 + f32::sin(seconds), -1.0) + offset,

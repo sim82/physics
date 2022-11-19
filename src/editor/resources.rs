@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::util::Orientation2d;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct Selection {
     pub primary: Option<Entity>,
 }
@@ -26,7 +26,7 @@ pub struct EditorWindow2d {
 pub const UPPER_WINDOW: &str = "upper";
 pub const LOWER_WINDOW: &str = "lower";
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct EditorWindows2d {
     pub windows: HashMap<String, EditorWindow2d>,
     pub focused: Option<(String, WindowId)>,

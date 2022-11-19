@@ -32,8 +32,7 @@ pub fn editor_input_system(
 ) {
     if keycodes.just_pressed(KeyCode::K) {
         let entity = commands
-            .spawn()
-            .insert(EditorObject::MinMax(Vec3::splat(-1.0), Vec3::splat(1.0)))
+            .spawn(EditorObject::MinMax(Vec3::splat(-1.0), Vec3::splat(1.0)))
             .id();
 
         selection.primary = Some(entity);
@@ -41,8 +40,7 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::B) {
         let entity = commands
-            .spawn()
-            .insert(EditorObject::Brush(csg::Brush::default()))
+            .spawn(EditorObject::Brush(csg::Brush::default()))
             .id();
 
         selection.primary = Some(entity);
@@ -51,7 +49,7 @@ pub fn editor_input_system(
     if keycodes.just_pressed(KeyCode::D) {
         if let Some(primary) = selection.primary {
             if let Ok(obj) = query.get(primary) {
-                let entity = commands.spawn().insert(obj.clone()).id();
+                let entity = commands.spawn(obj.clone()).id();
 
                 selection.primary = Some(entity);
             }
@@ -60,8 +58,7 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::L) {
         let entity = commands
-            .spawn()
-            .insert(EditorObject::Csg(
+            .spawn(EditorObject::Csg(
                 csg::Cube::new(Vec3::splat(2.0), 0.5).into(),
             ))
             .id();
@@ -75,9 +72,7 @@ pub fn editor_input_system(
                 let offset = offset.get_or_insert(Vec3::splat(2.5));
 
                 let entity = commands
-                    .spawn()
-                    // .insert(Brush::Csg(Cube::new(*offset, 0.5).into()))
-                    .insert(EditorObject::Csg(
+                    .spawn(EditorObject::Csg(
                         csg::Cylinder {
                             start: Vec3::new(0.0, -1.0, 0.0) + *offset,
                             end: Vec3::new(0.0, 1.0, 0.0) + *offset,
@@ -233,8 +228,7 @@ pub fn update_brush_csg_system(
     });
 
     let entity = commands
-        .spawn()
-        .insert(CsgOutput)
+        .spawn(CsgOutput)
         .insert(Name::new("csg_output"))
         .insert(Wireframe)
         .id();
@@ -301,7 +295,7 @@ pub fn load_save_editor_objects(
                 commands.entity(entity).despawn();
             }
             for obj in objects {
-                commands.spawn().insert(obj);
+                commands.spawn(obj);
             }
         }
     }

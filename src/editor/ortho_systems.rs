@@ -18,10 +18,7 @@ use super::{
 };
 use crate::{
     csg::PLANE_EPSILON,
-    editor::{
-        components::BrushDragAction,
-        util::{HackViewportToWorld, SnapToGrid},
-    },
+    editor::{components::BrushDragAction, util::SnapToGrid},
 };
 // systems related to 2d windows
 
@@ -83,7 +80,7 @@ pub fn setup_editor_window(
 
         // second window camera
         let entity = commands
-            .spawn_bundle(Camera3dBundle {
+            .spawn(Camera3dBundle {
                 transform: settings.orientation.get_transform(),
                 camera: Camera {
                     target: RenderTarget::Window(window_id),
@@ -314,6 +311,8 @@ pub fn editor_windows_2d_input_system(
                 updates.push((entity, EditorObject::Brush(new_brush)));
             }
         }
+
+        info!("updates: {:?}", updates);
 
         for (entity, obj) in updates {
             if let Ok((_, _, mut target_obj)) = active_drag_query.get_mut(entity) {
