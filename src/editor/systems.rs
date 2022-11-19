@@ -647,15 +647,15 @@ pub fn load_save_editor_objects(
 
     if keycodes.just_pressed(KeyCode::F5) {
         let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
-        if let Ok(file) = std::fs::File::create("scene.yaml") {
-            let _ = serde_yaml::to_writer(file, &objects);
+        if let Ok(file) = std::fs::File::create("scene.ron") {
+            let _ = ron::ser::to_writer_pretty(file, &objects, default());
         }
     }
 
     if keycodes.just_pressed(KeyCode::F6) {
         // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
-        if let Ok(file) = std::fs::File::open("scene.yaml") {
-            let objects : Vec<EditorObject> = serde_yaml::from_reader(file).unwrap_or_default();
+        if let Ok(file) = std::fs::File::open("scene.ron") {
+            let objects : Vec<EditorObject> = ron::de::from_reader(file).unwrap_or_default();
 
             for (entity,_) in existing_objects.iter() {
                 commands.entity(entity).despawn();
@@ -663,7 +663,6 @@ pub fn load_save_editor_objects(
             for obj in objects {
                 commands.spawn().insert(obj);
             }
-
         }
     }
 
