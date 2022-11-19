@@ -15,7 +15,7 @@ use bevy::{
 
 use super::{
     components::{CsgOutput, EditorObject, SelectionVis},
-    resources::{self, EditorWindowSettings, Selection, LOWER_WINDOW, UPPER_WINDOW, Orientation2d},
+    resources::{self, EditorWindowSettings, Selection, LOWER_WINDOW, UPPER_WINDOW}, util::Orientation2d,
 };
 use crate::{
     csg::{self},
@@ -607,8 +607,15 @@ pub fn editor_windows_2d_input_system(
                 let projected = drag_delta.project_onto(normal);
                 // let d = projected.x + projected.y + projected.z;
                 let d = projected.dot(normal);
-                info!( "d: {}", d);
-                brush.planes[*face].w = *start_w + d;
+                // info!( "d: {}", d);
+
+                // check if target is degenerated
+                let mut new_brush = brush.clone();
+                new_brush.planes[*face].w = *start_w + d;
+                if std::convert::TryInto::<csg::Csg>::try_into(new_brush.clone()).is_ok() {
+                    *brush = new_brush
+                }
+                
             }
         }
 

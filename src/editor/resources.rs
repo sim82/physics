@@ -5,51 +5,11 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::util::Orientation2d;
+
 #[derive(Default)]
 pub struct Selection {
     pub primary: Option<Entity>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
-pub enum Orientation2d {
-    DownFront,
-    DownRight,
-
-    Front,
-    Right,
-}
-
-impl Default for Orientation2d {
-    fn default() -> Self {
-        Orientation2d::DownFront
-    }
-}
-
-impl Orientation2d {
-    pub fn flipped(&self) -> Orientation2d {
-        match self {
-            Orientation2d::DownFront => Orientation2d::DownRight,
-            Orientation2d::DownRight => Orientation2d::DownFront,
-            Orientation2d::Front => Orientation2d::Right,
-            Orientation2d::Right => Orientation2d::Front,
-        }
-    }
-    pub fn get_transform(&self) -> Transform {
-        match self {
-            Orientation2d::DownFront => {
-                Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::X)
-            }
-            Orientation2d::DownRight => {
-                Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::Z)
-            }
-            Orientation2d::Front => {
-                Transform::from_xyz(-6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y)
-            }
-            Orientation2d::Right => {
-                Transform::from_xyz(0.0, 0.0, -6.0).looking_at(Vec3::ZERO, Vec3::Y)
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, Default)]

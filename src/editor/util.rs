@@ -1,5 +1,6 @@
 use bevy::{prelude::*, render::mesh};
 use bevy_rapier3d::prelude::Collider;
+use serde::{Deserialize, Serialize};
 
 use crate::csg::Csg;
 
@@ -128,5 +129,49 @@ impl HackViewportToWorld for Camera {
             origin: world_near_plane,
             direction: (world_far_plane - world_near_plane).normalize(),
         })
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
+pub enum Orientation2d {
+    DownFront,
+    DownRight,
+
+    Front,
+    Right,
+}
+
+impl Default for Orientation2d {
+    fn default() -> Self {
+        Orientation2d::DownFront
+    }
+}
+
+impl Orientation2d {
+    pub fn flipped(&self) -> Orientation2d {
+        match self {
+            Orientation2d::DownFront => Orientation2d::DownRight,
+            Orientation2d::DownRight => Orientation2d::DownFront,
+            Orientation2d::Front => Orientation2d::Right,
+            Orientation2d::Right => Orientation2d::Front,
+        }
+    }
+    pub fn get_transform(&self) -> Transform {
+        const ORTHO_OFFSET: f32 = 100.0;
+
+        match self {
+            Orientation2d::DownFront => {
+                Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, Vec3::X)
+            }
+            Orientation2d::DownRight => {
+                Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, Vec3::Z)
+            }
+            Orientation2d::Front => {
+                Transform::from_xyz(-ORTHO_OFFSET, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y)
+            }
+            Orientation2d::Right => {
+                Transform::from_xyz(0.0, 0.0, -ORTHO_OFFSET).looking_at(Vec3::ZERO, Vec3::Y)
+            }
+        }
     }
 }
