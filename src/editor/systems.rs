@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use bevy::{
-    input::mouse::MouseWheel,
+    input::{mouse::{MouseWheel, MouseButtonInput, MouseMotion}, gamepad::ButtonSettings, ButtonState},
     pbr::wireframe::Wireframe,
     prelude::{shape::Cube, *},
     render::{
@@ -10,16 +10,16 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
     utils::{HashMap, Instant, Uuid},
-    window::{CreateWindow, WindowId, WindowResized},
+    window::{CreateWindow, WindowFocused, WindowId, WindowResized},
 };
 
 use super::{
     components::{CsgOutput, EditorObject, SelectionVis},
-    resources::{self, EditorWindowSettings, Selection, LOWER_WINDOW, UPPER_WINDOW},
+    resources::{self, EditorWindowSettings, Selection, LOWER_WINDOW, UPPER_WINDOW, Orientation2d},
 };
 use crate::{
     csg::{self},
-    editor::util::add_csg,
+    editor::util::{add_csg, HackViewportToWorld}, attic::MouseInputState,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -27,6 +27,8 @@ pub fn editor_input_system(
     mut commands: Commands,
 
     mut offset: Local<Option<Vec3>>,
+
+    editor_windows_2d: ResMut<resources::EditorWindows2d>,
 
     keycodes: Res<Input<KeyCode>>,
     mut mouse_wheel: EventReader<MouseWheel>,
@@ -96,6 +98,11 @@ pub fn editor_input_system(
                 }
             }
         }
+    }
+
+    // the remaining stuff only works in the 3d window
+    if editor_windows_2d.focused.is_some() {
+        return;
     }
 
     let mut dmin = Vec3::ZERO;
@@ -318,15 +325,21 @@ pub fn setup_selection_vis_system(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
+    let mut material: StandardMaterial = Color::rgba(0.5, 0.5, 1.0, 0.4).into();
+    material.unlit = true;
+
     command
         .spawn_bundle(PbrBundle {
             mesh: meshes.add(Cube::default().into()),
-            material: materials.add(Color::rgba(0.5, 0.5, 1.0, 0.2).into()),
+            material: materials.add(material),
             ..default()
         })
         .insert(SelectionVis)
+        // .insert(Wireframe)
         .insert(Name::new("selection"));
 }
+
+// systems related to 2d windows
 
 pub fn setup_editor_window(
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
@@ -345,12 +358,14 @@ pub fn setup_editor_window(
         (
             UPPER_WINDOW,
             None,
-            Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::X),
+            Orientation2d::DownFront,
+            // Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::X),
         ),
         (
             LOWER_WINDOW,
             None,
-            Transform::from_xyz(-6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+            Orientation2d::Front,
+            // Transform::from_xyz(-6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
         ),
     ];
     for (i, (name, window2d, t)) in transforms.iter_mut().enumerate() {
@@ -362,6 +377,7 @@ pub fn setup_editor_window(
                 pos_y: 0,
                 width: 800,
                 height: 600,
+                orientation: *t,
             });
 
         let window_id = WindowId::new();
@@ -384,7 +400,7 @@ pub fn setup_editor_window(
         // second window camera
         let entity = commands
             .spawn_bundle(Camera3dBundle {
-                transform: *t,
+                transform: t.get_transform(),
                 camera: Camera {
                     target: RenderTarget::Window(window_id),
                     ..default()
@@ -412,7 +428,6 @@ pub fn setup_editor_window(
 }
 
 pub fn track_window_props(
-    mut last_written_settings: Local<BTreeMap<String, EditorWindowSettings>>,
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
 
     mut resize_events: EventReader<WindowResized>,
@@ -436,7 +451,12 @@ pub fn track_window_props(
             }
         }
     }
+}
 
+pub fn write_window_settings(
+    mut last_written_settings: Local<BTreeMap<String, EditorWindowSettings>>,
+     editor_windows_2d: Res<resources::EditorWindows2d>,
+){
     let settings = editor_windows_2d
         .windows
         .iter()
@@ -449,5 +469,112 @@ pub fn track_window_props(
             *last_written_settings = settings;
             info!("window settings written");
         }
+    }    
+}
+
+
+pub fn track_focused_window(
+    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
+    mut focus_events: EventReader<WindowFocused>,
+    mut cursor_moved: EventReader<CursorMoved>,
+
+) {
+    let mut editor_windows_2d = &mut *editor_windows_2d;
+    let mut new_focus = None;
+    let mut focus_lost = false;
+    for event in focus_events.iter() {
+        for (name, window) in &editor_windows_2d.windows {
+            if event.focused && window.window_id == event.id {
+                new_focus = Some((name.clone(), event.id));
+            } else if !event.focused && window.window_id == event.id {
+                focus_lost = true
+            }
+        }
+    }
+
+    if new_focus.is_some() {
+        editor_windows_2d.focused = new_focus;
+        info!("focus changed: {:?}", editor_windows_2d.focused);
+    } else if focus_lost {
+        editor_windows_2d.focused = None;
+        info!("focus lost");
+    }
+
+    if editor_windows_2d.focused.is_some() {
+        for event in cursor_moved.iter() {
+            editor_windows_2d.cursor_pos = event.position;
+        }
     }
 }
+
+pub fn editor_windows_2d_input_system(
+    keycodes: Res<Input<KeyCode>>,
+    mut mouse_button: EventReader<MouseButtonInput>,
+    mut mouse_wheel: EventReader<MouseWheel>,
+    // mut mouse_wheel: EventReader<Mouse>,
+    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
+
+    mut camera_query: Query<(&mut Transform, &GlobalTransform, &mut Projection, &mut Camera)>,
+) {
+    let Some((focus_name, focus_id)) = &editor_windows_2d.focused else {return};
+
+    for event in mouse_wheel.iter() {
+        let dir = event.y.signum();
+
+        // for mut transform in &mut camera_query {
+        //     todo!()
+        // }
+
+        for (name, window) in &editor_windows_2d.windows {
+            let Ok((_transform, _, mut projection, _camera)) = camera_query.get_mut(window.camera) else { 
+                warn!("2d window camera transform / projection not found: {:?}", window.camera); 
+                continue;
+            };
+
+            let Projection::Orthographic(ortho) = &mut *projection else {
+                warn!("2d window camera has not ortho projection: {:?}", window.camera); 
+                continue;
+            };
+
+            let ScalingMode::FixedHorizontal(scaling) = &mut ortho.scaling_mode else {
+                warn!("2d window camera has not ortho projection: {:?}", window.camera); 
+                continue;
+            };
+            
+            *scaling += dir;
+        }
+    }
+
+    
+    if let Some((focused_name, _)) = &editor_windows_2d.focused {
+        if let Some(window) = editor_windows_2d.windows.get(focused_name) {
+
+            for event in mouse_button.iter() {
+                if event.button == MouseButton::Left && event.state == ButtonState::Pressed {
+                    let Ok((_, global_transform, _, camera)) = camera_query.get_mut(window.camera) else { 
+                        warn!("2d window camera not found: {:?}", window.camera); 
+                        continue;
+                    };
+
+                    let ray = camera.viewport_to_world(global_transform, editor_windows_2d.cursor_pos);
+                    info!( "click ray {}: {:?}", focus_name, ray);
+                }
+            }
+        }
+    }
+    
+
+    if keycodes.just_pressed(KeyCode::F2) {
+        for (_,mut window) in &mut editor_windows_2d.windows {
+            let Ok((mut transform, _, _, _)) = camera_query.get_mut(window.camera) else { 
+                warn!("2d window camera transform / projection not found: {:?}", window.camera); 
+                continue;
+            };
+            
+            window.settings.orientation = window.settings.orientation.flipped();
+
+            *transform = window.settings.orientation.get_transform();
+        }
+    }
+}
+
