@@ -13,7 +13,6 @@ use bevy::{
         mesh::{self},
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
-    window::WindowId,
 };
 use bevy_atmosphere::prelude::*;
 // use bevy_editor_pls::prelude::*;
@@ -22,7 +21,6 @@ use bevy_rapier3d::prelude::*;
 use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::{
     editor::{self, util::spawn_box},
-    exit_on_esc_system,
     player_controller::{self, PlayerCamera, PlayerControllerBundle},
     test_texture, AppState,
 };

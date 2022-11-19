@@ -228,14 +228,13 @@ impl Plane {
 
     pub fn location_of_point(&self, vertex_pos: Vec3) -> Location {
         let t = self.normal.dot(vertex_pos) - self.w;
-        let location = if t < -PLANE_EPSILON {
+        if t < -PLANE_EPSILON {
             Location::BACK
         } else if t > PLANE_EPSILON {
             Location::FRONT
         } else {
             Location::COPLANAR
-        };
-        location
+        }
     }
 
     pub fn split_polygons(&self, polygons: &[Polygon]) -> SplitPolygonsResult {

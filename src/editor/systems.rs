@@ -1,34 +1,18 @@
-use std::{collections::BTreeMap, str::FromStr};
-
 use bevy::{
-    input::{
-        gamepad::ButtonSettings,
-        mouse::{MouseButtonInput, MouseMotion, MouseWheel},
-        ButtonState,
-    },
+    input::mouse::MouseWheel,
     pbr::wireframe::Wireframe,
     prelude::{shape::Cube, *},
-    render::{
-        camera::{Projection, RenderTarget, ScalingMode},
-        primitives::Aabb,
-        render_resource::{Extent3d, TextureDimension, TextureFormat},
-    },
-    utils::{HashMap, Instant, Uuid},
-    window::{CreateWindow, WindowFocused, WindowId, WindowResized},
+    render::primitives::Aabb,
+    utils::Instant,
 };
 
 use super::{
     components::{CsgOutput, EditorObject, SelectionVis},
-    resources::{self, EditorWindowSettings, Selection, LOWER_WINDOW, UPPER_WINDOW},
-    util::Orientation2d,
+    resources::{self, Selection},
 };
 use crate::{
-    attic::MouseInputState,
     csg::{self},
-    editor::{
-        components::BrushDragAction,
-        util::{add_csg, HackViewportToWorld},
-    },
+    editor::util::add_csg,
 };
 
 #[allow(clippy::too_many_arguments)]

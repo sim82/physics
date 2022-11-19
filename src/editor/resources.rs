@@ -1,8 +1,4 @@
-use bevy::{
-    prelude::*,
-    utils::{HashMap, Uuid},
-    window::WindowId,
-};
+use bevy::{prelude::*, utils::HashMap, window::WindowId};
 use serde::{Deserialize, Serialize};
 
 use super::util::Orientation2d;

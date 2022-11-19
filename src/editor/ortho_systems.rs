@@ -1,34 +1,24 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
 use bevy::{
     input::{
-        gamepad::ButtonSettings,
-        mouse::{MouseButtonInput, MouseMotion, MouseWheel},
+        mouse::{MouseButtonInput, MouseWheel},
         ButtonState,
     },
-    pbr::wireframe::Wireframe,
-    prelude::{shape::Cube, *},
-    render::{
-        camera::{Projection, RenderTarget, ScalingMode},
-        primitives::Aabb,
-        render_resource::{Extent3d, TextureDimension, TextureFormat},
-    },
-    utils::{HashMap, Instant, Uuid},
+    prelude::*,
+    render::camera::{Projection, RenderTarget, ScalingMode},
+    utils::HashMap,
     window::{CreateWindow, WindowFocused, WindowId, WindowResized},
 };
 
 use super::{
-    components::{CsgOutput, EditorObject, SelectionVis},
+    components::EditorObject,
     resources::{self, EditorWindowSettings, Selection, LOWER_WINDOW, UPPER_WINDOW},
     util::Orientation2d,
 };
 use crate::{
-    attic::MouseInputState,
     csg::{self},
-    editor::{
-        components::BrushDragAction,
-        util::{add_csg, HackViewportToWorld},
-    },
+    editor::{components::BrushDragAction, util::HackViewportToWorld},
 };
 // systems related to 2d windows
 
@@ -218,7 +208,7 @@ pub fn editor_windows_2d_input_system(
         With<BrushDragAction>,
     >,
 ) {
-    let Some((focus_name, focus_id)) = &editor_windows_2d.focused else {return};
+    let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
     for event in mouse_wheel.iter() {
         let dir = event.y.signum();
@@ -227,7 +217,7 @@ pub fn editor_windows_2d_input_system(
         //     todo!()
         // }
 
-        for (name, window) in &editor_windows_2d.windows {
+        for (_name, window) in &editor_windows_2d.windows {
             let Ok((_transform, _, mut projection, _camera)) = camera_query.get_mut(window.camera) else {
                 warn!("2d window camera transform / projection not found: {:?}", window.camera); 
                 continue;
