@@ -19,7 +19,7 @@ use super::{
 };
 use crate::{
     csg::{self},
-    editor::util::{add_csg, HackViewportToWorld}, attic::MouseInputState,
+    editor::{util::{add_csg, HackViewportToWorld}, components::BrushDragAction}, attic::MouseInputState,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -400,7 +400,7 @@ pub fn setup_editor_window(
         // second window camera
         let entity = commands
             .spawn_bundle(Camera3dBundle {
-                transform: t.get_transform(),
+                transform: settings.orientation.get_transform(),
                 camera: Camera {
                     target: RenderTarget::Window(window_id),
                     ..default()
@@ -507,7 +507,10 @@ pub fn track_focused_window(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn editor_windows_2d_input_system(
+    mut commands: Commands,
+    selection: Res<Selection>,
     keycodes: Res<Input<KeyCode>>,
     mut mouse_button: EventReader<MouseButtonInput>,
     mut mouse_wheel: EventReader<MouseWheel>,
@@ -515,6 +518,8 @@ pub fn editor_windows_2d_input_system(
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
 
     mut camera_query: Query<(&mut Transform, &GlobalTransform, &mut Projection, &mut Camera)>,
+    brush_query: Query<&EditorObject, Without<BrushDragAction>>,
+    mut active_drag_query: Query<(Entity, &BrushDragAction, &mut EditorObject), With<BrushDragAction>>,
 ) {
     let Some((focus_name, focus_id)) = &editor_windows_2d.focused else {return};
 
@@ -545,24 +550,73 @@ pub fn editor_windows_2d_input_system(
         }
     }
 
-    
-    if let Some((focused_name, _)) = &editor_windows_2d.focused {
-        if let Some(window) = editor_windows_2d.windows.get(focused_name) {
+    // meh... seems as if I'm up to something
+    #[allow(clippy::never_loop)]
+    'outer: loop {
+        let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'outer;};
+        let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
+        let Ok((_, global_transform, _, camera)) = camera_query.get_mut(window.camera) else { 
+            warn!("2d window camera not found: {:?}", window.camera); 
+            break 'outer;
+        };
 
-            for event in mouse_button.iter() {
-                if event.button == MouseButton::Left && event.state == ButtonState::Pressed {
-                    let Ok((_, global_transform, _, camera)) = camera_query.get_mut(window.camera) else { 
-                        warn!("2d window camera not found: {:?}", window.camera); 
-                        continue;
-                    };
+        let Some(ray) = camera.viewport_to_world(global_transform, editor_windows_2d.cursor_pos) else {
+            warn!("viewport_to_world failed in {}", focused_name); 
+            break 'outer;
+        };
 
-                    let ray = camera.viewport_to_world(global_transform, editor_windows_2d.cursor_pos);
-                    info!( "click ray {}: {:?}", focus_name, ray);
+        for event in mouse_button.iter() {
+            if event.button == MouseButton::Left && event.state == ButtonState::Pressed {
+        
+                info!( "click ray {}: {:?}", focus_name, ray);
+                info!( "start drag");
+
+
+                if let Some(primary) = selection.primary {
+                    if let Ok(EditorObject::Brush(brush)) = brush_query.get(primary) {
+                        let affected_faces = brush.get_planes_behind_ray(ray);
+
+                        commands.entity(primary).insert(BrushDragAction {
+                            start_ray: ray,
+                            affected_faces
+                        });
+                    }
+                }
+
+            } else if event.button == MouseButton::Left && event.state == ButtonState::Released { 
+                for (entity, _,_) in &active_drag_query {
+                    commands.entity(entity).remove::<BrushDragAction>();
                 }
             }
         }
-    }
+
+        for (entity, drag_action, mut editor_object) in &mut active_drag_query {
+            let EditorObject::Brush(brush) = &mut *editor_object else {
+                warn!( "drag: not a brush: {:?}", entity);
+                continue;
+            };
     
+            let drag_delta = ray.origin - drag_action.start_ray.origin;
+
+            info!( "drag: {:?}", drag_delta);
+
+            for (face, start_w) in &drag_action.affected_faces {
+                
+                let normal = brush.planes[*face].normal;
+                
+                let projected = drag_delta.project_onto(normal);
+                // let d = projected.x + projected.y + projected.z;
+                let d = projected.dot(normal);
+                info!( "d: {}", d);
+                brush.planes[*face].w = *start_w + d;
+            }
+        }
+
+        break;
+    }
+
+    
+
 
     if keycodes.just_pressed(KeyCode::F2) {
         for (_,mut window) in &mut editor_windows_2d.windows {

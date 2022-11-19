@@ -282,97 +282,98 @@ fn setup(
         ..Default::default()
     });
 
+    const SPAWN_STUFF: bool = false;
     // .insert(ColliderDebugRender::with_id(1));
+    if SPAWN_STUFF {
+        spawn_sphere(
+            &mut commands,
+            0.5,
+            Vec3::new(-0.1, 5.0, 0.0),
+            material.clone(),
+            &mut meshes,
+        );
+        spawn_sphere(
+            &mut commands,
+            0.7,
+            Vec3::new(1.5, 25.0, 0.0),
+            material.clone(),
+            &mut meshes,
+        );
 
-    spawn_sphere(
-        &mut commands,
-        0.5,
-        Vec3::new(-0.1, 5.0, 0.0),
-        material.clone(),
-        &mut meshes,
-    );
-    spawn_sphere(
-        &mut commands,
-        0.7,
-        Vec3::new(1.5, 25.0, 0.0),
-        material.clone(),
-        &mut meshes,
-    );
+        // groundplane
+        const GROUND_PLANE_HALFSIZE: f32 = 25.0;
+        spawn_box(
+            &mut commands,
+            material.clone(),
+            &mut meshes,
+            Vec3::new(-GROUND_PLANE_HALFSIZE, -0.1, -GROUND_PLANE_HALFSIZE),
+            Vec3::new(GROUND_PLANE_HALFSIZE, 0.0, GROUND_PLANE_HALFSIZE),
+        );
 
-    // groundplane
-    const GROUND_PLANE_HALFSIZE: f32 = 25.0;
-    spawn_box(
-        &mut commands,
-        material.clone(),
-        &mut meshes,
-        Vec3::new(-GROUND_PLANE_HALFSIZE, -0.1, -GROUND_PLANE_HALFSIZE),
-        Vec3::new(GROUND_PLANE_HALFSIZE, 0.0, GROUND_PLANE_HALFSIZE),
-    );
+        // x-fence
+        spawn_box(
+            &mut commands,
+            material.clone(),
+            &mut meshes,
+            Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, -GROUND_PLANE_HALFSIZE),
+            Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, -GROUND_PLANE_HALFSIZE + 0.1),
+        );
 
-    // x-fence
-    spawn_box(
-        &mut commands,
-        material.clone(),
-        &mut meshes,
-        Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, -GROUND_PLANE_HALFSIZE),
-        Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, -GROUND_PLANE_HALFSIZE + 0.1),
-    );
+        spawn_box(
+            &mut commands,
+            material.clone(),
+            &mut meshes,
+            Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, GROUND_PLANE_HALFSIZE - 0.1),
+            Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, GROUND_PLANE_HALFSIZE),
+        );
 
-    spawn_box(
-        &mut commands,
-        material.clone(),
-        &mut meshes,
-        Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, GROUND_PLANE_HALFSIZE - 0.1),
-        Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, GROUND_PLANE_HALFSIZE),
-    );
+        // z-fence
+        spawn_box(
+            &mut commands,
+            material.clone(),
+            &mut meshes,
+            Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, -GROUND_PLANE_HALFSIZE),
+            Vec3::new(-GROUND_PLANE_HALFSIZE + -0.1, 0.5, GROUND_PLANE_HALFSIZE),
+        );
 
-    // z-fence
-    spawn_box(
-        &mut commands,
-        material.clone(),
-        &mut meshes,
-        Vec3::new(-GROUND_PLANE_HALFSIZE, 0.0, -GROUND_PLANE_HALFSIZE),
-        Vec3::new(-GROUND_PLANE_HALFSIZE + -0.1, 0.5, GROUND_PLANE_HALFSIZE),
-    );
+        spawn_box(
+            &mut commands,
+            material.clone(),
+            &mut meshes,
+            Vec3::new(GROUND_PLANE_HALFSIZE - 0.1, 0.0, -GROUND_PLANE_HALFSIZE),
+            Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, GROUND_PLANE_HALFSIZE),
+        );
 
-    spawn_box(
-        &mut commands,
-        material.clone(),
-        &mut meshes,
-        Vec3::new(GROUND_PLANE_HALFSIZE - 0.1, 0.0, -GROUND_PLANE_HALFSIZE),
-        Vec3::new(GROUND_PLANE_HALFSIZE, 0.5, GROUND_PLANE_HALFSIZE),
-    );
+        if false {
+            // build stairs
+            {
+                let mut x = 5.0;
+                let mut y = 0.0;
+                let mut z = 5.0;
 
-    if false {
-        // build stairs
-        {
-            let mut x = 5.0;
-            let mut y = 0.0;
-            let mut z = 5.0;
-
-            for _ in 0..10 {
-                spawn_box(
-                    &mut commands,
-                    material.clone(),
-                    &mut meshes,
-                    Vec3::new(-x, y, -z),
-                    Vec3::new(x, y + 0.1, z),
-                );
-                x -= 0.4;
-                z -= 0.4;
-                y += 0.1;
+                for _ in 0..10 {
+                    spawn_box(
+                        &mut commands,
+                        material.clone(),
+                        &mut meshes,
+                        Vec3::new(-x, y, -z),
+                        Vec3::new(x, y + 0.1, z),
+                    );
+                    x -= 0.4;
+                    z -= 0.4;
+                    y += 0.1;
+                }
             }
         }
+
+        spawn_box(
+            &mut commands,
+            material,
+            &mut meshes,
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(5.0, 2.5, 0.3),
+        );
     }
-
-    spawn_box(
-        &mut commands,
-        material,
-        &mut meshes,
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::new(5.0, 2.5, 0.3),
-    );
-
     commands
         .spawn_bundle(SpatialBundle::default())
         .insert_bundle(PlayerControllerBundle::default())
@@ -406,21 +407,23 @@ fn setup(
         ..Default::default()
     });
 
-    spawn_gltf2(
-        &mut commands,
-        &asset_server,
-        "donut_gltf/donut.gltf",
-        Vec3::new(-0.1, 2.0, -1.0),
-        "donut",
-    );
+    if SPAWN_STUFF {
+        spawn_gltf2(
+            &mut commands,
+            &asset_server,
+            "donut_gltf/donut.gltf",
+            Vec3::new(-0.1, 2.0, -1.0),
+            "donut",
+        );
 
-    spawn_gltf2(
-        &mut commands,
-        &asset_server,
-        "anvil_gltf/anvil.gltf",
-        Vec3::new(-0.1, 7.0, -1.0),
-        "anvil",
-    );
+        spawn_gltf2(
+            &mut commands,
+            &asset_server,
+            "anvil_gltf/anvil.gltf",
+            Vec3::new(-0.1, 7.0, -1.0),
+            "anvil",
+        );
+    }
 }
 
 fn animate_light_direction(

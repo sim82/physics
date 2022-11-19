@@ -105,7 +105,7 @@ pub struct Plane {
 }
 
 bitflags::bitflags! {
-    struct Location : u32 {
+    pub struct Location : u32 {
         const NONE = 0;
         const COPLANAR = Self::NONE.bits();
         const FRONT = 1;
@@ -173,14 +173,8 @@ impl Plane {
         let mut types = Vec::new();
 
         for v in &polygon.vertices {
-            let t = self.normal.dot(v.position) - self.w;
-            let location = if t < -PLANE_EPSILON {
-                Location::BACK
-            } else if t > PLANE_EPSILON {
-                Location::FRONT
-            } else {
-                Location::COPLANAR
-            };
+            let vertex_pos = v.position;
+            let location = self.location_of_point(vertex_pos);
 
             polygon_type |= location;
             types.push(location);
@@ -229,6 +223,18 @@ impl Plane {
             }
             _ => unreachable!(),
         }
+    }
+
+    pub fn location_of_point(&self, vertex_pos: Vec3) -> Location {
+        let t = self.normal.dot(vertex_pos) - self.w;
+        let location = if t < -PLANE_EPSILON {
+            Location::BACK
+        } else if t > PLANE_EPSILON {
+            Location::FRONT
+        } else {
+            Location::COPLANAR
+        };
+        location
     }
 
     pub fn split_polygons(&self, polygons: &[Polygon]) -> SplitPolygonsResult {

@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use super::{Csg, Plane, Polygon, Vertex};
+use crate::editor::util::Ray;
+
+use super::{Csg, Location, Plane, Polygon, Vertex};
 
 #[derive(Debug, Clone)]
 pub struct Brush {
@@ -10,6 +12,19 @@ pub struct Brush {
 impl Brush {
     pub fn from_planes(planes: Vec<Plane>) -> Self {
         Brush { planes }
+    }
+
+    /// get planes that are affected by a drag starting at this ray
+    pub fn get_planes_behind_ray(&self, ray: Ray) -> Vec<(usize, f32)> {
+        let mut res = Vec::new();
+        for (i, p) in self.planes.iter().enumerate() {
+            let location = p.location_of_point(ray.origin);
+            // info!("loc: {:?} {:?}", p.normal, location);
+            if location == Location::FRONT {
+                res.push((i, p.w));
+            }
+        }
+        res
     }
 }
 
