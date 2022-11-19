@@ -176,3 +176,16 @@ impl Orientation2d {
         }
     }
 }
+
+pub trait SnapToGrid {
+    type Param;
+    fn snap(self, s: Self::Param) -> Self;
+}
+
+impl SnapToGrid for f32 {
+    type Param = f32;
+
+    fn snap(self, s: Self::Param) -> Self {
+        (self / s).round() * s
+    }
+}

@@ -17,8 +17,11 @@ use super::{
     util::Orientation2d,
 };
 use crate::{
-    csg::{self},
-    editor::{components::BrushDragAction, util::HackViewportToWorld},
+    csg::PLANE_EPSILON,
+    editor::{
+        components::BrushDragAction,
+        util::{HackViewportToWorld, SnapToGrid},
+    },
 };
 // systems related to 2d windows
 
@@ -274,27 +277,47 @@ pub fn editor_windows_2d_input_system(
             }
         }
 
-        for (entity, drag_action, mut editor_object) in &mut active_drag_query {
-            let EditorObject::Brush(brush) = &mut *editor_object else {
+        // update dragged planes. Do this in two steps, only touch EditorObject as mutable if there is a relevant change
+        // to prevent triggering the bevy change detection.
+        let mut updates = Vec::new();
+        for (entity, drag_action, editor_object) in &active_drag_query {
+            let EditorObject::Brush(brush) = editor_object else {
                 warn!( "drag: not a brush: {:?}", entity);
                 continue;
             };
 
             let drag_delta = ray.origin - drag_action.start_ray.origin;
 
-            info!("drag: {:?}", drag_delta);
+            debug!("drag: {:?}", drag_delta);
 
+            let mut new_brush = brush.clone();
+            let mut relevant_change = false;
             for (face, start_w) in &drag_action.affected_faces {
                 let normal = brush.planes[*face].normal;
+
                 let d = drag_delta.dot(normal);
 
-                let mut new_brush = brush.clone();
-                new_brush.planes[*face].w = *start_w + d;
+                let snap = 0.1;
+                // let d_snap = (d / snap).round() * snap;
 
-                // apply only if target is not degenerated
-                if std::convert::TryInto::<csg::Csg>::try_into(new_brush.clone()).is_ok() {
-                    *brush = new_brush
+                let new_w = (*start_w + d).snap(snap);
+
+                // compare to the current w of the plane, only apply new value if it changed
+                let current_w = brush.planes[*face].w;
+                if (new_w - current_w).abs() < PLANE_EPSILON {
+                    continue;
                 }
+                new_brush.planes[*face].w = new_w;
+                relevant_change = true;
+            }
+            if relevant_change {
+                updates.push((entity, EditorObject::Brush(new_brush)));
+            }
+        }
+
+        for (entity, obj) in updates {
+            if let Ok((_, _, mut target_obj)) = active_drag_query.get_mut(entity) {
+                *target_obj = obj;
             }
         }
 
