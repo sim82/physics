@@ -35,8 +35,8 @@ impl Plugin for EditorPlugin {
             CoreStage::Update,
             FixedUpdateStage,
             SystemStage::parallel()
-                .with_run_criteria(FixedTimestep::step(0.1))
-                // .with_system(systems::update_brush_csg_system),
+                .with_run_criteria(FixedTimestep::step(0.5))
+                // .with_system(systems::update_brush_csg_system)
                 .with_system(ortho_systems::write_window_settings),
         );
     }

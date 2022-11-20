@@ -43,6 +43,7 @@ pub fn editor_input_system(
             .spawn(EditorObject::Brush(csg::Brush::default()))
             .id();
 
+        info!("new brush: {:?}", entity);
         selection.primary = Some(entity);
     }
 
@@ -51,6 +52,7 @@ pub fn editor_input_system(
             if let Ok(obj) = query.get(primary) {
                 let entity = commands.spawn(obj.clone()).id();
 
+                info!("duplicate brush: {:?} -> {:?}", primary, entity);
                 selection.primary = Some(entity);
             }
         }
@@ -185,10 +187,14 @@ pub fn update_brush_csg_system(
         return;
     }
 
+    for entity in query_changed.iter() {
+        info!("changed: {:?}", entity);
+    }
+
     let start = Instant::now();
     // if any Brush has changed, first delete all existing CsgOutput entities including mesh and material resources
     for (entity, mesh, material) in &query_cleanup {
-        info!("cleanup {:?} {:?}", mesh, material);
+        debug!("cleanup {:?} {:?}", mesh, material);
         meshes.remove(mesh);
         if let Some(material) = materials.remove(material) {
             if let Some(image) = material.base_color_texture {
@@ -234,7 +240,7 @@ pub fn update_brush_csg_system(
         .id();
     add_csg(&mut commands, entity, material, &mut meshes, &u);
 
-    info!("csg update: {:?}", start.elapsed());
+    debug!("csg update: {:?}", start.elapsed());
 }
 
 pub fn track_primary_selection(

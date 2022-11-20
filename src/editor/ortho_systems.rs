@@ -255,7 +255,6 @@ pub fn editor_windows_2d_input_system(
         for event in mouse_button.iter() {
             if event.button == MouseButton::Left && event.state == ButtonState::Pressed {
                 info!("click ray {}: {:?}", focus_name, ray);
-                info!("start drag");
 
                 if let Some(primary) = selection.primary {
                     if let Ok(EditorObject::Brush(brush)) = brush_query.get(primary) {
@@ -265,11 +264,13 @@ pub fn editor_windows_2d_input_system(
                             start_ray: ray,
                             affected_faces,
                         });
+                        info!("start drag for {:?}", primary);
                     }
                 }
             } else if event.button == MouseButton::Left && event.state == ButtonState::Released {
                 for (entity, _, _) in &active_drag_query {
                     commands.entity(entity).remove::<BrushDragAction>();
+                    info!("stop drag for {:?}", entity);
                 }
             }
         }
@@ -285,7 +286,7 @@ pub fn editor_windows_2d_input_system(
 
             let drag_delta = ray.origin - drag_action.start_ray.origin;
 
-            debug!("drag: {:?}", drag_delta);
+            debug!("drag: {:?} on {:?}", drag_delta, entity);
 
             let mut new_brush = brush.clone();
             let mut relevant_change = false;
@@ -312,14 +313,21 @@ pub fn editor_windows_2d_input_system(
             }
         }
 
-        info!("updates: {:?}", updates);
+        // info!("updates: {:?}", updates);
 
-        for (entity, obj) in updates {
-            if let Ok((_, _, mut target_obj)) = active_drag_query.get_mut(entity) {
-                *target_obj = obj;
+        if !true {
+            for (entity, obj) in updates {
+                info!("apply update on {:?}", entity);
+                commands.entity(entity).insert(obj);
+            }
+        } else {
+            for (entity, obj) in updates {
+                info!("apply update on {:?}", entity);
+                if let Ok((_, _, mut target_obj)) = active_drag_query.get_mut(entity) {
+                    *target_obj = obj;
+                }
             }
         }
-
         break;
     }
 
