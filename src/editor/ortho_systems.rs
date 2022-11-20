@@ -305,12 +305,7 @@ pub fn edit_input_system(
     mut mouse_button: EventReader<MouseButtonInput>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
 
-    mut camera_query: Query<(
-        &mut Transform,
-        &GlobalTransform,
-        &mut Projection,
-        &mut Camera,
-    )>,
+    camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<&EditorObject, Without<DragAction>>,
     mut active_drag_query: Query<(Entity, &DragAction, &mut EditorObject), With<DragAction>>,
 ) {
@@ -324,7 +319,7 @@ pub fn edit_input_system(
     'outer: loop {
         let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'outer;};
         let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
-        let Ok((_, global_transform, _, camera)) = camera_query.get_mut(window.camera) else {
+        let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
             warn!("2d window camera not found: {:?}", window.camera); 
             break 'outer;
         };
@@ -463,7 +458,7 @@ pub fn select_input_system(
     keycodes: Res<Input<KeyCode>>,
     mut selection: ResMut<Selection>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
-    mut camera_query: Query<(&GlobalTransform, &mut Camera)>,
+    camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<(Entity, &EditorObject)>,
 ) {
     click_timer.timer.tick(time.delta());
@@ -481,7 +476,7 @@ pub fn select_input_system(
         #[allow(clippy::never_loop)]
         'outer: loop {
             let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
-            let Ok((global_transform, camera)) = camera_query.get_mut(window.camera) else {
+            let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
                 warn!("2d window camera not found: {:?}", window.camera);
                 break 'outer;
             };
