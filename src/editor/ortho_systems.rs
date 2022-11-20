@@ -13,7 +13,7 @@ use bevy::{
 
 use super::{
     components::EditorObject,
-    resources::{self, EditorWindowSettings, Selection, LOWER_WINDOW, UPPER_WINDOW},
+    resources::{self, EditorWindowSettings, Selection, TranslateDrag, LOWER_WINDOW, UPPER_WINDOW},
     util::Orientation2d,
 };
 use crate::{
@@ -189,33 +189,24 @@ pub fn track_focused_window(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn editor_windows_2d_input_system(
-    mut commands: Commands,
-    selection: Res<Selection>,
+pub fn control_input_system(
     keycodes: Res<Input<KeyCode>>,
-    mut mouse_button: EventReader<MouseButtonInput>,
-    mut mouse_wheel: EventReader<MouseWheel>,
-    // mut mouse_wheel: EventReader<Mouse>,
+    mouse_buttons: Res<Input<MouseButton>>,
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
-
+    mut mouse_wheel: EventReader<MouseWheel>,
     mut camera_query: Query<(
         &mut Transform,
         &GlobalTransform,
         &mut Projection,
         &mut Camera,
     )>,
-    brush_query: Query<&EditorObject, Without<DragAction>>,
-    mut active_drag_query: Query<(Entity, &DragAction, &mut EditorObject), With<DragAction>>,
 ) {
+    let editor_windows_2d = &mut *editor_windows_2d;
+
     let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
     for event in mouse_wheel.iter() {
-        let dir = event.y.signum();
-
-        // for mut transform in &mut camera_query {
-        //     todo!()
-        // }
+        let dir = -event.y.signum(); // scroll down -> zooms out
 
         for (_name, window) in &editor_windows_2d.windows {
             let Ok((_transform, _, mut projection, _camera)) = camera_query.get_mut(window.camera) else {
@@ -236,6 +227,92 @@ pub fn editor_windows_2d_input_system(
             *scaling += dir;
         }
     }
+
+    // meh... seems as if I'm up to something
+    #[allow(clippy::never_loop)]
+    'outer: loop {
+        let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'outer;};
+        let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
+        let Ok((transform, global_transform, _, camera)) = camera_query.get(window.camera) else {
+            warn!("2d window camera not found: {:?}", window.camera); 
+            break 'outer;
+        };
+
+        if mouse_buttons.just_pressed(MouseButton::Middle) {
+            info!("middle down");
+            let Some(ray) = camera.viewport_to_world(global_transform, editor_windows_2d.cursor_pos) else {
+                warn!("viewport_to_world failed in {}", focused_name); 
+                break 'outer;
+            };
+            let mut transforms = Vec::new();
+            for (_name, window) in &editor_windows_2d.windows {
+                if let Ok((transform, _, _, _)) = camera_query.get(window.camera) {
+                    transforms.push((window.camera, *transform));
+                }
+            }
+
+            editor_windows_2d.translate_drag = Some(TranslateDrag {
+                start_ray: ray,
+                start_focus: focus_name.clone(),
+                start_global_transform: *global_transform,
+                start_transforms: transforms,
+            });
+        } else if mouse_buttons.just_released(MouseButton::Middle) {
+            info!("middle up");
+            editor_windows_2d.translate_drag = None;
+        } else if let Some(TranslateDrag {
+            start_ray,
+            start_focus: _,
+            start_global_transform,
+            start_transforms,
+        }) = &editor_windows_2d.translate_drag
+        {
+            let Some(ray) = camera.viewport_to_world(start_global_transform, editor_windows_2d.cursor_pos) else {
+                warn!("viewport_to_world failed in {}", focused_name); 
+                break 'outer;
+            };
+            let d = start_ray.origin - ray.origin;
+            for (entity, start_transform) in start_transforms {
+                // if name != start_focus {
+                //     continue;
+                // }
+                if let Ok((mut transform, _, _, _)) = camera_query.get_mut(*entity) {
+                    transform.translation = start_transform.translation + d;
+                }
+            }
+        }
+        break;
+    }
+    if keycodes.just_pressed(KeyCode::F2) {
+        for (_, mut window) in &mut editor_windows_2d.windows {
+            let Ok((mut transform, _, _, _)) = camera_query.get_mut(window.camera) else {
+                warn!("2d window camera transform / projection not found: {:?}", window.camera); 
+                continue;
+            };
+
+            window.settings.orientation = window.settings.orientation.flipped();
+
+            *transform = window.settings.orientation.get_transform();
+        }
+    }
+}
+
+pub fn edit_input_system(
+    mut commands: Commands,
+    selection: Res<Selection>,
+    mut mouse_button: EventReader<MouseButtonInput>,
+    editor_windows_2d: Res<resources::EditorWindows2d>,
+
+    mut camera_query: Query<(
+        &mut Transform,
+        &GlobalTransform,
+        &mut Projection,
+        &mut Camera,
+    )>,
+    brush_query: Query<&EditorObject, Without<DragAction>>,
+    mut active_drag_query: Query<(Entity, &DragAction, &mut EditorObject), With<DragAction>>,
+) {
+    let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
     // meh... seems as if I'm up to something
     #[allow(clippy::never_loop)]
@@ -350,18 +427,5 @@ pub fn editor_windows_2d_input_system(
             }
         }
         break;
-    }
-
-    if keycodes.just_pressed(KeyCode::F2) {
-        for (_, mut window) in &mut editor_windows_2d.windows {
-            let Ok((mut transform, _, _, _)) = camera_query.get_mut(window.camera) else {
-                warn!("2d window camera transform / projection not found: {:?}", window.camera); 
-                continue;
-            };
-
-            window.settings.orientation = window.settings.orientation.flipped();
-
-            *transform = window.settings.orientation.get_transform();
-        }
     }
 }

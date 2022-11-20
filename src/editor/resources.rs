@@ -23,6 +23,13 @@ pub struct EditorWindow2d {
     pub settings: EditorWindowSettings,
 }
 
+pub struct TranslateDrag {
+    pub start_ray: Ray,
+    pub start_focus: String,
+    pub start_global_transform: GlobalTransform,
+    pub start_transforms: Vec<(Entity, Transform)>,
+}
+
 pub const UPPER_WINDOW: &str = "upper";
 pub const LOWER_WINDOW: &str = "lower";
 
@@ -31,4 +38,5 @@ pub struct EditorWindows2d {
     pub windows: HashMap<String, EditorWindow2d>,
     pub focused: Option<(String, WindowId)>,
     pub cursor_pos: Vec2,
+    pub translate_drag: Option<TranslateDrag>,
 }
