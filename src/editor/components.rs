@@ -16,7 +16,7 @@ pub struct CsgOutput;
 pub struct SelectionVis;
 
 #[derive(Component)]
-#[component(storage = "SparseSet")]
+// #[component(storage = "SparseSet")]
 pub struct BrushDragAction {
     pub start_ray: Ray,
     pub affected_faces: Vec<(usize, f32)>,

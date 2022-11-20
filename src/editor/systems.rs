@@ -180,14 +180,14 @@ pub fn update_brush_csg_system(
     mut images: ResMut<Assets<Image>>,
 
     query: Query<&EditorObject>,
-    query_changed: Query<Entity, Changed<EditorObject>>,
+    query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
     query_cleanup: Query<(Entity, &Handle<Mesh>, &Handle<StandardMaterial>), With<CsgOutput>>,
 ) {
     if query_changed.is_empty() {
         return;
     }
 
-    for entity in query_changed.iter() {
+    for (entity, _) in query_changed.iter() {
         info!("changed: {:?}", entity);
     }
 
@@ -246,14 +246,16 @@ pub fn update_brush_csg_system(
 pub fn track_primary_selection(
     selection: Res<Selection>,
     mut meshes: ResMut<Assets<Mesh>>,
-    brush_query: Query<&EditorObject, Changed<EditorObject>>,
+    brush_query: Query<(Entity, &EditorObject), Changed<EditorObject>>,
     mut query: Query<(&Handle<Mesh>, &mut Aabb), With<SelectionVis>>,
 ) {
     let Some(ref primary) = selection.primary else { return };
-    let Ok(EditorObject::Brush(brush)) = brush_query.get(*primary) else { return };
+    let Ok((entity, EditorObject::Brush(brush))) = brush_query.get(*primary) else { return };
     let Ok((vis,mut aabb)) = query.get_single_mut() else { return };
     let Some(mesh) = meshes.get_mut(vis) else { return };
     let Ok(csg): Result<csg::Csg, _> = brush.clone().try_into() else {return};
+
+    info!("selection vis changed: {:?}", entity);
     *aabb = csg.get_aabb();
     *mesh = (&csg).into();
 }
