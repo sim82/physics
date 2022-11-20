@@ -17,7 +17,12 @@ pub struct SelectionVis;
 
 #[derive(Component)]
 // #[component(storage = "SparseSet")]
-pub struct BrushDragAction {
+pub struct DragAction {
     pub start_ray: Ray,
-    pub affected_faces: Vec<(usize, f32)>,
+    pub action: DragActionType,
+}
+
+pub enum DragActionType {
+    Face { affected_faces: Vec<(usize, f32)> },
+    WholeBrush { affected_faces: Vec<(usize, f32)> },
 }

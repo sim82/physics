@@ -1,3 +1,5 @@
+use crate::csg::PLANE_EPSILON;
+
 use super::{Csg, Location, Plane, Polygon, Vertex};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -16,11 +18,22 @@ impl Brush {
     pub fn get_planes_behind_ray(&self, ray: Ray) -> Vec<(usize, f32)> {
         let mut res = Vec::new();
         for (i, p) in self.planes.iter().enumerate() {
-            let location = p.location_of_point(ray.origin);
             // info!("loc: {:?} {:?}", p.normal, location);
-            if location == Location::FRONT {
-                res.push((i, p.w));
+            let dot = p.normal.dot(ray.direction);
+            info!("dot: {}", dot);
+
+            // check if face normal is orthogonal to ray
+            // FIXME: it is probably too strict as soon as there are angled faces
+            if dot.abs() > PLANE_EPSILON {
+                continue;
             }
+            let location = p.location_of_point(ray.origin);
+
+            if location != Location::FRONT {
+                continue;
+            }
+
+            res.push((i, p.w));
         }
         res
     }

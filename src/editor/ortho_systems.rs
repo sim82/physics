@@ -18,7 +18,10 @@ use super::{
 };
 use crate::{
     csg::PLANE_EPSILON,
-    editor::{components::BrushDragAction, util::SnapToGrid},
+    editor::{
+        components::{DragAction, DragActionType},
+        util::SnapToGrid,
+    },
 };
 // systems related to 2d windows
 
@@ -202,11 +205,8 @@ pub fn editor_windows_2d_input_system(
         &mut Projection,
         &mut Camera,
     )>,
-    brush_query: Query<&EditorObject, Without<BrushDragAction>>,
-    mut active_drag_query: Query<
-        (Entity, &BrushDragAction, &mut EditorObject),
-        With<BrushDragAction>,
-    >,
+    brush_query: Query<&EditorObject, Without<DragAction>>,
+    mut active_drag_query: Query<(Entity, &DragAction, &mut EditorObject), With<DragAction>>,
 ) {
     let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
@@ -260,16 +260,30 @@ pub fn editor_windows_2d_input_system(
                     if let Ok(EditorObject::Brush(brush)) = brush_query.get(primary) {
                         let affected_faces = brush.get_planes_behind_ray(ray);
 
-                        commands.entity(primary).insert(BrushDragAction {
-                            start_ray: ray,
-                            affected_faces,
-                        });
-                        info!("start drag for {:?}", primary);
+                        if !affected_faces.is_empty() {
+                            commands.entity(primary).insert(DragAction {
+                                start_ray: ray,
+                                action: DragActionType::Face { affected_faces },
+                            });
+                            info!("start face drag for {:?}", primary); // the crowd put on their affected_faces as The Iron Sheik did his signature face-drag on el Pollo Loco
+                        } else {
+                            let affected_faces = brush
+                                .planes
+                                .iter()
+                                .enumerate()
+                                .map(|(i, face)| (i, face.w))
+                                .collect();
+                            commands.entity(primary).insert(DragAction {
+                                start_ray: ray,
+                                action: DragActionType::WholeBrush { affected_faces },
+                            });
+                            info!("start whole-brush drag for {:?}", primary);
+                        }
                     }
                 }
             } else if event.button == MouseButton::Left && event.state == ButtonState::Released {
                 for (entity, _, _) in &active_drag_query {
-                    commands.entity(entity).remove::<BrushDragAction>();
+                    commands.entity(entity).remove::<DragAction>();
                     info!("stop drag for {:?}", entity);
                 }
             }
@@ -290,24 +304,31 @@ pub fn editor_windows_2d_input_system(
 
             let mut new_brush = brush.clone();
             let mut relevant_change = false;
-            for (face, start_w) in &drag_action.affected_faces {
-                let normal = brush.planes[*face].normal;
 
-                let d = drag_delta.dot(normal);
+            match &drag_action.action {
+                DragActionType::Face { affected_faces }
+                | DragActionType::WholeBrush { affected_faces } /* yay, free implementation */ => {
+                    for (face, start_w) in affected_faces {
+                        let normal = brush.planes[*face].normal;
 
-                let snap = 0.1;
-                // let d_snap = (d / snap).round() * snap;
+                        let d = drag_delta.dot(normal);
 
-                let new_w = (*start_w + d).snap(snap);
+                        let snap = 0.1;
+                        // let d_snap = (d / snap).round() * snap;
 
-                // compare to the current w of the plane, only apply new value if it changed
-                let current_w = brush.planes[*face].w;
-                if (new_w - current_w).abs() < PLANE_EPSILON {
-                    continue;
+                        let new_w = (*start_w + d).snap(snap);
+
+                        // compare to the current w of the plane, only apply new value if it changed
+                        let current_w = brush.planes[*face].w;
+                        if (new_w - current_w).abs() < PLANE_EPSILON {
+                            continue;
+                        }
+                        new_brush.planes[*face].w = new_w;
+                        relevant_change = true;
+                    }
                 }
-                new_brush.planes[*face].w = new_w;
-                relevant_change = true;
             }
+
             if relevant_change {
                 updates.push((entity, EditorObject::Brush(new_brush)));
             }
