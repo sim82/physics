@@ -64,7 +64,8 @@ impl TryFrom<Brush> for Csg {
     fn try_from(brush: Brush) -> Result<Self, Self::Error> {
         let mut polygons = Vec::new();
         for (i, base_plane) in brush.planes.iter().enumerate() {
-            let mut polygon = create_base_polygon(base_plane, 128.0);
+            const BASE_POLYGON_SIZE: f32 = 1024.0 * 8.0;
+            let mut polygon = create_base_polygon(base_plane, BASE_POLYGON_SIZE);
 
             for (j, plane) in brush.planes.iter().enumerate() {
                 if i == j {

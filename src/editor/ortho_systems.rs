@@ -206,7 +206,12 @@ pub fn control_input_system(
     let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
     for event in mouse_wheel.iter() {
-        let dir = -event.y.signum(); // scroll down -> zooms out
+        let scroll_step = if keycodes.pressed(KeyCode::LControl) {
+            5.0
+        } else {
+            2.0
+        };
+        let dir = -event.y.signum() * scroll_step; // scroll down -> zooms out
 
         for (_name, window) in &editor_windows_2d.windows {
             let Ok((_transform, _, mut projection, _camera)) = camera_query.get_mut(window.camera) else {
@@ -224,7 +229,9 @@ pub fn control_input_system(
                 continue;
             };
 
-            *scaling += dir;
+            if *scaling + dir > 0.0 {
+                *scaling += dir;
+            }
         }
     }
 
@@ -273,9 +280,6 @@ pub fn control_input_system(
             };
             let d = start_ray.origin - ray.origin;
             for (entity, start_transform) in start_transforms {
-                // if name != start_focus {
-                //     continue;
-                // }
                 if let Ok((mut transform, _, _, _)) = camera_query.get_mut(*entity) {
                     transform.translation = start_transform.translation + d;
                 }
@@ -297,9 +301,11 @@ pub fn control_input_system(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn edit_input_system(
     mut commands: Commands,
     selection: Res<Selection>,
+    keycodes: Res<Input<KeyCode>>,
     mut mouse_button: EventReader<MouseButtonInput>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
 
@@ -390,7 +396,11 @@ pub fn edit_input_system(
 
                         let d = drag_delta.dot(normal);
 
-                        let snap = 0.1;
+                        let snap = if keycodes.pressed(KeyCode::LControl) {
+                            0.5
+                        } else {
+                            0.1
+                        };
                         // let d_snap = (d / snap).round() * snap;
 
                         let new_w = (*start_w + d).snap(snap);
