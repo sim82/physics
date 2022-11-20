@@ -13,6 +13,7 @@ use super::{
 use crate::{
     csg::{self},
     editor::util::add_csg,
+    TestResources,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -171,13 +172,14 @@ pub fn editor_input_system(
     // if keycodes.just_pr
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn update_brush_csg_system(
     mut commands: Commands,
 
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
+    test_resources: Res<TestResources>,
 
     query: Query<&EditorObject>,
     query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
@@ -196,12 +198,12 @@ pub fn update_brush_csg_system(
     for (entity, mesh, material) in &query_cleanup {
         debug!("cleanup {:?} {:?}", mesh, material);
         meshes.remove(mesh);
-        if let Some(material) = materials.remove(material) {
-            if let Some(image) = material.base_color_texture {
-                info!("cleanup {:?}", image);
-                images.remove(image);
-            }
-        }
+        // if let Some(material) = materials.remove(material) {
+        //     if let Some(image) = material.base_color_texture {
+        //         info!("cleanup {:?}", image);
+        //         images.remove(image);
+        //     }
+        // }
 
         commands.entity(entity).despawn();
     }
@@ -226,19 +228,25 @@ pub fn update_brush_csg_system(
 
     u.invert();
 
-    let material = materials.add(StandardMaterial {
-        base_color: Color::BLUE,
-        metallic: 0.9,
-        perceptual_roughness: 0.1,
-        ..Default::default()
-    });
+    // let material = materials.add(StandardMaterial {
+    //     base_color: Color::BLUE,
+    //     metallic: 0.9,
+    //     perceptual_roughness: 0.1,
+    //     ..Default::default()
+    // });
 
     let entity = commands
         .spawn(CsgOutput)
         .insert(Name::new("csg_output"))
         .insert(Wireframe)
         .id();
-    add_csg(&mut commands, entity, material, &mut meshes, &u);
+    add_csg(
+        &mut commands,
+        entity,
+        test_resources.uv_material.clone(),
+        &mut meshes,
+        &u,
+    );
 
     debug!("csg update: {:?}", start.elapsed());
 }

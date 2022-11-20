@@ -22,7 +22,7 @@ use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::{
     editor::{self, util::spawn_box},
     player_controller::{self, PlayerCamera, PlayerControllerBundle},
-    test_texture, AppState,
+    test_texture, AppState, TestResources,
 };
 
 #[cfg(feature = "inspector")]
@@ -43,7 +43,17 @@ fn main() {
         brightness: 1.0 / 5.0f32,
     })
     // .insert_resource(Msaa::default())
-    .add_plugins(DefaultPlugins)
+    .add_plugins(DefaultPlugins.set(ImagePlugin {
+        default_sampler: wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            ..Default::default()
+        },
+    }))
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     .add_plugin(RapierDebugRenderPlugin::default())
     .add_plugin(bevy_prototype_debug_lines::DebugLinesPlugin::default())
@@ -66,7 +76,8 @@ fn main() {
         planet_radius: 7000e3,
         atmosphere_radius: 7100e3,
         ..default()
-    });
+    })
+    .init_resource::<TestResources>();
     // .add_system(mesh_loaded)
 
     app.add_state(AppState::DebugMenu);
@@ -256,6 +267,7 @@ fn update_deferred_mesh_system(
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut test_resources: ResMut<TestResources>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
@@ -271,6 +283,7 @@ fn setup(
         test_texture::create(),
         TextureFormat::Rgba8Unorm,
     ));
+    test_resources.uv_image = uv_test.clone();
 
     let material = materials.add(StandardMaterial {
         base_color_texture: Some(uv_test),
@@ -278,6 +291,8 @@ fn setup(
         perceptual_roughness: 0.1,
         ..Default::default()
     });
+
+    test_resources.uv_material = material.clone();
 
     const SPAWN_STUFF: bool = false;
     // .insert(ColliderDebugRender::with_id(1));

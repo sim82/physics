@@ -58,6 +58,12 @@ pub mod test_texture {
     }
 }
 
+#[derive(Resource, Default)]
+pub struct TestResources {
+    pub uv_image: Handle<Image>,
+    pub uv_material: Handle<StandardMaterial>,
+}
+
 pub mod player_controller;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

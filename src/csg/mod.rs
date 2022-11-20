@@ -59,6 +59,9 @@ pub use sphere::Sphere;
 mod brush;
 pub use brush::Brush;
 
+mod texgen;
+use self::texgen::Texgen;
+
 // clean slate, bevy flavoured, port of csg.js
 
 #[derive(Clone, Copy, Default, Debug, Serialize, Deserialize)]
@@ -595,15 +598,24 @@ impl From<&Csg> for Mesh {
         let mut indices = Vec::new();
 
         let triangles = csg.get_triangles();
+
+        let texgen = Texgen::default();
         for tri in &triangles {
             let idx0 = positions.len() as u32;
             // most obnoxiously functional style just for the lulz...
             fn to_slice(v: Vec3) -> [f32; 3] {
                 [v.x, v.y, v.z]
             }
+            fn to_slice2(v: Vec2) -> [f32; 2] {
+                [v.x, v.y]
+            }
             positions.extend(tri.0.map(to_slice));
             normals.extend(std::iter::repeat(to_slice(tri.1)).take(3));
-            uvs.extend(std::iter::repeat([0.0, 0.0]).take(3));
+            uvs.extend(
+                tri.0
+                    .map(|pos| texgen.project_tc_for_pos(pos, tri.1))
+                    .map(to_slice2),
+            );
             indices.extend(idx0..=(idx0 + 2));
         }
 
