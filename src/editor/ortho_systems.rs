@@ -194,12 +194,9 @@ pub fn control_input_system(
     mouse_buttons: Res<Input<MouseButton>>,
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut mouse_wheel: EventReader<MouseWheel>,
-    mut camera_query: Query<(
-        &mut Transform,
-        &GlobalTransform,
-        &mut Projection,
-        &mut Camera,
-    )>,
+    camera_query: Query<(&GlobalTransform, &Camera)>,
+    mut transform_query: Query<&mut Transform>,
+    mut projection_query: Query<&mut Projection>,
 ) {
     let editor_windows_2d = &mut *editor_windows_2d;
 
@@ -214,7 +211,7 @@ pub fn control_input_system(
         let dir = -event.y.signum() * scroll_step; // scroll down -> zooms out
 
         for (_name, window) in &editor_windows_2d.windows {
-            let Ok((_transform, _, mut projection, _camera)) = camera_query.get_mut(window.camera) else {
+            let Ok(mut projection) = projection_query.get_mut(window.camera) else {
                 warn!("2d window camera transform / projection not found: {:?}", window.camera); 
                 continue;
             };
@@ -240,7 +237,7 @@ pub fn control_input_system(
     'outer: loop {
         let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'outer;};
         let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
-        let Ok((transform, global_transform, _, camera)) = camera_query.get(window.camera) else {
+        let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
             warn!("2d window camera not found: {:?}", window.camera); 
             break 'outer;
         };
@@ -253,7 +250,7 @@ pub fn control_input_system(
             };
             let mut transforms = Vec::new();
             for (_name, window) in &editor_windows_2d.windows {
-                if let Ok((transform, _, _, _)) = camera_query.get(window.camera) {
+                if let Ok(transform) = transform_query.get(window.camera) {
                     transforms.push((window.camera, *transform));
                 }
             }
@@ -280,7 +277,7 @@ pub fn control_input_system(
             };
             let d = start_ray.origin - ray.origin;
             for (entity, start_transform) in start_transforms {
-                if let Ok((mut transform, _, _, _)) = camera_query.get_mut(*entity) {
+                if let Ok(mut transform) = transform_query.get_mut(*entity) {
                     transform.translation = start_transform.translation + d;
                 }
             }
@@ -289,13 +286,12 @@ pub fn control_input_system(
     }
     if keycodes.just_pressed(KeyCode::F2) {
         for (_, mut window) in &mut editor_windows_2d.windows {
-            let Ok((mut transform, _, _, _)) = camera_query.get_mut(window.camera) else {
+            let Ok(mut transform) = transform_query.get_mut(window.camera) else {
                 warn!("2d window camera transform / projection not found: {:?}", window.camera); 
                 continue;
             };
 
             window.settings.orientation = window.settings.orientation.flipped();
-
             *transform = window.settings.orientation.get_transform();
         }
     }
@@ -471,7 +467,7 @@ pub fn select_input_system(
     brush_query: Query<(Entity, &EditorObject)>,
 ) {
     click_timer.timer.tick(time.delta());
-    let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
+    let Some((focused_name, _)) = &editor_windows_2d.focused else { return };
 
     if mouse_buttons.just_pressed(MouseButton::Left) {
         click_timer.timer.reset();
@@ -484,7 +480,6 @@ pub fn select_input_system(
         // meh... seems as if I'm up to something
         #[allow(clippy::never_loop)]
         'outer: loop {
-            let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'outer;};
             let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
             let Ok((global_transform, camera)) = camera_query.get_mut(window.camera) else {
                 warn!("2d window camera not found: {:?}", window.camera);
