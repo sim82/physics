@@ -206,7 +206,7 @@ pub fn control_input_system(
     let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
     for event in mouse_wheel.iter() {
-        let scroll_step = if keycodes.pressed(KeyCode::LControl) {
+        let scroll_step = if keycodes.pressed(KeyCode::LAlt) {
             5.0
         } else {
             2.0
@@ -320,6 +320,9 @@ pub fn edit_input_system(
 ) {
     let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
+    // LControl is 'select mode'. Prohibits start of edit actions (but they can still update or end)
+    let start_edit_allowed = !keycodes.pressed(KeyCode::LControl);
+
     // meh... seems as if I'm up to something
     #[allow(clippy::never_loop)]
     'outer: loop {
@@ -336,7 +339,10 @@ pub fn edit_input_system(
         };
 
         for event in mouse_button.iter() {
-            if event.button == MouseButton::Left && event.state == ButtonState::Pressed {
+            if event.button == MouseButton::Left
+                && event.state == ButtonState::Pressed
+                && start_edit_allowed
+            {
                 info!("click ray {}: {:?}", focus_name, ray);
 
                 if let Some(primary) = selection.primary {
@@ -396,7 +402,7 @@ pub fn edit_input_system(
 
                         let d = drag_delta.dot(normal);
 
-                        let snap = if keycodes.pressed(KeyCode::LControl) {
+                        let snap = if keycodes.pressed(KeyCode::LAlt) {
                             0.5
                         } else {
                             0.1
@@ -437,5 +443,72 @@ pub fn edit_input_system(
             }
         }
         break;
+    }
+}
+
+#[derive(Resource)]
+pub struct ClickTimer {
+    pub timer: Timer,
+}
+
+impl Default for ClickTimer {
+    fn default() -> Self {
+        Self {
+            timer: Timer::from_seconds(0.5, TimerMode::Once),
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn select_input_system(
+    time: Res<Time>,
+    mut click_timer: Local<ClickTimer>,
+    mouse_buttons: Res<Input<MouseButton>>,
+    keycodes: Res<Input<KeyCode>>,
+    mut selection: ResMut<Selection>,
+    editor_windows_2d: Res<resources::EditorWindows2d>,
+    mut camera_query: Query<(&GlobalTransform, &mut Camera)>,
+    brush_query: Query<(Entity, &EditorObject)>,
+) {
+    click_timer.timer.tick(time.delta());
+    let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
+
+    if mouse_buttons.just_pressed(MouseButton::Left) {
+        click_timer.timer.reset();
+    } else if (mouse_buttons.just_released(MouseButton::Left))
+        && keycodes.pressed(KeyCode::LControl)
+        && !click_timer.timer.finished()
+    {
+        info!("select");
+
+        // meh... seems as if I'm up to something
+        #[allow(clippy::never_loop)]
+        'outer: loop {
+            let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'outer;};
+            let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
+            let Ok((global_transform, camera)) = camera_query.get_mut(window.camera) else {
+                warn!("2d window camera not found: {:?}", window.camera);
+                break 'outer;
+            };
+
+            let Some(ray) = camera.viewport_to_world(global_transform, editor_windows_2d.cursor_pos) else {
+                warn!("viewport_to_world failed in {}", focused_name); 
+                break 'outer;
+            };
+
+            for (entity, obj) in &brush_query {
+                #[allow(clippy::single_match)] // nope, this will change
+                match obj {
+                    EditorObject::Brush(brush) => {
+                        let affected_faces = brush.get_planes_behind_ray(ray);
+                        if affected_faces.is_empty() {
+                            selection.primary = Some(entity);
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            break;
+        }
     }
 }

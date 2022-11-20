@@ -243,12 +243,23 @@ pub fn update_brush_csg_system(
     debug!("csg update: {:?}", start.elapsed());
 }
 
+#[derive(Resource, Default)]
+pub struct SelectionChangeTracking {
+    primary: Option<Entity>,
+}
+
 pub fn track_primary_selection(
     selection: Res<Selection>,
+    mut tracking: Local<SelectionChangeTracking>,
     mut meshes: ResMut<Assets<Mesh>>,
-    brush_query: Query<(Entity, &EditorObject), Changed<EditorObject>>,
+    brush_query: Query<(Entity, &EditorObject)>,
+    brush_changed: Query<(), Changed<EditorObject>>,
     mut query: Query<(&Handle<Mesh>, &mut Aabb), With<SelectionVis>>,
 ) {
+    if brush_changed.is_empty() && selection.primary == tracking.primary {
+        return;
+    }
+
     let Some(ref primary) = selection.primary else { return };
     let Ok((entity, EditorObject::Brush(brush))) = brush_query.get(*primary) else { return };
     let Ok((vis,mut aabb)) = query.get_single_mut() else { return };
@@ -256,6 +267,7 @@ pub fn track_primary_selection(
     let Ok(csg): Result<csg::Csg, _> = brush.clone().try_into() else {return};
 
     info!("selection vis changed: {:?}", entity);
+    tracking.primary = selection.primary;
     *aabb = csg.get_aabb();
     *mesh = (&csg).into();
 }
@@ -269,7 +281,7 @@ pub fn setup_selection_vis_system(
     material.unlit = true;
 
     command
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: meshes.add(Cube::default().into()),
             material: materials.add(material),
             ..default()

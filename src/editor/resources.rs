@@ -6,6 +6,7 @@ use super::util::Orientation2d;
 #[derive(Default, Resource)]
 pub struct Selection {
     pub primary: Option<Entity>,
+    pub last_primary: Option<Entity>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, Default)]

@@ -29,6 +29,7 @@ impl Plugin for EditorPlugin {
             .add_system(ortho_systems::track_focused_window)
             .add_system(ortho_systems::edit_input_system)
             .add_system(ortho_systems::control_input_system)
+            .add_system(ortho_systems::select_input_system)
             .add_system(systems::load_save_editor_objects);
 
         // fixed timestep stage for non realtime stuff like writing config
