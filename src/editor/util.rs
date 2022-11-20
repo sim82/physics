@@ -15,7 +15,7 @@ pub fn spawn_box(
     let hs = (max - min) / 2.0;
 
     commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: meshes.add(
                 mesh::shape::Box {
                     min_x: -hs.x,
@@ -48,7 +48,7 @@ pub fn add_box(
 
     commands
         .entity(entity)
-        .insert_bundle(PbrBundle {
+        .insert(PbrBundle {
             mesh: meshes.add(
                 mesh::shape::Box {
                     min_x: -hs.x,
@@ -78,7 +78,7 @@ pub fn add_csg(
 
     commands
         .entity(entity)
-        .insert_bundle(PbrBundle {
+        .insert(PbrBundle {
             mesh: meshes.add(csg.into()),
             material,
             transform: Transform::from_translation(center),
