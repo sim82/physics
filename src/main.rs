@@ -22,7 +22,7 @@ use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::{
     editor::{self, util::spawn_box},
     player_controller::{self, PlayerCamera, PlayerControllerBundle},
-    test_texture, AppState, TestResources,
+    sky, test_texture, AppState, TestResources,
 };
 
 #[cfg(feature = "inspector")]
@@ -69,14 +69,15 @@ fn main() {
     .add_system(debug_line_test)
     .add_system(update_deferred_mesh_system)
     // .add_plugin(FpsControllerPlugin)
-    .add_plugin(AtmospherePlugin)
+    // .add_plugin(AtmospherePlugin)
     .add_plugin(WireframePlugin)
-    .insert_resource(Atmosphere {
-        ray_origin: Vec3::new(0.0, 7000e3, 0.0),
-        planet_radius: 7000e3,
-        atmosphere_radius: 7100e3,
-        ..default()
-    })
+    .add_plugin(sky::SkyPlugin)
+    // .insert_resource(Atmosphere {
+    //     ray_origin: Vec3::new(0.0, 7000e3, 0.0),
+    //     planet_radius: 7000e3,
+    //     atmosphere_radius: 7100e3,
+    //     ..default()
+    // })
     .init_resource::<TestResources>();
     // .add_system(mesh_loaded)
 

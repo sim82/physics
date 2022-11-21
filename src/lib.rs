@@ -6,6 +6,7 @@ pub mod csg;
 pub mod editor;
 pub mod slidemove;
 pub mod trace;
+pub mod sky;
 
 pub const OVERCLIP: f32 = 1.001;
 
