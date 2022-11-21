@@ -4,9 +4,10 @@ pub mod contact_debug;
 // pub mod debug_lines;
 pub mod csg;
 pub mod editor;
+pub mod sky;
 pub mod slidemove;
 pub mod trace;
-pub mod sky;
+pub mod wsx;
 
 pub const OVERCLIP: f32 = 1.001;
 

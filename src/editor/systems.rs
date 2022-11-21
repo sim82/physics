@@ -13,7 +13,7 @@ use super::{
 use crate::{
     csg::{self},
     editor::util::add_csg,
-    TestResources,
+    wsx, TestResources,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -325,6 +325,19 @@ pub fn load_save_editor_objects(
             for obj in objects {
                 commands.spawn(obj);
             }
+        }
+    }
+
+    if keycodes.just_pressed(KeyCode::F7) {
+        // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
+
+        let brushes = wsx::load_brushes("nav3.wsx");
+
+        for (entity, _) in existing_objects.iter() {
+            commands.entity(entity).despawn();
+        }
+        for brush in &brushes[..50] {
+            commands.spawn(EditorObject::Brush(brush.clone()));
         }
     }
 }
