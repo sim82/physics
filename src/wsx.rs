@@ -1,6 +1,6 @@
 use std::{io::BufReader, path::Path};
 
-use bevy::prelude::{Deref, Vec3};
+use bevy::prelude::Vec3;
 use serde::{Deserialize, Serialize};
 
 use crate::csg;
@@ -68,28 +68,13 @@ fn parse_vec3(s: &str) -> Option<Vec3> {
     Some(Vec3::new(f.next()?, f.next()?, f.next()?))
 }
 
-// impl From<&Surface> for crate::csg::Plane {
-//     fn from(surface: &Surface) -> Self {
-//         let origin = parse_vec3(&surface.origin).unwrap();
-//         let normal = parse_vec3(&surface.normal).unwrap();
-
-//         let w = (-origin).project_onto(normal).length();
-
-//         info!("{:?} {:?} -> {}", origin, normal, w);
-//         csg::Plane {
-//             normal: parse_vec3(&surface.normal).unwrap(),
-//             w,
-//         }
-//     }
-// }
-
 impl Surface {
     pub fn to_csg_plane_with_offset(&self, offset: &Vec3) -> csg::Plane {
         let origin = parse_vec3(&self.origin).unwrap() + *offset;
         let normal = parse_vec3(&self.normal).unwrap();
 
         // TODO: read some linalg stuff and figure out if this is the right way to do this:
-        // - project origin onto normal. this should be the roughly point in the plane closest to (0,0,0)
+        // - project origin onto normal. this should be roughly the point in the plane closest to (0,0,0)
         // - note: projecting onto negative basis vectors does not automatically flip the sign of the projection!
         // - 'flip sign' if projected vector points in the opposite direction of the normal (-> dot)
         // - use length of that abomination as w
@@ -103,14 +88,6 @@ impl Surface {
         }
     }
 }
-
-// impl From<&Brush> for crate::csg::Brush {
-//     fn from(brush: &Brush) -> Self {
-//         csg::Brush {
-//             planes: brush.Surface.iter().map(|s| s.into()).collect(),
-//         }
-//     }
-// }
 
 impl Brush {
     pub fn to_csg_brush_with_offset(&self, offset: &Vec3) -> csg::Brush {
