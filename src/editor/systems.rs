@@ -331,12 +331,12 @@ pub fn load_save_editor_objects(
     if keycodes.just_pressed(KeyCode::F7) {
         // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
 
-        let brushes = wsx::load_brushes("nav3.wsx");
+        let brushes = wsx::load_brushes("t4.wsx");
 
         for (entity, _) in existing_objects.iter() {
             commands.entity(entity).despawn();
         }
-        for brush in &brushes[..50] {
+        for brush in &brushes[..] {
             commands.spawn(EditorObject::Brush(brush.clone()));
         }
     }

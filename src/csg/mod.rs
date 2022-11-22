@@ -100,7 +100,7 @@ impl Vertex {
 
 // `CSG.Plane.EPSILON` is the tolerance used by `splitPolygon()` to decide if a
 // point is on the plane.
-pub const PLANE_EPSILON: f32 = 1e-5;
+pub const PLANE_EPSILON: f32 = 1e-3; // HACK: work around stability problems. not sure if this is the right approach
 
 #[derive(Clone, Debug, Default, Copy, Serialize, Deserialize)]
 pub struct Plane {

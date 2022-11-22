@@ -4,6 +4,7 @@ use bevy::prelude::{Deref, Vec3};
 use serde::{Deserialize, Serialize};
 
 use crate::csg;
+use bevy::prelude::*;
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,7 +48,7 @@ pub struct Brush {
     pub Surface: Vec<Surface>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Surface {
     pub id: String,
     pub origin: String,
@@ -67,24 +68,59 @@ fn parse_vec3(s: &str) -> Option<Vec3> {
     Some(Vec3::new(f.next()?, f.next()?, f.next()?))
 }
 
-impl From<&Surface> for crate::csg::Plane {
-    fn from(surface: &Surface) -> Self {
-        let origin = parse_vec3(&surface.origin).unwrap();
-        let normal = parse_vec3(&surface.normal).unwrap();
+// impl From<&Surface> for crate::csg::Plane {
+//     fn from(surface: &Surface) -> Self {
+//         let origin = parse_vec3(&surface.origin).unwrap();
+//         let normal = parse_vec3(&surface.normal).unwrap();
 
-        let w = (-origin).project_onto(normal).length();
+//         let w = (-origin).project_onto(normal).length();
 
+//         info!("{:?} {:?} -> {}", origin, normal, w);
+//         csg::Plane {
+//             normal: parse_vec3(&surface.normal).unwrap(),
+//             w,
+//         }
+//     }
+// }
+
+impl Surface {
+    pub fn to_csg_plane_with_offset(&self, offset: &Vec3) -> csg::Plane {
+        let origin = parse_vec3(&self.origin).unwrap() + *offset;
+        let normal = parse_vec3(&self.normal).unwrap();
+
+        // TODO: read some linalg stuff and figure out if this is the right way to do this:
+        // - project origin onto normal. this should be the roughly point in the plane closest to (0,0,0)
+        // - note: projecting onto negative basis vectors does not automatically flip the sign of the projection!
+        // - 'flip sign' if projected vector points in the opposite direction of the normal (-> dot)
+        // - use length of that abomination as w
+        let proj = origin.project_onto(normal);
+        let w = proj.length() * proj.normalize_or_zero().dot(normal);
+
+        debug!("{:?} {:?} -> {:?} {}", origin, normal, proj, w);
         csg::Plane {
-            normal: parse_vec3(&surface.normal).unwrap(),
-            w: w,
+            normal: parse_vec3(&self.normal).unwrap(),
+            w,
         }
     }
 }
 
-impl From<&Brush> for crate::csg::Brush {
-    fn from(brush: &Brush) -> Self {
+// impl From<&Brush> for crate::csg::Brush {
+//     fn from(brush: &Brush) -> Self {
+//         csg::Brush {
+//             planes: brush.Surface.iter().map(|s| s.into()).collect(),
+//         }
+//     }
+// }
+
+impl Brush {
+    pub fn to_csg_brush_with_offset(&self, offset: &Vec3) -> csg::Brush {
+        info!("brush: {:?}", offset);
         csg::Brush {
-            planes: brush.Surface.iter().map(|s| s.into()).collect(),
+            planes: self
+                .Surface
+                .iter()
+                .map(|s| s.to_csg_plane_with_offset(offset))
+                .collect(),
         }
     }
 }
@@ -93,16 +129,20 @@ pub fn load_brushes<F: AsRef<Path>>(filename: F) -> Vec<csg::Brush> {
     let file = std::fs::File::open(filename).unwrap();
     println!("res");
     let wsx: WiredExportScene = quick_xml::de::from_reader(BufReader::new(file)).unwrap();
-    println!("wsx: {:?}", wsx);
+    // println!("wsx: {:?}", wsx);
 
     let mut res = Vec::new();
     for node in &wsx.SceneNodes.SceneNode {
-        if node.Properties.csgLevel.is_some() {
+        // ignore csg level 2 or higher
+        if !matches!(node.Properties.csgLevel, None | Some(1)) {
             continue;
         }
+
+        let origin = parse_vec3(&node.Properties.origin).unwrap();
+
         let Some(brushes) = &node.Components.Brush else {continue};
         for brush in brushes {
-            let csg_brush: csg::Brush = brush.into();
+            let csg_brush: csg::Brush = brush.to_csg_brush_with_offset(&origin);
 
             println!("{:?}", csg_brush);
             res.push(csg_brush);

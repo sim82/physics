@@ -16,9 +16,9 @@ default = ["inspector"]
 
 [dependencies]
 # ] }
+# bevy = { version = "0.9" }
 bevy = { version = "0.9", features = ["dynamic"] }
 wgpu = "*"
-# bevy = { version = "0.8" }
 bevy-inspector-egui = { version = "0.14", optional = true }
 
 # TODO: bevy 0.9

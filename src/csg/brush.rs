@@ -20,7 +20,7 @@ impl Brush {
         for (i, p) in self.planes.iter().enumerate() {
             // info!("loc: {:?} {:?}", p.normal, location);
             let dot = p.normal.dot(ray.direction);
-            info!("dot: {}", dot);
+            debug!("dot: {}", dot);
 
             // check if face normal is orthogonal to ray
             // FIXME: it is probably too strict as soon as there are angled faces
