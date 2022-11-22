@@ -11,10 +11,27 @@ use super::{
     resources::{self, Selection},
 };
 use crate::{
+    appearance::load_materials,
     csg::{self},
     editor::util::add_csg,
     wsx, TestResources,
 };
+
+pub fn setup(
+    mut materials_res: ResMut<resources::Materials>,
+    mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut asset_server: ResMut<AssetServer>,
+) {
+    materials_res.materials = load_materials(
+        "/home/sim/3dyne/arch00.dir/",
+        &mut images,
+        &mut materials,
+        &mut asset_server,
+    );
+
+    info!("loaded {} materials", materials_res.materials.len());
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn editor_input_system(
@@ -176,10 +193,9 @@ pub fn editor_input_system(
 pub fn update_brush_csg_system(
     mut commands: Commands,
 
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut images: ResMut<Assets<Image>>,
     test_resources: Res<TestResources>,
+    materials: Res<resources::Materials>,
 
     query: Query<&EditorObject>,
     query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
@@ -240,13 +256,13 @@ pub fn update_brush_csg_system(
         .insert(Name::new("csg_output"))
         .insert(Wireframe)
         .id();
-    add_csg(
-        &mut commands,
-        entity,
-        test_resources.uv_material.clone(),
-        &mut meshes,
-        &u,
-    );
+
+    let material = materials
+        .materials
+        .get("appearance/brick/brick53_1")
+        .unwrap_or(&test_resources.uv_material)
+        .clone();
+    add_csg(&mut commands, entity, material, &mut meshes, &u);
 
     debug!("csg update: {:?}", start.elapsed());
 }
@@ -331,7 +347,7 @@ pub fn load_save_editor_objects(
     if keycodes.just_pressed(KeyCode::F7) {
         // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
 
-        let brushes = wsx::load_brushes("t4.wsx");
+        let brushes = wsx::load_brushes("nav3.wsx");
 
         for (entity, _) in existing_objects.iter() {
             commands.entity(entity).despawn();

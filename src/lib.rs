@@ -8,6 +8,7 @@ pub mod sky;
 pub mod slidemove;
 pub mod trace;
 pub mod wsx;
+pub mod appearance;
 
 pub const OVERCLIP: f32 = 1.001;
 

@@ -41,3 +41,8 @@ pub struct EditorWindows2d {
     pub cursor_pos: Vec2,
     pub translate_drag: Option<TranslateDrag>,
 }
+
+#[derive(Default, Resource)]
+pub struct Materials {
+    pub materials: HashMap<String, Handle<StandardMaterial>>,
+}
