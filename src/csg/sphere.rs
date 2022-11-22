@@ -69,7 +69,7 @@ impl From<Sphere> for Csg {
                     (j + 1) as f32 / sphere.stacks as f32,
                 ));
 
-                polygons.push(Polygon::from_vertices(vertices));
+                polygons.push(Polygon::from_vertices(vertices, 0));
             }
         }
         Csg::from_polygons(polygons)

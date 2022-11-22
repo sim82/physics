@@ -98,6 +98,7 @@ impl Brush {
                 .iter()
                 .map(|s| s.to_csg_plane_with_offset(offset))
                 .collect(),
+            appearances: std::iter::repeat(0).take(self.Surface.len()).collect(),
         }
     }
 }

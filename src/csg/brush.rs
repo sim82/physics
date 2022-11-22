@@ -1,4 +1,4 @@
-use crate::csg::PLANE_EPSILON;
+use crate::{appearance, csg::PLANE_EPSILON};
 
 use super::{Csg, Location, Plane, Polygon, Vertex};
 use bevy::prelude::*;
@@ -7,11 +7,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Brush {
     pub planes: Vec<Plane>,
+    pub appearances: Vec<i32>,
 }
 
 impl Brush {
     pub fn from_planes(planes: Vec<Plane>) -> Self {
-        Brush { planes }
+        Brush {
+            appearances: std::iter::repeat(0).take(planes.len()).collect(),
+            planes,
+        }
     }
 
     /// get planes that are affected by a drag starting at this ray
@@ -63,9 +67,14 @@ impl TryFrom<Brush> for Csg {
 
     fn try_from(brush: Brush) -> Result<Self, Self::Error> {
         let mut polygons = Vec::new();
-        for (i, base_plane) in brush.planes.iter().enumerate() {
+        for (i, (base_plane, appearance)) in brush
+            .planes
+            .iter()
+            .zip(brush.appearances.iter())
+            .enumerate()
+        {
             const BASE_POLYGON_SIZE: f32 = 1024.0 * 8.0;
-            let mut polygon = create_base_polygon(base_plane, BASE_POLYGON_SIZE);
+            let mut polygon = create_base_polygon(base_plane, *appearance, BASE_POLYGON_SIZE);
 
             for (j, plane) in brush.planes.iter().enumerate() {
                 if i == j {
@@ -115,24 +124,27 @@ impl TryFrom<Brush> for Csg {
     }
 }
 
-fn create_base_polygon(plane: &Plane, width: f32) -> Polygon {
+fn create_base_polygon(plane: &Plane, appearance: i32, width: f32) -> Polygon {
     let normal = plane.normal.normalize();
     let (x, y) = normal.any_orthonormal_pair();
     let origin = normal * plane.w;
 
-    Polygon::from_vertices(vec![
-        Vertex::new(origin + x * width, normal),
-        Vertex::new(origin + y * width, normal),
-        Vertex::new(origin - x * width, normal),
-        Vertex::new(origin - y * width, normal),
-    ])
+    Polygon::from_vertices(
+        vec![
+            Vertex::new(origin + x * width, normal),
+            Vertex::new(origin + y * width, normal),
+            Vertex::new(origin - x * width, normal),
+            Vertex::new(origin - y * width, normal),
+        ],
+        appearance,
+    )
 }
 
 #[test]
 fn test_create_base_polygon() {
-    let polygon = create_base_polygon(&Plane::new(Vec3::X, 1.0), 16.0);
+    let polygon = create_base_polygon(&Plane::new(Vec3::X, 1.0), 0, 16.0);
     println!("polygon: {:?}", polygon);
-    let polygon = create_base_polygon(&Plane::new(-Vec3::X, 1.0), 16.0);
+    let polygon = create_base_polygon(&Plane::new(-Vec3::X, 1.0), 0, 16.0);
     println!("polygon: {:?}", polygon);
 }
 

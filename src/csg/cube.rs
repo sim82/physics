@@ -49,7 +49,7 @@ impl From<Cube> for Csg {
                         )
                     })
                     .collect();
-                Polygon::from_vertices(vtx)
+                Polygon::from_vertices(vtx, 0)
             })
             .collect();
 

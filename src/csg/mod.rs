@@ -218,11 +218,11 @@ impl Plane {
                     }
                 }
                 if f.len() >= 3 {
-                    front.push(Polygon::from_vertices(f))
+                    front.push(Polygon::from_vertices(f, polygon.a))
                 }
 
                 if b.len() >= 3 {
-                    back.push(Polygon::from_vertices(b))
+                    back.push(Polygon::from_vertices(b, polygon.a))
                 }
             }
             _ => unreachable!(),
@@ -274,6 +274,7 @@ impl Plane {
 pub struct Polygon {
     pub vertices: Vec<Vertex>,
     pub plane: Plane,
+    pub a: i32,
 }
 
 impl Polygon {
@@ -300,12 +301,14 @@ impl Polygon {
         Polygon {
             vertices,
             plane: self.plane.flipped(),
+            a: self.a,
         }
     }
-    pub fn from_vertices(vertices: Vec<Vertex>) -> Polygon {
+    pub fn from_vertices(vertices: Vec<Vertex>, a: i32) -> Polygon {
         Polygon {
             plane: Polygon::plane_from_vertices(&vertices[0..3]),
             vertices,
+            a,
         }
     }
     pub fn translate(&mut self, offset: Vec3) {

@@ -66,22 +66,23 @@ impl From<Cylinder> for Csg {
         for i in 0..cylinder.slices {
             let t0 = i as f32 / cylinder.slices as f32;
             let t1 = (i + 1) as f32 / cylinder.slices as f32;
-            polygons.push(Polygon::from_vertices(vec![
-                start,
-                point(0.0, t0, -1.0),
-                point(0.0, t1, -1.0),
-            ]));
-            polygons.push(Polygon::from_vertices(vec![
-                point(0.0, t1, 0.0),
-                point(0.0, t0, 0.0),
-                point(1.0, t0, 0.0),
-                point(1.0, t1, 0.0),
-            ]));
-            polygons.push(Polygon::from_vertices(vec![
-                end,
-                point(1.0, t1, 1.0),
-                point(1.0, t0, 1.0),
-            ]));
+            polygons.push(Polygon::from_vertices(
+                vec![start, point(0.0, t0, -1.0), point(0.0, t1, -1.0)],
+                0,
+            ));
+            polygons.push(Polygon::from_vertices(
+                vec![
+                    point(0.0, t1, 0.0),
+                    point(0.0, t0, 0.0),
+                    point(1.0, t0, 0.0),
+                    point(1.0, t1, 0.0),
+                ],
+                0,
+            ));
+            polygons.push(Polygon::from_vertices(
+                vec![end, point(1.0, t1, 1.0), point(1.0, t0, 1.0)],
+                0,
+            ));
         }
         Csg::from_polygons(polygons)
     }
