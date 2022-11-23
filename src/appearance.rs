@@ -48,15 +48,22 @@ pub fn load_all_appearance_files<P: AsRef<Path>>(dir: P) -> HashMap<String, Appe
     let mut res = HashMap::new();
 
     for e in std::fs::read_dir("/home/sim/3dyne/arch00.dir/appearance/").unwrap() {
-        let Ok(e) = e else {continue};
-        if !e.file_type().unwrap().is_file() || !e.file_name().to_string_lossy().ends_with(".json")
+        let Ok(ent) = e else {continue};
+        if !ent.file_type().unwrap().is_file()
+            || !ent.file_name().to_string_lossy().ends_with(".json")
         {
             continue;
         }
 
-        let f = std::fs::File::open(e.path()).unwrap();
+        let f = std::fs::File::open(ent.path()).unwrap();
 
-        let Ok(mut apps) = serde_json::from_reader::<_,HashMap<String, Appearance>>(f) else {continue};
+        let mut apps = match serde_json::from_reader::<_, HashMap<String, Appearance>>(f) {
+            Ok(apps) => apps,
+            Err(e) => {
+                warn!("failed to load {:?}: {:?}", ent.path(), e);
+                continue;
+            }
+        };
         res.extend(apps.drain());
     }
 
@@ -77,26 +84,57 @@ pub fn load_materials(
     for (name, appearance) in apps {
         let Some(image) = &appearance.shaderConfig.image else {continue};
 
-        let image_res = match images.entry(image.clone()) {
-            bevy::utils::hashbrown::hash_map::Entry::Occupied(e) => e.get().clone(),
-            bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
-                let image_stump = base_dir.as_ref().join(image);
-                info!("load: {:?}", image_stump.with_extension("png"));
-
-                if image_stump.with_extension("png").exists() {
-                    e.insert(asset_server.load(image_stump.with_extension("png")))
-                } else {
-                    e.insert(Handle::<Image>::default())
-                }
-                .clone()
-            }
+        let image_res = load_image(image, &base_dir, &mut images, asset_server);
+        // let image_res = None;
+        let normal_map = if appearance.shaderConfig.bumpmap.is_some() {
+            load_image(
+                "image/wall/con52_1_normal",
+                &base_dir,
+                &mut images,
+                asset_server,
+            )
+        } else {
+            None
         };
 
         let material = materials.add(StandardMaterial {
-            base_color_texture: Some(image_res),
+            base_color_texture: image_res,
+            perceptual_roughness: 0.9,
+            normal_map_texture: normal_map,
             ..default()
         });
         res.insert(name, material);
     }
     res
+}
+
+fn load_image(
+    image: &str,
+    base_dir: &impl AsRef<Path>,
+    images: &mut HashMap<String, Handle<Image>>,
+
+    asset_server: &mut AssetServer,
+) -> Option<Handle<Image>> {
+    let image_res = match images.entry(image.to_string()) {
+        bevy::utils::hashbrown::hash_map::Entry::Occupied(e) => Some(e.get().clone()),
+        bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
+            let image_stump = base_dir.as_ref().join(image);
+            info!("load: {:?}", image_stump.with_extension("png"));
+
+            if image_stump.with_extension("png").exists() {
+                Some(
+                    e.insert(asset_server.load(image_stump.with_extension("png")))
+                        .clone(),
+                )
+            } else if image_stump.with_extension("jpg").exists() {
+                Some(
+                    e.insert(asset_server.load(image_stump.with_extension("jpg")))
+                        .clone(),
+                )
+            } else {
+                None
+            }
+        }
+    };
+    image_res
 }

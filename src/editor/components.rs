@@ -7,6 +7,7 @@ pub enum EditorObject {
     MinMax(Vec3, Vec3),
     Csg(Csg),
     Brush(Brush),
+    PointLight,
 }
 
 #[derive(Component)]

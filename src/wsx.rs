@@ -1,6 +1,6 @@
 use std::{io::BufReader, path::Path};
 
-use bevy::prelude::Vec3;
+use bevy::{prelude::Vec3, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
 use crate::csg;
@@ -33,6 +33,7 @@ pub struct SceneNode {
 pub struct Properties {
     pub origin: String,
     pub csgLevel: Option<i32>,
+    pub attenuationRadius: Option<f32>,
 }
 
 #[allow(non_snake_case)]
@@ -90,20 +91,72 @@ impl Surface {
 }
 
 impl Brush {
-    pub fn to_csg_brush_with_offset(&self, offset: &Vec3) -> csg::Brush {
+    pub fn to_csg_brush_with_offset(&self, offset: &Vec3) -> (csg::Brush, Vec<&str>) {
         info!("brush: {:?}", offset);
-        csg::Brush {
-            planes: self
-                .Surface
-                .iter()
-                .map(|s| s.to_csg_plane_with_offset(offset))
-                .collect(),
-            appearances: std::iter::repeat(0).take(self.Surface.len()).collect(),
-        }
+
+        let appearances = self.Surface.iter().map(|s| s.appearance.as_str()).collect();
+        (
+            csg::Brush {
+                planes: self
+                    .Surface
+                    .iter()
+                    .map(|s| s.to_csg_plane_with_offset(offset))
+                    .collect(),
+                appearances: std::iter::repeat(0).take(self.Surface.len()).collect(),
+            },
+            appearances,
+        )
     }
 }
 
-pub fn load_brushes<F: AsRef<Path>>(filename: F) -> Vec<csg::Brush> {
+pub fn load_brushes<F: AsRef<Path>>(filename: F) -> (Vec<csg::Brush>, HashMap<i32, String>) {
+    let file = std::fs::File::open(filename).unwrap();
+    println!("res");
+    let wsx: WiredExportScene = quick_xml::de::from_reader(BufReader::new(file)).unwrap();
+    // println!("wsx: {:?}", wsx);
+
+    let mut res = Vec::new();
+    let mut appearances = HashMap::new();
+    let mut next_appearance = 0;
+    for node in &wsx.SceneNodes.SceneNode {
+        // ignore csg level 2 or higher
+        if node.def != "CsgBrush" || !matches!(node.Properties.csgLevel, None | Some(1)) {
+            continue;
+        }
+
+        let origin = parse_vec3(&node.Properties.origin).unwrap();
+
+        let Some(brushes) = &node.Components.Brush else {continue};
+        for brush in brushes {
+            let (mut csg_brush, plane_appearances) = brush.to_csg_brush_with_offset(&origin);
+
+            // update appearance id in planes, establishing an name -> id map along the way
+            for (appearance, name) in csg_brush.appearances.iter_mut().zip(plane_appearances) {
+                *appearance = match appearances.entry(name) {
+                    bevy::utils::hashbrown::hash_map::Entry::Occupied(e) => *e.get(),
+                    bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
+                        let tmp = next_appearance;
+                        next_appearance += 1;
+                        *e.insert(tmp)
+                    }
+                };
+            }
+
+            // println!("{:?}", csg_brush);
+            res.push(csg_brush);
+        }
+    }
+    // return the brushes along with a id -> name map for the appearances
+    (
+        res,
+        appearances
+            .drain()
+            .map(|(k, v)| (v, k.to_string()))
+            .collect(),
+    )
+}
+
+pub fn load_pointlights<F: AsRef<Path>>(filename: F) -> Vec<(Vec3, f32)> {
     let file = std::fs::File::open(filename).unwrap();
     println!("res");
     let wsx: WiredExportScene = quick_xml::de::from_reader(BufReader::new(file)).unwrap();
@@ -112,19 +165,14 @@ pub fn load_brushes<F: AsRef<Path>>(filename: F) -> Vec<csg::Brush> {
     let mut res = Vec::new();
     for node in &wsx.SceneNodes.SceneNode {
         // ignore csg level 2 or higher
-        if !matches!(node.Properties.csgLevel, None | Some(1)) {
+        if node.def != "PointLight" {
             continue;
         }
 
         let origin = parse_vec3(&node.Properties.origin).unwrap();
+        let attenuation_radius = node.Properties.attenuationRadius.unwrap_or(10.0); // TODO: check what's the default
 
-        let Some(brushes) = &node.Components.Brush else {continue};
-        for brush in brushes {
-            let csg_brush: csg::Brush = brush.to_csg_brush_with_offset(&origin);
-
-            println!("{:?}", csg_brush);
-            res.push(csg_brush);
-        }
+        res.push((origin, attenuation_radius));
     }
     res
 }

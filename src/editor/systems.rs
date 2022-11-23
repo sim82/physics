@@ -11,9 +11,9 @@ use super::{
     resources::{self, Selection},
 };
 use crate::{
-    appearance::load_materials,
+    appearance::{self, load_materials},
     csg::{self},
-    editor::util::add_csg,
+    editor::util::{add_csg, spawn_csg_split},
     wsx, TestResources,
 };
 
@@ -179,6 +179,7 @@ pub fn editor_input_system(
                             *brush = new_brush
                         }
                     }
+                    EditorObject::PointLight => (),
                 }
             }
         }
@@ -206,7 +207,7 @@ pub fn update_brush_csg_system(
     }
 
     for (entity, _) in query_changed.iter() {
-        info!("changed: {:?}", entity);
+        debug!("changed: {:?}", entity);
     }
 
     let start = Instant::now();
@@ -214,13 +215,6 @@ pub fn update_brush_csg_system(
     for (entity, mesh, material) in &query_cleanup {
         debug!("cleanup {:?} {:?}", mesh, material);
         meshes.remove(mesh);
-        // if let Some(material) = materials.remove(material) {
-        //     if let Some(image) = material.base_color_texture {
-        //         info!("cleanup {:?}", image);
-        //         images.remove(image);
-        //     }
-        // }
-
         commands.entity(entity).despawn();
     }
 
@@ -244,25 +238,7 @@ pub fn update_brush_csg_system(
 
     u.invert();
 
-    // let material = materials.add(StandardMaterial {
-    //     base_color: Color::BLUE,
-    //     metallic: 0.9,
-    //     perceptual_roughness: 0.1,
-    //     ..Default::default()
-    // });
-
-    let entity = commands
-        .spawn(CsgOutput)
-        .insert(Name::new("csg_output"))
-        .insert(Wireframe)
-        .id();
-
-    let material = materials
-        .materials
-        .get("appearance/brick/brick53_1")
-        .unwrap_or(&test_resources.uv_material)
-        .clone();
-    add_csg(&mut commands, entity, material, &mut meshes, &u);
+    spawn_csg_split(&mut commands, &materials, &mut meshes, &u);
 
     debug!("csg update: {:?}", start.elapsed());
 }
@@ -319,6 +295,7 @@ pub fn load_save_editor_objects(
     mut commands: Commands,
     keycodes: Res<Input<KeyCode>>,
     existing_objects: Query<(Entity, &EditorObject), With<EditorObject>>,
+    mut materials: ResMut<resources::Materials>,
 ) {
     if keycodes.just_pressed(KeyCode::F5) {
         let objects = existing_objects
@@ -347,13 +324,31 @@ pub fn load_save_editor_objects(
     if keycodes.just_pressed(KeyCode::F7) {
         // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
 
-        let brushes = wsx::load_brushes("nav3.wsx");
-
+        // let filename = &"t4.wsx";
+        let filename = &"nav3.wsx";
+        let (brushes, appearance_map) = wsx::load_brushes(filename);
+        materials.id_to_name_map = appearance_map;
         for (entity, _) in existing_objects.iter() {
             commands.entity(entity).despawn();
         }
         for brush in &brushes[..] {
             commands.spawn(EditorObject::Brush(brush.clone()));
+        }
+
+        // TODO: do not load twice. Probably makes no difference, but I still hate it...
+        let pointlights = wsx::load_pointlights(filename);
+        for (pos, range) in pointlights {
+            commands
+                .spawn(PointLightBundle {
+                    point_light: PointLight {
+                        range: range * 0.5,
+                        shadows_enabled: false,
+                        ..default()
+                    },
+                    transform: Transform::from_translation(pos),
+                    ..default()
+                })
+                .insert(EditorObject::PointLight);
         }
     }
 }

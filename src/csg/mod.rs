@@ -44,6 +44,7 @@
 use bevy::{
     prelude::*,
     render::{mesh::Indices, primitives::Aabb, render_resource::PrimitiveTopology},
+    utils::HashMap,
 };
 
 mod cube;
@@ -332,7 +333,7 @@ impl Csg {
         Csg { polygons }
     }
 
-    pub fn get_triangles(&self) -> Vec<([Vec3; 3], Vec3)> {
+    pub fn get_triangles_no_appearance(&self) -> Vec<([Vec3; 3], Vec3)> {
         let mut res = Vec::new();
 
         for p in &self.polygons {
@@ -350,6 +351,31 @@ impl Csg {
                 res.push((
                     [v0.position, vs[0].position, vs[1].position],
                     p.plane.normal,
+                ));
+            }
+        }
+        res
+    }
+
+    pub fn get_triangles(&self) -> Vec<([Vec3; 3], Vec3, i32)> {
+        let mut res = Vec::new();
+
+        for p in &self.polygons {
+            if p.vertices.len() < 3 {
+                continue;
+            }
+            // premature and completely unnecessary optimization
+            res.reserve(p.vertices.len() - 2);
+
+            // crate triangle 'fans':
+            // all triangles share 1st point
+            let v0 = p.vertices[0];
+            // sweep over 2-windows of the remaining vertices to get 2nd and 3rd points
+            for vs in p.vertices[1..].windows(2) {
+                res.push((
+                    [v0.position, vs[0].position, vs[1].position],
+                    p.plane.normal,
+                    p.a,
                 ));
             }
         }
@@ -595,15 +621,21 @@ pub fn subtract(a: &Csg, b: &Csg) -> Option<Csg> {
 
 impl From<&Csg> for Mesh {
     fn from(csg: &Csg) -> Self {
+        TriangleSlice(&csg.get_triangles_no_appearance()).into()
+    }
+}
+
+struct TriangleSlice<'a>(&'a [([Vec3; 3], Vec3)]);
+
+impl<'a> From<TriangleSlice<'a>> for Mesh {
+    fn from(ts: TriangleSlice<'a>) -> Self {
         let mut positions = Vec::new();
         let mut normals = Vec::new();
         let mut uvs = Vec::new();
         let mut indices = Vec::new();
 
-        let triangles = csg.get_triangles();
-
         let texgen = Texgen::default();
-        for tri in &triangles {
+        for tri in ts.0 {
             let idx0 = positions.len() as u32;
             // most obnoxiously functional style just for the lulz...
             fn to_slice(v: Vec3) -> [f32; 3] {
@@ -629,6 +661,29 @@ impl From<&Csg> for Mesh {
         mesh.set_indices(Some(Indices::U32(indices)));
         mesh
     }
+}
+
+pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Mesh)> {
+    let triangles = csg.get_triangles();
+
+    let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
+
+    // separate triangles per appearance id
+    for (tri, normal, id) in triangles {
+        match id_to_triangles.entry(id) {
+            bevy::utils::hashbrown::hash_map::Entry::Occupied(mut e) => {
+                e.get_mut().push((tri, normal));
+            }
+            bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
+                e.insert(vec![(tri, normal)]);
+            }
+        }
+    }
+
+    id_to_triangles
+        .drain()
+        .map(|(k, v)| (k, TriangleSlice(&v).into()))
+        .collect()
 }
 
 #[test]

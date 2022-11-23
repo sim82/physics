@@ -45,4 +45,5 @@ pub struct EditorWindows2d {
 #[derive(Default, Resource)]
 pub struct Materials {
     pub materials: HashMap<String, Handle<StandardMaterial>>,
+    pub id_to_name_map: HashMap<i32, String>, // not really the right place as this specific to the last loaded wsx file
 }

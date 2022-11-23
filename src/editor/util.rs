@@ -2,7 +2,9 @@ use bevy::{prelude::*, render::mesh};
 use bevy_rapier3d::prelude::Collider;
 use serde::{Deserialize, Serialize};
 
-use crate::csg::Csg;
+use crate::csg::{self, Csg};
+
+use super::{components::CsgOutput, resources};
 
 pub fn spawn_box(
     commands: &mut Commands,
@@ -86,6 +88,44 @@ pub fn add_csg(
         })
         // .insert(Collider::cuboid(hs.x, hs.y, hs.z))
         ;
+}
+
+pub fn spawn_csg_split(
+    commands: &mut Commands,
+    materials: &resources::Materials,
+    meshes: &mut Assets<Mesh>,
+    csg: &Csg,
+) {
+    let center = Vec3::ZERO;
+
+    let split_meshes = csg::csg_to_split_meshes(csg);
+
+    for (id, mesh) in split_meshes {
+        let mesh = meshes.add(mesh);
+        // todo some fallback if map lookups fail
+        let Some(material_name) = materials
+            .id_to_name_map
+            .get(&id) 
+        else {
+            warn!( "material not found for id {}", id);
+            continue;
+        };
+
+        let Some(material) = materials.materials.get(material_name).cloned() else {
+            warn!( "material resource not found for {}", material_name);
+            continue;
+        };
+
+        commands
+            .spawn(PbrBundle {
+                mesh,
+                material,
+                transform: Transform::from_translation(center),
+                ..Default::default()
+            })
+            .insert(CsgOutput)
+            .insert(Name::new(format!("csg {:?}", material_name)));
+    }
 }
 
 // // TODO: throw out with bevy 0.9
