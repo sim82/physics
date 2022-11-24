@@ -645,10 +645,11 @@ impl<'a> From<TriangleSlice<'a>> for Mesh {
                 [v.x, v.y]
             }
             positions.extend(tri.0.map(to_slice));
-            normals.extend(std::iter::repeat(to_slice(tri.1)).take(3));
+            let normal = tri.1.normalize();
+            normals.extend(std::iter::repeat(to_slice(normal)).take(3));
             uvs.extend(
                 tri.0
-                    .map(|pos| texgen.project_tc_for_pos(pos, tri.1))
+                    .map(|pos| texgen.project_tc_for_pos(pos, normal))
                     .map(to_slice2),
             );
             indices.extend(idx0..=(idx0 + 2));
@@ -659,6 +660,7 @@ impl<'a> From<TriangleSlice<'a>> for Mesh {
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
         mesh.set_indices(Some(Indices::U32(indices)));
+        mesh.generate_tangents();
         mesh
     }
 }

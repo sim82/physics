@@ -2,13 +2,49 @@ use bevy::{app::AppExit, prelude::*};
 
 pub mod contact_debug;
 // pub mod debug_lines;
+pub mod appearance;
 pub mod csg;
 pub mod editor;
 pub mod sky;
 pub mod slidemove;
 pub mod trace;
 pub mod wsx;
-pub mod appearance;
+pub mod norm {
+    // srgb workaround from https://github.com/bevyengine/bevy/issues/6371
+    use bevy::asset::{AssetLoader, Error, LoadContext, LoadedAsset};
+    use bevy::render::texture::{CompressedImageFormats, Image, ImageType};
+    use bevy::utils::BoxedFuture;
+
+    #[derive(Default)]
+    pub struct NormalMappedImageTextureLoader;
+
+    impl AssetLoader for NormalMappedImageTextureLoader {
+        fn load<'a>(
+            &'a self,
+            bytes: &'a [u8],
+            load_context: &'a mut LoadContext,
+        ) -> BoxedFuture<'a, Result<(), Error>> {
+            Box::pin(async move {
+                let dyn_img = Image::from_buffer(
+                    bytes,
+                    ImageType::Extension("png"),
+                    CompressedImageFormats::all(),
+                    false,
+                )
+                .unwrap();
+
+                load_context.set_default_asset(LoadedAsset::new(dyn_img));
+                Ok(())
+            })
+        }
+
+        fn extensions(&self) -> &[&str] {
+            &["norm"]
+        }
+    }
+}
+
+pub mod material;
 
 pub const OVERCLIP: f32 = 1.001;
 

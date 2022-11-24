@@ -11,10 +11,10 @@ use super::{
     resources::{self, Selection},
 };
 use crate::{
-    appearance::{self, load_materials},
+    appearance::{self},
     csg::{self},
     editor::util::{add_csg, spawn_csg_split},
-    wsx, TestResources,
+    material, wsx, TestResources,
 };
 
 pub fn setup(
@@ -23,13 +23,13 @@ pub fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut asset_server: ResMut<AssetServer>,
 ) {
-    materials_res.materials = load_materials(
-        "/home/sim/3dyne/arch00.dir/",
-        &mut images,
-        &mut materials,
-        &mut asset_server,
-    );
-
+    // materials_res.materials = load_materials(
+    //     "/home/sim/3dyne/arch00.dir/",
+    //     &mut images,
+    //     &mut materials,
+    //     &mut asset_server,
+    // );
+    materials_res.materials = material::load_materials("assets", &mut materials, &mut asset_server);
     info!("loaded {} materials", materials_res.materials.len());
 }
 
@@ -341,7 +341,7 @@ pub fn load_save_editor_objects(
             commands
                 .spawn(PointLightBundle {
                     point_light: PointLight {
-                        range: range * 0.5,
+                        range: 5.0, //range * 0.5,
                         shadows_enabled: false,
                         ..default()
                     },

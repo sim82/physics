@@ -88,6 +88,7 @@ pub fn load_materials(
         // let image_res = None;
         let normal_map = if appearance.shaderConfig.bumpmap.is_some() {
             load_image(
+                // "image/test/TestNormalMap",
                 "image/wall/con52_1_normal",
                 &base_dir,
                 &mut images,
@@ -108,7 +109,7 @@ pub fn load_materials(
     res
 }
 
-fn load_image(
+pub fn load_image(
     image: &str,
     base_dir: &impl AsRef<Path>,
     images: &mut HashMap<String, Handle<Image>>,
@@ -121,7 +122,12 @@ fn load_image(
             let image_stump = base_dir.as_ref().join(image);
             info!("load: {:?}", image_stump.with_extension("png"));
 
-            if image_stump.with_extension("png").exists() {
+            if image_stump.with_extension("norm").exists() {
+                Some(
+                    e.insert(asset_server.load(image_stump.with_extension("norm")))
+                        .clone(),
+                )
+            } else if image_stump.with_extension("png").exists() {
                 Some(
                     e.insert(asset_server.load(image_stump.with_extension("png")))
                         .clone(),

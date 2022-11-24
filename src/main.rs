@@ -21,6 +21,7 @@ use bevy_rapier3d::prelude::*;
 use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::{
     editor::{self, util::spawn_box},
+    norm,
     player_controller::{self, PlayerCamera, PlayerControllerBundle},
     sky, test_texture, AppState, TestResources,
 };
@@ -45,9 +46,9 @@ fn main() {
     // .insert_resource(Msaa::default())
     .add_plugins(DefaultPlugins.set(ImagePlugin {
         default_sampler: wgpu::SamplerDescriptor {
-            // mag_filter: wgpu::FilterMode::Linear,
-            // min_filter: wgpu::FilterMode::Linear,
-            // mipmap_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
             address_mode_w: wgpu::AddressMode::Repeat,
@@ -84,6 +85,7 @@ fn main() {
     app.add_system(toggle_debug_menu_system);
 
     app.add_plugin(editor::EditorPlugin);
+    app.add_asset_loader(norm::NormalMappedImageTextureLoader);
 
     #[cfg(feature = "inspector")]
     {
