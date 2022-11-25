@@ -85,7 +85,7 @@ impl Texgen {
             tc_trans.x * s + tc_trans.y * c,
         );
         let tc_shear = Vec2::new(tc_rot.x + tc_rot.y * t, tc_rot.y / c2);
-        let tc_scale = tc_shear / self.scale;
+        let tc_scale = tc_shear / self.scale / 2.0;
         tc_scale - self.shift
     }
 }
