@@ -56,7 +56,10 @@ parry3d = { version = "*", features = ["serde-serialize"] }
 bevy_atmosphere = { git = "https://github.com/JonahPlusPlus/bevy_atmosphere.git" }
 bitflags = "1"
 quick-xml = { version = "0.26", features = ["serialize"] }
-
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
+clap = { version = "4", features = ["derive"] }
+image = "0.24"
+env_logger = "0.10"
 [patch.crates-io]
 #bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
 #rapier3d = { path = "ext/rapier/crates/rapier3d" }
