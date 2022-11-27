@@ -5,6 +5,7 @@ use std::{
 };
 
 use bevy::{
+    core_pipeline::fxaa::Fxaa,
     diagnostic::FrameTimeDiagnosticsPlugin,
     pbr::wireframe::WireframePlugin,
     // input::system::exit_on_esc_system,
@@ -46,7 +47,7 @@ fn main() {
     // .insert_resource(Msaa::default())
     .add_plugins(DefaultPlugins.set(ImagePlugin {
         default_sampler: wgpu::SamplerDescriptor {
-            // mag_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
             address_mode_u: wgpu::AddressMode::Repeat,
@@ -389,23 +390,24 @@ fn setup(
         );
     }
     commands
-        .spawn_bundle(SpatialBundle::default())
-        .insert_bundle(PlayerControllerBundle::default())
+        .spawn(SpatialBundle::default())
+        .insert(PlayerControllerBundle::default())
         .insert(Name::new("player"))
         .insert(
             Transform::from_xyz(10.0, 1.01, 10.0), //.looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
         );
 
     commands
-        .spawn_bundle(Camera3dBundle::default())
+        .spawn(Camera3dBundle::default())
         // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
         // .insert(RenderPlayer(0))
         .insert(PlayerCamera)
-        .insert(AtmosphereCamera(None));
+        .insert(AtmosphereCamera(None))
+        .insert(Fxaa::default());
 
     if SPAWN_STUFF {
         const HALF_SIZE: f32 = 5.0;
-        commands.spawn_bundle(DirectionalLightBundle {
+        commands.spawn(DirectionalLightBundle {
             directional_light: DirectionalLight {
                 shadow_projection: OrthographicProjection {
                     left: -HALF_SIZE,

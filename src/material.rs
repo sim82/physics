@@ -70,6 +70,11 @@ pub fn load_materials(
                 asset_server,
             ),
             occlusion_texture: load_image(material.occlusion, asset_server),
+            emissive_texture: load_image(material.emissive, asset_server),
+            emissive: material
+                .emissive_color
+                .map(|c| c.extend(1.0).into())
+                .unwrap_or(Color::BLACK),
             ..default()
         });
         res.insert(name, material);

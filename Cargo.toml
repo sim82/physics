@@ -60,6 +60,9 @@ zip = { version = "0.6", default-features = false, features = ["deflate"] }
 clap = { version = "4", features = ["derive"] }
 image = "0.24"
 env_logger = "0.10"
+dialoguer = "0.10"
+console = "0.15"
+
 [patch.crates-io]
 #bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
 #rapier3d = { path = "ext/rapier/crates/rapier3d" }
