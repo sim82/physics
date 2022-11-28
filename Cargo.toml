@@ -54,6 +54,7 @@ parry3d = { version = "*", features = ["serde-serialize"] }
 
 # bevy_atmosphere = "0.4"
 bevy_atmosphere = { git = "https://github.com/JonahPlusPlus/bevy_atmosphere.git" }
+bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
 bitflags = "1"
 quick-xml = { version = "0.26", features = ["serialize"] }
 zip = { version = "0.6", default-features = false, features = ["deflate"] }

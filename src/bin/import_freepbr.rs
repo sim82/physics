@@ -138,61 +138,36 @@ fn main() {
         }));
         // println!("{:?}", file_names);
     } else {
-        todo!()
+        file_names.extend(
+            std::fs::read_dir(args.pbr_zip)
+                .expect("failed to read dir")
+                .filter_map(|filename| {
+                    let entry = filename.ok()?;
+                    if !entry.metadata().ok()?.is_file() {
+                        return None;
+                    }
+                    let name = entry.file_name().to_str()?.to_string();
+                    let kind = ImageKind::guess_kind(&name)?;
+
+                    Some((
+                        kind,
+                        (name, read_image(std::fs::File::open(entry.path()).ok()?)),
+                    ))
+                }),
+        );
     }
 
-    let (albedo, albedo_image) = file_names
+    let (_, albedo_image) = file_names
         .remove(&ImageKind::Albedo)
         .expect("missing albedo image");
 
-    let (normal, normal_image) = file_names
+    let (_, normal_image) = file_names
         .remove(&ImageKind::Normal)
         .expect("missing normal image");
 
-    let (roughness, roughness_image) = file_names
+    let (_, roughness_image) = file_names
         .remove(&ImageKind::Roughness)
         .expect("missing roughness image");
-
-    // let mut albedo = None;
-    // let mut albedo_image = None;
-    // let mut ao = None;
-    // let mut ao_image = None;
-    // let mut metallic = None;
-    // let mut metallic_image = None;
-    // let mut roughness = None;
-    // let mut roughness_image = None;
-    // let mut normal = None;
-    // let mut normal_image = None;
-    // let mut emissive = None;
-    // let mut emissive_image = None;
-
-    // for (name, image) in file_names {
-    //     let lower = name.to_lowercase();
-    //     if lower.contains("albedo") || lower.contains("basecolor") {
-    //         albedo = Some(name);
-    //         albedo_image = Some(image);
-    //     } else if lower.contains("emissive") {
-    //         emissive = Some(name);
-    //         emissive_image = Some(image);
-    //     } else if lower.contains("normal") || lower.contains("nmap") {
-    //         println!("lower: {}", lower);
-
-    //         if !lower.contains("ogl") {
-    //             warn!("not 'ogl' in normal map. Check handedness.: {}", name);
-    //         }
-    //         normal = Some(name);
-    //         normal_image = Some(image);
-    //     } else if lower.contains("rough") {
-    //         roughness = Some(name);
-    //         roughness_image = Some(image);
-    //     } else if lower.contains("metal") {
-    //         metallic = Some(name);
-    //         metallic_image = Some(image);
-    //     } else if lower.contains("ao") || lower.contains("ambient_occlusion") {
-    //         ao = Some(name);
-    //         ao_image = Some(image);
-    //     }
-    // }
 
     // check_file("albedo", &albedo, true);
     // check_file("normal", &normal, true);
@@ -209,8 +184,7 @@ fn main() {
     // let roughness_image = roughness_image.expect("missing roughness image");
     println!("roughness image: {:?}", roughness_image.color());
 
-    let rm_image = if let Some((metallic, metallic_image)) = file_names.remove(&ImageKind::Metallic)
-    {
+    let rm_image = if let Some((_, metallic_image)) = file_names.remove(&ImageKind::Metallic) {
         println!("metallic image: {:?}", metallic_image.color());
         let m = metallic_image.into_luma8(); //.expect("as_rgb8 failed");
         let r = roughness_image.into_luma8(); // .expect("as_rgb8 failed");
@@ -252,7 +226,7 @@ fn main() {
             .expect("failed tp write ao image");
     }
 
-    if let Some((emissive, emissive_image)) = file_names.get(&ImageKind::Emissive) {
+    if let Some((_, emissive_image)) = file_names.remove(&ImageKind::Emissive) {
         emissive_image
             .save_with_format(image_dir.join(&emissive_output), image::ImageFormat::Png)
             .expect("failed to write emissive image");

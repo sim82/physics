@@ -620,6 +620,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_mod_mipmap_generator"
+version = "0.1.0"
+source = "git+https://github.com/DGriffin91/bevy_mod_mipmap_generator.git#02bfa2ea04285a960a162715ce65dda34572a43f"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "futures-lite",
+ "image 0.24.5",
+]
+
+[[package]]
 name = "bevy_pbr"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3084,6 +3095,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_atmosphere",
+ "bevy_mod_mipmap_generator",
  "bevy_prototype_debug_lines",
  "bevy_rapier3d",
  "bitflags",
