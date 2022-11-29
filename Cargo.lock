@@ -3110,6 +3110,7 @@ dependencies = [
  "parry3d",
  "quick-xml",
  "rand",
+ "rayon",
  "ron",
  "serde",
  "serde_json",

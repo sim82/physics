@@ -2,8 +2,10 @@ use std::{
     f32::consts::E,
     io::{BufReader, Cursor, Read},
     path::{Path, PathBuf},
+    sync::Mutex,
 };
 
+use anyhow::{Context, Result};
 use bevy::{
     prelude::Vec3,
     render::texture::{ImageFormat, ImageType},
@@ -14,6 +16,7 @@ use clap::{builder::OsStr, Parser};
 use image::{DynamicImage, ImageBuffer, Rgb};
 use log::{info, warn};
 use physics::material;
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use zip::read::ZipArchive;
 
 #[derive(clap::Parser, Debug)]
@@ -122,44 +125,62 @@ fn main() {
         {
             let materials_dir = args.asset_dir.join("materials");
             let material_path = materials_dir.join(format!("{}.ron", category_name));
-            let mut materials = if let Ok(f) = std::fs::File::open(&material_path) {
+            let mut materials = Mutex::new(if let Ok(f) = std::fs::File::open(&material_path) {
                 // ron::ser::to_writer_pretty(f, &materials, Default::default()).expect("failed");
                 ron::de::from_reader(f).expect("failed to read existing material file")
             } else {
                 HashMap::new()
-            };
+            });
 
             println!("category: {}", category_name);
 
-            for (material_name, ent) in std::fs::read_dir(ent.path())
+            let dirs = std::fs::read_dir(ent.path())
                 .expect("read_dir (level2) failed")
                 .filter_map(dir_filter)
-            {
+                .collect::<Vec<_>>();
+
+            // for (material_name, ent) in dirs.par_iter() {
+            dirs.par_iter().for_each(|(material_name, ent)| {
                 let output_dir = args
                     .asset_dir
                     .join("images")
                     // .join(&category_name)
                     .join(&material_name);
                 if output_dir.exists() {
-                    continue;
+                    return;
                 }
-                println!("{} {:?}", material_name, ent.path());
+                // println!("{} {:?}", material_name, ent.path());
 
-                let images = read_images(ent.path());
-                println!(" {:?}", images.keys());
+                let images = match read_images(ent.path()) {
+                    Ok(images) => images,
+                    Err(e) => {
+                        println!("in {} {:?}", material_name, ent.path());
+                        println!("read_images failed: {:?}", e);
+                        return;
+                    }
+                };
+                // println!(" {:?}", images.keys());
 
                 std::fs::create_dir_all(&output_dir).expect("create_dir failed");
 
                 if true {
-                    let material = write_material_images(images, &material_name, output_dir);
-                    materials.insert(
+                    let material = match write_material_images(images, &material_name, output_dir) {
+                        Ok(material) => material,
+                        Err(e) => {
+                            println!("in {} {:?}", material_name, ent.path());
+                            println!("write_material_images failed: {:?}", e);
+                            return;
+                        }
+                    };
+                    materials.lock().unwrap().insert(
                         format!("material/{}/{}", category_name, material_name),
                         material,
                     );
                 }
-            }
+            });
 
             std::fs::create_dir_all(&materials_dir).expect("create_dir failed");
+            let materials = materials.into_inner().unwrap();
             if !materials.is_empty() {
                 if let Ok(f) = std::fs::File::create(material_path) {
                     ron::ser::to_writer_pretty(f, &materials, Default::default()).expect("failed");
@@ -210,8 +231,9 @@ fn import_single_material(
             std::process::exit(1)
         }
     }
-    let images = read_images(input_pbr);
-    let material = write_material_images(images, &name, output_dir);
+    let images = read_images(input_pbr).expect("read_images failed");
+    let material =
+        write_material_images(images, &name, output_dir).expect("write_material_images failed");
     if let Ok(f) = std::fs::File::create(material_name) {
         let choices = ["appearance/test/whiteconcret3", "appearance/test/con52_1"];
         let idx = dialoguer::Select::new()
@@ -227,7 +249,7 @@ fn import_single_material(
 
 fn read_images<A>(
     input_path: A,
-) -> bevy::utils::hashbrown::HashMap<ImageKind, (String, DynamicImage)>
+) -> Result<bevy::utils::hashbrown::HashMap<ImageKind, (String, DynamicImage)>>
 where
     A: AsRef<Path>,
 {
@@ -236,8 +258,8 @@ where
     // let image = Vec::new();
     let is_zip = input_path.extension().map_or(false, |s| s == "zip");
     if is_zip {
-        let zip_file = std::fs::File::open(input_path).expect("failed to open zip file");
-        let mut zip_archive = ZipArchive::new(zip_file).expect("failed to open zip archive");
+        let zip_file = std::fs::File::open(input_path).context("failed to open zip file")?;
+        let mut zip_archive = ZipArchive::new(zip_file).context("failed to open zip archive")?;
         let names = zip_archive
             .file_names()
             .map(|s| s.to_string())
@@ -254,7 +276,7 @@ where
     } else {
         images.extend(
             std::fs::read_dir(input_path)
-                .expect("failed to read dir")
+                .context("failed to read dir")?
                 .filter_map(|filename| {
                     let entry = filename.ok()?;
                     if !entry.metadata().ok()?.is_file() {
@@ -270,23 +292,23 @@ where
                 }),
         );
     }
-    images
+    Ok(images)
 }
 
 fn write_material_images(
     mut images: bevy::utils::hashbrown::HashMap<ImageKind, (String, DynamicImage)>,
     name: &str,
     output_dir: PathBuf,
-) -> material::Material {
+) -> Result<material::Material> {
     let (_, albedo_image) = images
         .remove(&ImageKind::Albedo)
-        .expect("missing albedo image");
+        .context("missing albedo image")?;
     let (_, normal_image) = images
         .remove(&ImageKind::Normal)
-        .expect("missing normal image");
+        .context("missing normal image")?;
     let (_, roughness_image) = images
         .remove(&ImageKind::Roughness)
-        .expect("missing roughness image");
+        .context("missing roughness image")?;
     // check_file("albedo", &albedo, true);
     // check_file("normal", &normal, true);
     // check_file("roughness", &roughness, true);
@@ -294,13 +316,13 @@ fn write_material_images(
     // check_file("metallic", &metallic, false);
     // check_file("emissive", &emissive, false);
     // let albedo_image = albedo_image.expect("missing albedo image");
-    println!("albedo image: {:?}", albedo_image.color());
+    // println!("albedo image: {:?}", albedo_image.color());
     // let normal_image = normal_image.expect("missing normal image");
-    println!("normal image: {:?}", normal_image.color());
+    // println!("normal image: {:?}", normal_image.color());
     // let roughness_image = roughness_image.expect("missing roughness image");
-    println!("roughness image: {:?}", roughness_image.color());
+    // println!("roughness image: {:?}", roughness_image.color());
     let rm_image = if let Some((_, metallic_image)) = images.remove(&ImageKind::Metallic) {
-        println!("metallic image: {:?}", metallic_image.color());
+        // println!("metallic image: {:?}", metallic_image.color());
         let m = metallic_image.into_luma8(); //.expect("as_rgb8 failed");
         let r = roughness_image.into_luma8(); // .expect("as_rgb8 failed");
         ImageBuffer::from_fn(albedo_image.width(), albedo_image.height(), |x, y| {
@@ -326,7 +348,7 @@ fn write_material_images(
         .save_with_format(output_dir.join(&mr_output), image::ImageFormat::Png)
         .expect("failed tp rm albedo image");
     if let Some((ao, ao_image)) = images.remove(&ImageKind::Ao) {
-        println!("ao image: {:?}", ao_image.color());
+        // println!("ao image: {:?}", ao_image.color());
 
         let ao_image = ao_image.into_luma8();
 
@@ -340,7 +362,7 @@ fn write_material_images(
             .save_with_format(output_dir.join(&emissive_output), image::ImageFormat::Png)
             .expect("failed to write emissive image");
     }
-    material::Material {
+    Ok(material::Material {
         base: Some(format!("images/{}/{}", name, albedo_output)),
         occlusion: if images.contains_key(&ImageKind::Ao) {
             Some(format!("images/{}/{}", name, ao_output))
@@ -363,7 +385,7 @@ fn write_material_images(
             None
         },
         reflectance: None,
-    }
+    })
 }
 
 fn check_file(t: &str, name: &Option<String>, necessary: bool) {
