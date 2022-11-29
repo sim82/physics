@@ -111,7 +111,7 @@ pub fn spawn_csg_split(
             continue;
         };
 
-        let Some(material) = materials.materials.get(material_name).cloned() else {
+        let Some(material) = materials.get(material_name) else {
             warn!( "material resource not found for {}", material_name);
             continue;
         };

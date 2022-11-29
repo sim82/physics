@@ -30,6 +30,14 @@ pub fn setup(
     //     &mut asset_server,
     // );
     materials_res.materials = material::load_materials("assets", &mut materials, &mut asset_server);
+    materials_res.symlinks.insert(
+        "appearance/test/con52_1".into(),
+        "material/ground/bog".into(),
+    );
+    materials_res.symlinks.insert(
+        "appearance/test/whiteconcret3".into(),
+        "material/architecture/woodframe1".into(),
+    );
     info!("loaded {} materials", materials_res.materials.len());
 }
 

@@ -46,4 +46,16 @@ pub struct EditorWindows2d {
 pub struct Materials {
     pub materials: HashMap<String, Handle<StandardMaterial>>,
     pub id_to_name_map: HashMap<i32, String>, // not really the right place as this specific to the last loaded wsx file
+    pub symlinks: HashMap<String, String>,
+}
+
+impl Materials {
+    pub fn get(&self, name: &str) -> Option<Handle<StandardMaterial>> {
+        let name = if let Some(linked_name) = self.symlinks.get(name) {
+            linked_name
+        } else {
+            name
+        };
+        self.materials.get(name).cloned()
+    }
 }
