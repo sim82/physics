@@ -50,6 +50,7 @@ pub struct Materials {
     pub material_defs: HashMap<String, material::Material>,
     pub id_to_name_map: HashMap<i32, String>, // not really the right place as this specific to the last loaded wsx file
     pub symlinks: HashMap<String, String>,
+    pub dirty: bool,
 }
 
 impl Default for Materials {
@@ -58,6 +59,7 @@ impl Default for Materials {
             material_defs: HashMap::new(),
             id_to_name_map: default(),
             symlinks: default(),
+            dirty: false,
         }
     }
 }

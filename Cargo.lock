@@ -3095,6 +3095,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_atmosphere",
+ "bevy_egui",
  "bevy_mod_mipmap_generator",
  "bevy_prototype_debug_lines",
  "bevy_rapier3d",

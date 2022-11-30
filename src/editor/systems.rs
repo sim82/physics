@@ -187,7 +187,7 @@ pub fn update_brush_csg_system(
     mut commands: Commands,
 
     mut meshes: ResMut<Assets<Mesh>>,
-    materials_res: Res<resources::Materials>,
+    mut materials_res: ResMut<resources::Materials>,
 
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut asset_server: ResMut<AssetServer>,
@@ -196,12 +196,18 @@ pub fn update_brush_csg_system(
     query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
     query_cleanup: Query<(Entity, &Handle<Mesh>, &Handle<StandardMaterial>), With<CsgOutput>>,
 ) {
-    if query_changed.is_empty() {
+    if query_changed.is_empty() && !materials_res.dirty {
         return;
     }
 
     for (entity, _) in query_changed.iter() {
         debug!("changed: {:?}", entity);
+    }
+
+    // TODO: we do not need a complete csg rebuild on material change
+    if materials_res.dirty {
+        info!("csg rebuild due to dirty materials");
+        materials_res.dirty = false;
     }
 
     let start = Instant::now();

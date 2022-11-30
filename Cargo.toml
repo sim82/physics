@@ -64,6 +64,7 @@ env_logger = "0.10"
 dialoguer = "0.10"
 console = "0.15"
 rayon = "1"
+bevy_egui = "0.17"
 
 [patch.crates-io]
 #bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
