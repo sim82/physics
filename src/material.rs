@@ -55,31 +55,37 @@ pub fn load_materials(
     asset_server: &mut AssetServer,
 ) -> HashMap<String, Handle<StandardMaterial>> {
     let apps = load_all_material_files(base_dir.as_ref().join("materials"));
-    // let image_dir = base_dir.as_ref().join("image");
-    let mut images: HashMap<String, Handle<Image>> = HashMap::new();
     let mut res = HashMap::new();
     for (name, material) in apps {
-        let material = materials.add(StandardMaterial {
-            base_color_texture: load_image(material.base, asset_server),
-            perceptual_roughness: material.roughness.unwrap_or(0.089),
-            metallic: material.roughness.unwrap_or(0.001),
-
-            normal_map_texture: load_image(material.normal_map, asset_server),
-            metallic_roughness_texture: load_image(
-                material.metallic_roughness_texture,
-                asset_server,
-            ),
-            occlusion_texture: load_image(material.occlusion, asset_server),
-            emissive_texture: load_image(material.emissive, asset_server),
-            emissive: material
-                .emissive_color
-                .map(|c| c.extend(1.0).into())
-                .unwrap_or(Color::BLACK),
-            ..default()
-        });
+        let material = instantiate_material(materials, &material, asset_server);
         res.insert(name, material);
     }
     res
+}
+
+pub fn instantiate_material(
+    materials: &mut Assets<StandardMaterial>,
+    material: &Material,
+    asset_server: &mut AssetServer,
+) -> Handle<StandardMaterial> {
+    materials.add(StandardMaterial {
+        base_color_texture: load_image(material.base.clone(), asset_server),
+        perceptual_roughness: material.roughness.unwrap_or(0.089),
+        metallic: material.roughness.unwrap_or(0.001),
+
+        normal_map_texture: load_image(material.normal_map.clone(), asset_server),
+        metallic_roughness_texture: load_image(
+            material.metallic_roughness_texture.clone(),
+            asset_server,
+        ),
+        occlusion_texture: load_image(material.occlusion.clone(), asset_server),
+        emissive_texture: load_image(material.emissive.clone(), asset_server),
+        emissive: material
+            .emissive_color
+            .map(|c| c.extend(1.0).into())
+            .unwrap_or(Color::BLACK),
+        ..default()
+    })
 }
 
 #[test]

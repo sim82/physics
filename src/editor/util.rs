@@ -92,8 +92,10 @@ pub fn add_csg(
 
 pub fn spawn_csg_split(
     commands: &mut Commands,
-    materials: &resources::Materials,
+    materials_res: &resources::Materials,
     meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    asset_server: &mut AssetServer,
     csg: &Csg,
 ) {
     let center = Vec3::ZERO;
@@ -103,7 +105,7 @@ pub fn spawn_csg_split(
     for (id, mesh) in split_meshes {
         let mesh = meshes.add(mesh);
         // todo some fallback if map lookups fail
-        let Some(material_name) = materials
+        let Some(material_name) = materials_res
             .id_to_name_map
             .get(&id) 
         else {
@@ -111,7 +113,7 @@ pub fn spawn_csg_split(
             continue;
         };
 
-        let Some(material) = materials.get(material_name) else {
+        let Some(material) = materials_res.get(material_name,materials, asset_server) else {
             warn!( "material resource not found for {}", material_name);
             continue;
         };

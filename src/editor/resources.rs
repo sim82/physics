@@ -1,6 +1,8 @@
 use bevy::{prelude::*, utils::HashMap, window::WindowId};
 use serde::{Deserialize, Serialize};
 
+use crate::material;
+
 use super::util::Orientation2d;
 
 #[derive(Default, Resource)]
@@ -42,20 +44,41 @@ pub struct EditorWindows2d {
     pub translate_drag: Option<TranslateDrag>,
 }
 
-#[derive(Default, Resource)]
+#[derive(Resource)]
 pub struct Materials {
-    pub materials: HashMap<String, Handle<StandardMaterial>>,
+    // pub materials: HashMap<String, Handle<StandardMaterial>>,
+    pub material_defs: HashMap<String, material::Material>,
     pub id_to_name_map: HashMap<i32, String>, // not really the right place as this specific to the last loaded wsx file
     pub symlinks: HashMap<String, String>,
 }
 
+impl Default for Materials {
+    fn default() -> Self {
+        Self {
+            material_defs: HashMap::new(),
+            id_to_name_map: default(),
+            symlinks: default(),
+        }
+    }
+}
+
 impl Materials {
-    pub fn get(&self, name: &str) -> Option<Handle<StandardMaterial>> {
+    pub fn get(
+        &self,
+        name: &str,
+        materials: &mut Assets<StandardMaterial>,
+        asset_server: &mut AssetServer,
+    ) -> Option<Handle<StandardMaterial>> {
         let name = if let Some(linked_name) = self.symlinks.get(name) {
             linked_name
         } else {
             name
         };
-        self.materials.get(name).cloned()
+        let material = self.material_defs.get(name)?;
+        Some(material::instantiate_material(
+            materials,
+            material,
+            asset_server,
+        ))
     }
 }

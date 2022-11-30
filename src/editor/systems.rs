@@ -1,35 +1,19 @@
-use bevy::{
-    input::mouse::MouseWheel,
-    pbr::wireframe::Wireframe,
-    prelude::{shape::Cube, *},
-    render::primitives::Aabb,
-    utils::Instant,
-};
-
 use super::{
     components::{CsgOutput, EditorObject, SelectionVis},
     resources::{self, Selection},
 };
-use crate::{
-    appearance::{self},
-    csg::{self},
-    editor::util::{add_csg, spawn_csg_split},
-    material, wsx, TestResources,
+use crate::{csg, editor::util::spawn_csg_split, material, wsx};
+use bevy::{
+    input::mouse::MouseWheel,
+    prelude::{shape::Cube, *},
+    render::primitives::Aabb,
+    utils::Instant,
 };
+use std::path::PathBuf;
 
-pub fn setup(
-    mut materials_res: ResMut<resources::Materials>,
-    mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut asset_server: ResMut<AssetServer>,
-) {
-    // materials_res.materials = load_materials(
-    //     "/home/sim/3dyne/arch00.dir/",
-    //     &mut images,
-    //     &mut materials,
-    //     &mut asset_server,
-    // );
-    materials_res.materials = material::load_materials("assets", &mut materials, &mut asset_server);
+pub fn setup(mut materials_res: ResMut<resources::Materials>) {
+    materials_res.material_defs =
+        material::load_all_material_files(PathBuf::from("assets").join("materials"));
     materials_res.symlinks.insert(
         "appearance/test/con52_1".into(),
         "material/ground/bog".into(),
@@ -38,7 +22,7 @@ pub fn setup(
         "appearance/test/whiteconcret3".into(),
         "material/architecture/woodframe1".into(),
     );
-    info!("loaded {} materials", materials_res.materials.len());
+    info!("loaded {} material defs", materials_res.material_defs.len());
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -203,8 +187,10 @@ pub fn update_brush_csg_system(
     mut commands: Commands,
 
     mut meshes: ResMut<Assets<Mesh>>,
-    test_resources: Res<TestResources>,
-    materials: Res<resources::Materials>,
+    materials_res: Res<resources::Materials>,
+
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut asset_server: ResMut<AssetServer>,
 
     query: Query<&EditorObject>,
     query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
@@ -246,7 +232,14 @@ pub fn update_brush_csg_system(
 
     u.invert();
 
-    spawn_csg_split(&mut commands, &materials, &mut meshes, &u);
+    spawn_csg_split(
+        &mut commands,
+        &materials_res,
+        &mut meshes,
+        &mut materials,
+        &mut asset_server,
+        &u,
+    );
 
     debug!("csg update: {:?}", start.elapsed());
 }
