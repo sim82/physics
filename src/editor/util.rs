@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::csg::{self, Csg};
 
-use super::{components::CsgOutput, resources};
+use super::{
+    components::{self, CsgOutput},
+    resources,
+};
 
 pub fn spawn_box(
     commands: &mut Commands,
@@ -107,26 +110,29 @@ pub fn spawn_csg_split(
         // todo some fallback if map lookups fail
         let Some(material_name) = materials_res
             .id_to_name_map
-            .get(&id) 
+            .get(&id)
         else {
             warn!( "material not found for id {}", id);
             continue;
         };
 
-        let Some(material) = materials_res.get(material_name,materials, asset_server) else {
-            warn!( "material resource not found for {}", material_name);
-            continue;
-        };
+        // let Some(material) = materials_res.get(material_name,materials, asset_server) else {
+        //     warn!( "material resource not found for {}", material_name);
+        //     continue;
+        // };
 
         commands
             .spawn(PbrBundle {
                 mesh,
-                material,
+                // material,
                 transform: Transform::from_translation(center),
                 ..Default::default()
             })
             .insert(CsgOutput)
-            .insert(Name::new(format!("csg {:?}", material_name)));
+            .insert(Name::new(format!("csg {:?}", material_name)))
+            .insert(components::MaterialRef {
+                material_name: material_name.clone(),
+            });
     }
 }
 

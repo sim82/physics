@@ -27,3 +27,8 @@ pub enum DragActionType {
     Face { affected_faces: Vec<(usize, f32)> },
     WholeBrush { affected_faces: Vec<(usize, f32)> },
 }
+
+#[derive(Component)]
+pub struct MaterialRef {
+    pub material_name: String,
+}

@@ -1,5 +1,5 @@
 use super::{
-    components::{CsgOutput, EditorObject, SelectionVis},
+    components::{self, CsgOutput, EditorObject, SelectionVis},
     resources::{self, Selection},
 };
 use crate::{csg, editor::util::spawn_csg_split, material, wsx};
@@ -7,13 +7,15 @@ use bevy::{
     input::mouse::MouseWheel,
     prelude::{shape::Cube, *},
     render::primitives::Aabb,
-    utils::Instant,
+    utils::{HashSet, Instant},
 };
 use std::path::PathBuf;
 
 pub fn setup(mut materials_res: ResMut<resources::Materials>) {
     materials_res.material_defs =
-        material::load_all_material_files(PathBuf::from("assets").join("materials"));
+        material::load_all_material_files(PathBuf::from("assets").join("materials"))
+            .drain()
+            .collect();
     materials_res.symlinks.insert(
         "appearance/test/con52_1".into(),
         "material/ground/bog".into(),
@@ -183,6 +185,85 @@ pub fn editor_input_system(
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
+pub fn update_material_refs(
+    mut commands: Commands,
+
+    mut materials_res: ResMut<resources::Materials>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut asset_server: ResMut<AssetServer>,
+
+    query_changed: Query<(Entity, &components::MaterialRef), Changed<components::MaterialRef>>,
+    query_cleanup: Query<(Entity, &components::MaterialRef)>,
+    query_material: Query<&Handle<StandardMaterial>>,
+) {
+    if query_changed.is_empty() && materials_res.dirty_symlinks.is_empty() {
+        return;
+    }
+    info!("dirty: {:?}", materials_res.dirty_symlinks);
+    // asset_server.mark_unused_assets()
+    let mut drop_material = Vec::new();
+    for (entity, material_ref) in &query_changed {
+        let Some(material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
+            warn!( "material resource not found for {}", material_ref.material_name);
+            continue;
+        };
+        // new_working_set.insert(material.clone());
+        if let Ok(old_material) = query_material.get(entity) {
+            drop_material.push(old_material.clone());
+        }
+        commands.entity(entity).insert(material);
+    }
+
+    for (entity, material_ref) in &query_cleanup {
+        if !materials_res
+            .dirty_symlinks
+            .contains(&material_ref.material_name)
+        {
+            continue;
+        }
+        let Some(material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
+            warn!( "material resource not found for {}", material_ref.material_name);
+            continue;
+        };
+        // new_working_set.insert(material.clone());
+        if let Ok(old_material) = query_material.get(entity) {
+            drop_material.push(old_material.clone());
+        }
+        commands.entity(entity).insert(material);
+    }
+
+    // for material in drop_material
+    // // materials_res.working_set.difference(&new_working_set)
+    // {
+    //     info!("drop from working set: {:?}", material);
+
+    //     if let Some(material) = materials.remove(material) {
+    //         if let Some(image) = material.base_color_texture {
+    //             images.remove(image);
+    //         }
+    //         if let Some(image) = material.normal_map_texture {
+    //             images.remove(image);
+    //         }
+    //         if let Some(image) = material.metallic_roughness_texture {
+    //             images.remove(image);
+    //         }
+    //         if let Some(image) = material.occlusion_texture {
+    //             images.remove(image);
+    //         }
+    //         if let Some(image) = material.emissive_texture {
+    //             images.remove(image);
+    //         }
+    //     }
+    // }
+
+    // asset_server.mark_unused_assets();
+    // asset_server.free_unused_assets();
+    materials_res.dirty_symlinks.clear();
+    // materials_res.working_set = new_working_set;
+}
+
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn update_brush_csg_system(
     mut commands: Commands,
 
@@ -196,18 +277,12 @@ pub fn update_brush_csg_system(
     query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
     query_cleanup: Query<(Entity, &Handle<Mesh>, &Handle<StandardMaterial>), With<CsgOutput>>,
 ) {
-    if query_changed.is_empty() && !materials_res.dirty {
+    if query_changed.is_empty() {
         return;
     }
 
     for (entity, _) in query_changed.iter() {
         debug!("changed: {:?}", entity);
-    }
-
-    // TODO: we do not need a complete csg rebuild on material change
-    if materials_res.dirty {
-        info!("csg rebuild due to dirty materials");
-        materials_res.dirty = false;
     }
 
     let start = Instant::now();

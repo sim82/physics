@@ -99,27 +99,34 @@ fn main() {
         });
         app.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
         // app.add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin);
-        app.add_system_set(
-            SystemSet::on_enter(AppState::DebugMenu).with_system(open_world_inspector),
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::DebugMenu).with_system(close_world_inspector),
-        );
     }
-
+    app.add_system_set(SystemSet::on_enter(AppState::DebugMenu).with_system(open_debug_windows));
+    app.add_system_set(SystemSet::on_exit(AppState::DebugMenu).with_system(close_debug_windows));
     app.run();
 
     info!("after app.run");
 }
 
-#[cfg(feature = "inspector")]
-fn open_world_inspector(mut inspector_params: ResMut<WorldInspectorParams>) {
-    inspector_params.enabled = true;
+fn open_debug_windows(
+    mut inspector_params: ResMut<WorldInspectorParams>,
+    mut material_browser: ResMut<editor::resources::MaterialBrowser>,
+) {
+    #[cfg(feature = "inspector")]
+    {
+        inspector_params.enabled = true;
+    }
+    material_browser.window_open = true;
 }
 
-#[cfg(feature = "inspector")]
-fn close_world_inspector(mut inspector_params: ResMut<WorldInspectorParams>) {
-    inspector_params.enabled = false;
+fn close_debug_windows(
+    mut inspector_params: ResMut<WorldInspectorParams>,
+    mut material_browser: ResMut<editor::resources::MaterialBrowser>,
+) {
+    #[cfg(feature = "inspector")]
+    {
+        inspector_params.enabled = false;
+    }
+    material_browser.window_open = false;
 }
 
 fn toggle_debug_menu_system(

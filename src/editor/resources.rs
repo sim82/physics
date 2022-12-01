@@ -1,4 +1,10 @@
-use bevy::{prelude::*, utils::HashMap, window::WindowId};
+use std::collections::BTreeMap;
+
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+    window::WindowId,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::material;
@@ -47,19 +53,22 @@ pub struct EditorWindows2d {
 #[derive(Resource)]
 pub struct Materials {
     // pub materials: HashMap<String, Handle<StandardMaterial>>,
-    pub material_defs: HashMap<String, material::Material>,
+    pub material_defs: BTreeMap<String, material::Material>,
     pub id_to_name_map: HashMap<i32, String>, // not really the right place as this specific to the last loaded wsx file
     pub symlinks: HashMap<String, String>,
-    pub dirty: bool,
+    pub dirty_symlinks: HashSet<String>,
+    // pub dirty: bool,
+    // pub working_set: HashSet<Handle<StandardMaterial>>,
 }
 
 impl Default for Materials {
     fn default() -> Self {
         Self {
-            material_defs: HashMap::new(),
+            material_defs: BTreeMap::new(),
             id_to_name_map: default(),
             symlinks: default(),
-            dirty: false,
+            // dirty: false,
+            dirty_symlinks: default(),
         }
     }
 }
@@ -82,5 +91,27 @@ impl Materials {
             material,
             asset_server,
         ))
+    }
+
+    pub fn update_symlink(&mut self, selected_appearance: String, clicked: String) {
+        if let Some(linked_material) = self.symlinks.get_mut(&selected_appearance) {
+            *linked_material = clicked;
+            self.dirty_symlinks.insert(selected_appearance);
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct MaterialBrowser {
+    pub window_open: bool,
+    pub selected_appearance: String,
+}
+
+impl Default for MaterialBrowser {
+    fn default() -> Self {
+        Self {
+            window_open: true,
+            selected_appearance: Default::default(),
+        }
     }
 }
