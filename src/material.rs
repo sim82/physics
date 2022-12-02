@@ -17,6 +17,7 @@ pub struct Material {
     pub reflectance: Option<f32>,
     pub normal_map: Option<String>,
     pub occlusion: Option<String>,
+    pub preview64: Option<String>,
 }
 
 pub fn load_all_material_files<P: AsRef<Path>>(dir: P) -> HashMap<String, Material> {
@@ -101,6 +102,7 @@ fn test() {
         reflectance: Some(1.0),
         normal_map: Some("norm".into()),
         occlusion: Some("occlusion".into()),
+        preview64: None,
     };
     let m: HashMap<_, _> = [
         ("test1".to_string(), mat.clone()),

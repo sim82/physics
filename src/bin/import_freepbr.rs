@@ -45,11 +45,16 @@ enum ImageKind {
     Roughness,
     Metallic,
     Emissive,
+    Preview,
 }
 
 impl ImageKind {
     pub fn guess_kind(name: &str) -> Option<ImageKind> {
         let lower = name.to_lowercase();
+
+        if lower.contains("preview") {
+            return Some(ImageKind::Preview);
+        }
 
         if !lower.ends_with(".png") || lower.contains("preview") {
             return None;
@@ -336,6 +341,8 @@ fn write_material_images(
     let ao_output = format!("{}_ao.norm", name);
     let mr_output = format!("{}_mr.norm", name);
     let emissive_output = format!("{}_emissive.norm", name);
+    let preview64_output = format!("{}_preview64.norm", name);
+
     albedo_image
         .into_rgb8()
         .save_with_format(output_dir.join(&albedo_output), image::ImageFormat::Png)
@@ -362,6 +369,20 @@ fn write_material_images(
             .save_with_format(output_dir.join(&emissive_output), image::ImageFormat::Png)
             .expect("failed to write emissive image");
     }
+
+    if let Some((name, preview)) = images.remove(&ImageKind::Preview) {
+        // let rgba8 = preview.into_rgba8();
+        // rgba8.
+        let scaled = image::imageops::resize(
+            &preview.into_rgba8(),
+            64,
+            64,
+            image::imageops::FilterType::CatmullRom,
+        );
+        scaled
+            .save_with_format(output_dir.join(&preview64_output), image::ImageFormat::Png)
+            .expect("failed to write preview image");
+    }
     Ok(material::Material {
         base: Some(format!("images/{}/{}", name, albedo_output)),
         occlusion: if images.contains_key(&ImageKind::Ao) {
@@ -385,6 +406,7 @@ fn write_material_images(
             None
         },
         reflectance: None,
+        preview64: Some(format!("images/{}/{}", name, preview64_output)),
     })
 }
 

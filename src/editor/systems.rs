@@ -11,7 +11,12 @@ use bevy::{
 };
 use std::path::PathBuf;
 
-pub fn setup(mut materials_res: ResMut<resources::Materials>) {
+pub fn setup(
+    mut materials_res: ResMut<resources::Materials>,
+    mut material_browser: ResMut<resources::MaterialBrowser>,
+    mut asset_server: ResMut<AssetServer>,
+    mut egui_context: ResMut<bevy_egui::EguiContext>,
+) {
     materials_res.material_defs =
         material::load_all_material_files(PathBuf::from("assets").join("materials"))
             .drain()
@@ -23,6 +28,12 @@ pub fn setup(mut materials_res: ResMut<resources::Materials>) {
     materials_res.symlinks.insert(
         "appearance/test/whiteconcret3".into(),
         "material/architecture/woodframe1".into(),
+    );
+
+    material_browser.init_previews(
+        materials_res.material_defs.values(),
+        &mut asset_server,
+        &mut egui_context,
     );
     info!("loaded {} material defs", materials_res.material_defs.len());
 }

@@ -1,10 +1,11 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Mutex};
 
 use bevy::{
     prelude::*,
-    utils::{HashMap, HashSet},
+    utils::{hashbrown::hash_map, HashMap, HashSet},
     window::WindowId,
 };
+use bevy_egui::egui;
 use serde::{Deserialize, Serialize};
 
 use crate::material;
@@ -105,6 +106,8 @@ impl Materials {
 pub struct MaterialBrowser {
     pub window_open: bool,
     pub selected_appearance: String,
+    pub previews: HashMap<String, egui::TextureId>,
+    // pub previews: Mutex<Previews>,
 }
 
 impl Default for MaterialBrowser {
@@ -112,6 +115,35 @@ impl Default for MaterialBrowser {
         Self {
             window_open: true,
             selected_appearance: Default::default(),
+            previews: default(),
+        }
+    }
+}
+
+impl MaterialBrowser {
+    pub fn get_preview(&self, material: &material::Material) -> Option<egui::TextureId> {
+        let preview = material.preview64.as_ref().expect("missing preview");
+        self.previews.get(preview).cloned()
+    }
+
+    pub fn init_previews<'a, I>(
+        &mut self,
+        materials: I,
+        asset_server: &mut AssetServer,
+        egui_context: &mut bevy_egui::EguiContext,
+    ) where
+        I: IntoIterator<Item = &'a material::Material>,
+    {
+        for material in materials.into_iter() {
+            let preview = material.preview64.clone().expect("missing preview");
+            match self.previews.entry(preview) {
+                hash_map::Entry::Occupied(e) => (),
+                hash_map::Entry::Vacant(e) => {
+                    let image: Handle<Image> = asset_server.load(e.key());
+                    let texture = egui_context.add_image(image);
+                    e.insert(texture);
+                }
+            }
         }
     }
 }
