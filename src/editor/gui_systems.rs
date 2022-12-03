@@ -13,6 +13,7 @@ pub fn materials_egui_system(
     mut material_browser: ResMut<resources::MaterialBrowser>,
     // images: Res<Assets<Image>>,
     mut asset_server: ResMut<AssetServer>,
+    // mut cached_sections: Local<
 ) {
     let materials_res = &mut *materials_res;
     let material_browser = &mut *material_browser;
@@ -31,10 +32,15 @@ pub fn materials_egui_system(
                 }
             }
 
+            // material browser ui: generate section headers on the fly by scanning runs with equal prefix in (sorted) material map.
+            // probably not the most efficient thing in the world but good enough since it is only done when the ui is shown, and
+            // this way there is no kind of caching or preprocessing that might get out of sync...
             let mut iter = materials_res.material_defs.iter().peekable();
+            let mut entries = Vec::new();
             while let Some((first, _)) = iter.peek() {
                 if let Some((section, _)) = first.rsplit_once('/') {
-                    let mut entries = Vec::new();
+                    // extract elements with the same prefix. re-using temporary vector
+                    entries.clear();
                     while let Some((cur, _)) = iter.peek() {
                         let (_mat_section, mat_name) =
                             if let Some((mat_section, mat_name)) = cur.rsplit_once('/') {
@@ -53,21 +59,17 @@ pub fn materials_egui_system(
                         .default_open(false)
                         .show(ui, |ui| {
                             ui.horizontal_wrapped(|ui| {
-                                for (short_name, (full_name, material)) in entries {
+                                for (_short_name, (full_name, material)) in &entries {
                                     if ui
                                         .add(egui::ImageButton::new(
                                             material_browser
-                                                .get_preview(
-                                                    material,
-                                                    // &mut *asset_server,
-                                                    // &mut *egui_context,
-                                                )
+                                                .get_preview(material)
                                                 .expect("missing preview"),
                                             egui::Vec2::splat(64.0),
                                         ))
                                         .clicked()
                                     {
-                                        material_clicked = Some(full_name);
+                                        material_clicked = Some(*full_name);
                                     }
                                 }
                             });

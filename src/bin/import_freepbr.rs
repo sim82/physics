@@ -341,7 +341,26 @@ fn write_material_images(
     let ao_output = format!("{}_ao.norm", name);
     let mr_output = format!("{}_mr.norm", name);
     let emissive_output = format!("{}_emissive.norm", name);
-    let preview64_output = format!("{}_preview64.norm", name);
+    let preview64_output = format!("{}_preview64.png", name);
+
+    let preview_image = if let Some((_name, preview)) = images.get(&ImageKind::Preview) {
+        preview
+    } else {
+        // fallback to albedo image if no preview is avaialable
+        &albedo_image //.clone()
+    };
+
+    {
+        let scaled = image::imageops::resize(
+            preview_image,
+            64,
+            64,
+            image::imageops::FilterType::CatmullRom,
+        );
+        scaled
+            .save_with_format(output_dir.join(&preview64_output), image::ImageFormat::Png)
+            .expect("failed to write preview image");
+    }
 
     albedo_image
         .into_rgb8()
@@ -370,19 +389,6 @@ fn write_material_images(
             .expect("failed to write emissive image");
     }
 
-    if let Some((name, preview)) = images.remove(&ImageKind::Preview) {
-        // let rgba8 = preview.into_rgba8();
-        // rgba8.
-        let scaled = image::imageops::resize(
-            &preview.into_rgba8(),
-            64,
-            64,
-            image::imageops::FilterType::CatmullRom,
-        );
-        scaled
-            .save_with_format(output_dir.join(&preview64_output), image::ImageFormat::Png)
-            .expect("failed to write preview image");
-    }
     Ok(material::Material {
         base: Some(format!("images/{}/{}", name, albedo_output)),
         occlusion: if images.contains_key(&ImageKind::Ao) {
