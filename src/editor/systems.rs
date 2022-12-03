@@ -1,9 +1,15 @@
 use super::{
     components::{self, CsgOutput, EditorObject, SelectionVis},
     resources::{self, Selection},
+    CleanupCsgOutputEvent,
 };
-use crate::{csg, editor::util::spawn_csg_split, material, wsx};
+use crate::{
+    csg,
+    editor::{components::CsgCollisionOutput, util::spawn_csg_split},
+    material, wsx,
+};
 use bevy::{
+    ecs::system::Remove,
     input::mouse::MouseWheel,
     prelude::{shape::Cube, *},
     render::primitives::Aabb,
@@ -29,7 +35,9 @@ pub fn setup(
         "appearance/test/whiteconcret3".into(),
         "material/architecture/woodframe1".into(),
     );
-
+    materials_res
+        .id_to_name_map
+        .insert(0, "appearance/test/whiteconcret3".into());
     material_browser.init_previews(
         materials_res.material_defs.values(),
         &mut asset_server,
@@ -62,9 +70,10 @@ pub fn editor_input_system(
     }
 
     if keycodes.just_pressed(KeyCode::B) {
-        let entity = commands
-            .spawn(EditorObject::Brush(csg::Brush::default()))
-            .id();
+        let mut brush = csg::Brush::default();
+        for a in &brush.appearances {}
+
+        let entity = commands.spawn(EditorObject::Brush(brush)).id();
 
         info!("new brush: {:?}", entity);
         selection.primary = Some(entity);
@@ -275,18 +284,43 @@ pub fn update_material_refs(
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn update_brush_csg_system(
+pub fn cleanup_brush_csg_system(
+    mut commands: Commands,
+    mut event_reader: EventReader<CleanupCsgOutputEvent>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
+    query_cleanup: Query<(Entity, &Handle<Mesh>, &Handle<StandardMaterial>), With<CsgOutput>>,
+    query_collision_cleanup: Query<Entity, With<components::CsgCollisionOutput>>,
+) {
+    if query_changed.is_empty() && event_reader.is_empty() {
+        return;
+    }
+
+    for _ in event_reader.iter() {} // TODO: is this necessary?
+                                    // if any Brush has changed, first delete all existing CsgOutput entities including mesh and material resources
+    for (entity, mesh, material) in &query_cleanup {
+        debug!("cleanup {:?} {:?} {:?}", entity, mesh, material);
+        meshes.remove(mesh);
+        commands.entity(entity).despawn();
+    }
+
+    for entity in &query_collision_cleanup {
+        commands.entity(entity).despawn();
+    }
+}
+
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+pub fn create_brush_csg_system(
     mut commands: Commands,
 
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials_res: ResMut<resources::Materials>,
+    materials_res: ResMut<resources::Materials>,
 
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut asset_server: ResMut<AssetServer>,
 
     query: Query<&EditorObject>,
     query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
-    query_cleanup: Query<(Entity, &Handle<Mesh>, &Handle<StandardMaterial>), With<CsgOutput>>,
 ) {
     if query_changed.is_empty() {
         return;
@@ -297,12 +331,6 @@ pub fn update_brush_csg_system(
     }
 
     let start = Instant::now();
-    // if any Brush has changed, first delete all existing CsgOutput entities including mesh and material resources
-    for (entity, mesh, material) in &query_cleanup {
-        debug!("cleanup {:?} {:?}", mesh, material);
-        meshes.remove(mesh);
-        commands.entity(entity).despawn();
-    }
 
     let mut csgs = query
         .iter()
@@ -333,7 +361,19 @@ pub fn update_brush_csg_system(
         &u,
     );
 
+    if false {
+        for (collider, origin) in u.get_collision_polygons() {
+            println!("collider: {:?}", collider);
+            commands
+                .spawn(collider)
+                .insert(SpatialBundle::from_transform(Transform::from_translation(
+                    origin,
+                )))
+                .insert(CsgCollisionOutput);
+        }
+    }
     debug!("csg update: {:?}", start.elapsed());
+    // asset_server.free_unused_assets();
 }
 
 #[derive(Resource, Default)]
@@ -386,6 +426,8 @@ pub fn setup_selection_vis_system(
 
 pub fn load_save_editor_objects(
     mut commands: Commands,
+    mut event_writer: EventWriter<CleanupCsgOutputEvent>,
+
     keycodes: Res<Input<KeyCode>>,
     existing_objects: Query<(Entity, &EditorObject), With<EditorObject>>,
     mut materials: ResMut<resources::Materials>,
@@ -443,5 +485,12 @@ pub fn load_save_editor_objects(
                 })
                 .insert(EditorObject::PointLight);
         }
+    }
+
+    if keycodes.just_pressed(KeyCode::F8) {
+        for (entity, _) in existing_objects.iter() {
+            commands.entity(entity).despawn();
+        }
+        event_writer.send(CleanupCsgOutputEvent);
     }
 }

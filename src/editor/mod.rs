@@ -14,17 +14,21 @@ pub struct EditorPlugin;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 struct FixedUpdateStage;
 
+pub struct CleanupCsgOutputEvent;
+
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(systems::setup);
         app.init_resource::<resources::Materials>();
         app.init_resource::<resources::MaterialBrowser>();
+        app.add_event::<CleanupCsgOutputEvent>();
         app.add_system_set(
             SystemSet::on_update(AppState::DebugMenu).with_system(systems::editor_input_system),
         )
         .add_startup_system(systems::setup_selection_vis_system)
+        .add_system(systems::cleanup_brush_csg_system.after(systems::update_material_refs))
+        .add_system(systems::create_brush_csg_system.after(systems::cleanup_brush_csg_system))
         .add_system(systems::update_material_refs)
-        .add_system(systems::update_brush_csg_system)
         .add_system(systems::track_primary_selection)
         .add_startup_system(ortho_systems::setup_editor_window)
         .init_resource::<resources::Selection>()

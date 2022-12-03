@@ -32,3 +32,6 @@ pub enum DragActionType {
 pub struct MaterialRef {
     pub material_name: String,
 }
+
+#[derive(Component)]
+pub struct CsgCollisionOutput;

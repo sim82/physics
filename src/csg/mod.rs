@@ -47,7 +47,10 @@ use bevy::{
     utils::HashMap,
 };
 
+// use bevy_rapier3d::rapier::geometry::Collider;
+
 mod cube;
+use bevy_rapier3d::prelude::Collider;
 pub use cube::Cube;
 
 mod cylinder;
@@ -382,6 +385,26 @@ impl Csg {
         res
     }
 
+    pub fn get_collision_polygons(&self) -> Vec<(Collider, Vec3)> {
+        let mut colliders = Vec::new();
+        for p in &self.polygons {
+            let mut points = p.vertices.iter().map(|v| v.position).collect::<Vec<_>>();
+            // let origin = points[0];
+            // for p in &mut points {
+            //     *p -= origin;
+            // }
+            let origin = Vec3::ZERO;
+            let mut indices = Vec::new();
+            // sweep over 2-windows of the remaining vertices to get 2nd and 3rd points
+            for vs in 1..(points.len() as u32 - 1) {
+                indices.push([0, vs, vs + 1]);
+            }
+            info!("points: {:?}, indices: {:?}", points, indices);
+            // colliders.push(Collider::convex_mesh(points, &indices[..]).unwrap());
+            colliders.push((Collider::trimesh(points, indices), origin));
+        }
+        colliders
+    }
     pub fn invert(&mut self) {
         for p in &mut self.polygons {
             p.flip();

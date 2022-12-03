@@ -108,31 +108,33 @@ pub fn spawn_csg_split(
     for (id, mesh) in split_meshes {
         let mesh = meshes.add(mesh);
         // todo some fallback if map lookups fail
-        let Some(material_name) = materials_res
-            .id_to_name_map
-            .get(&id)
-        else {
-            warn!( "material not found for id {}", id);
-            continue;
-        };
 
         // let Some(material) = materials_res.get(material_name,materials, asset_server) else {
         //     warn!( "material resource not found for {}", material_name);
         //     continue;
         // };
 
-        commands
-            .spawn(PbrBundle {
+        let mut entity_commands = commands.spawn((
+            PbrBundle {
                 mesh,
                 // material,
                 transform: Transform::from_translation(center),
                 ..Default::default()
-            })
-            .insert(CsgOutput)
-            .insert(Name::new(format!("csg {:?}", material_name)))
-            .insert(components::MaterialRef {
-                material_name: material_name.clone(),
-            });
+            },
+            CsgOutput,
+        ));
+
+        if let Some(material_name) = materials_res.id_to_name_map.get(&id) {
+            entity_commands.insert((
+                components::MaterialRef {
+                    material_name: material_name.clone(),
+                },
+                Name::new(format!("csg {:?}", material_name)),
+            ));
+        } else {
+            entity_commands.insert(Name::new("csg <no material>"));
+        }
+        info!("spawned csg output: {:?}", entity_commands.id());
     }
 }
 

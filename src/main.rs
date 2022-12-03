@@ -56,9 +56,9 @@ fn main() {
             ..Default::default()
         },
     }))
-    .add_plugin(bevy_mod_mipmap_generator::MipmapGeneratorPlugin)
+    // .add_plugin(bevy_mod_mipmap_generator::MipmapGeneratorPlugin)
     // Add material types to be converted
-    .add_system(bevy_mod_mipmap_generator::generate_mipmaps::<StandardMaterial>)
+    // .add_system(bevy_mod_mipmap_generator::generate_mipmaps::<StandardMaterial>)
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     .add_plugin(RapierDebugRenderPlugin::default())
     .add_plugin(bevy_prototype_debug_lines::DebugLinesPlugin::default())
