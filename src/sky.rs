@@ -9,6 +9,7 @@ struct Sun;
 #[derive(Resource)]
 struct CycleTimer(Timer, usize);
 
+#[allow(unused)]
 // We can edit the Atmosphere resource and it will be updated automatically
 fn daylight_cycle(
     mut atmosphere: ResMut<Atmosphere>,
@@ -29,6 +30,7 @@ fn daylight_cycle(
     }
 }
 
+#[allow(unused)]
 // Simple environment
 fn setup_environment(mut commands: Commands) {
     // Our Sun
@@ -40,6 +42,7 @@ fn setup_environment(mut commands: Commands) {
     ));
 }
 
+#[allow(unused)]
 fn examples_cycle(mut commands: Commands, time: Res<Time>, mut timer: ResMut<CycleTimer>) {
     timer.0.tick(time.delta());
 

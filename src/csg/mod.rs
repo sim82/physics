@@ -388,7 +388,7 @@ impl Csg {
     pub fn get_collision_polygons(&self) -> Vec<(Collider, Vec3)> {
         let mut colliders = Vec::new();
         for p in &self.polygons {
-            let mut points = p.vertices.iter().map(|v| v.position).collect::<Vec<_>>();
+            let points = p.vertices.iter().map(|v| v.position).collect::<Vec<_>>();
             // let origin = points[0];
             // for p in &mut points {
             //     *p -= origin;
@@ -683,7 +683,7 @@ impl<'a> From<TriangleSlice<'a>> for Mesh {
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
         mesh.set_indices(Some(Indices::U32(indices)));
-        mesh.generate_tangents();
+        mesh.generate_tangents().expect("generate tangents failed");
         mesh
     }
 }

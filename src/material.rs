@@ -3,8 +3,6 @@ use std::path::Path;
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
-use crate::appearance::{self};
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Material {
     pub base: Option<String>,
@@ -106,7 +104,7 @@ fn test() {
     };
     let m: HashMap<_, _> = [
         ("test1".to_string(), mat.clone()),
-        ("test2".to_string(), mat.clone()),
+        ("test2".to_string(), mat),
     ]
     .iter()
     .cloned()

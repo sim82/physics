@@ -1,4 +1,4 @@
-use crate::{appearance, csg::PLANE_EPSILON};
+use crate::csg::PLANE_EPSILON;
 
 use super::{Csg, Location, Plane, Polygon, Vertex};
 use bevy::prelude::*;

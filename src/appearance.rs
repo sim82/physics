@@ -27,6 +27,7 @@ use std::path::Path;
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Appearance {
     pub theClass: Option<String>,
@@ -36,6 +37,7 @@ pub struct Appearance {
     pub shaderConfig: ShaderConfig,
 }
 
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ShaderConfig {
     pub image: Option<String>,
@@ -47,7 +49,7 @@ pub struct ShaderConfig {
 pub fn load_all_appearance_files<P: AsRef<Path>>(dir: P) -> HashMap<String, Appearance> {
     let mut res = HashMap::new();
 
-    for e in std::fs::read_dir("/home/sim/3dyne/arch00.dir/appearance/").unwrap() {
+    for e in std::fs::read_dir(dir).unwrap() {
         let Ok(ent) = e else {continue};
         if !ent.file_type().unwrap().is_file()
             || !ent.file_name().to_string_lossy().ends_with(".json")
@@ -72,7 +74,6 @@ pub fn load_all_appearance_files<P: AsRef<Path>>(dir: P) -> HashMap<String, Appe
 
 pub fn load_materials(
     base_dir: impl AsRef<Path>,
-    images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
     asset_server: &mut AssetServer,
 ) -> HashMap<String, Handle<StandardMaterial>> {

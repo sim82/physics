@@ -45,7 +45,7 @@ pub fn contact_debug(
 
         let rotation = Quat::from_rotation_arc(Vec3::Y, contact.collider_normal);
         commands
-            .spawn_bundle(PbrBundle {
+            .spawn(PbrBundle {
                 mesh,
                 transform: Transform::from_translation(shape_origin + contact.shape_point)
                     .with_rotation(rotation),
@@ -79,7 +79,7 @@ pub fn contact_debug(
 
         let rotation = Quat::from_rotation_arc(Vec3::Y, vec);
         commands
-            .spawn_bundle(PbrBundle {
+            .spawn(PbrBundle {
                 mesh,
                 transform: Transform::from_translation(pos).with_rotation(rotation),
                 ..Default::default()

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Mutex};
+use std::collections::BTreeMap;
 
 use bevy::{
     prelude::*,
@@ -137,7 +137,7 @@ impl MaterialBrowser {
         for material in materials.into_iter() {
             let preview = material.preview64.clone().expect("missing preview");
             match self.previews.entry(preview) {
-                hash_map::Entry::Occupied(e) => (),
+                hash_map::Entry::Occupied(_e) => (),
                 hash_map::Entry::Vacant(e) => {
                     let image: Handle<Image> = asset_server.load(e.key());
                     let texture = egui_context.add_image(image);

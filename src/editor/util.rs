@@ -97,8 +97,6 @@ pub fn spawn_csg_split(
     commands: &mut Commands,
     materials_res: &resources::Materials,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    asset_server: &mut AssetServer,
     csg: &Csg,
 ) {
     let center = Vec3::ZERO;

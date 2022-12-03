@@ -2,8 +2,6 @@ use bevy::{prelude::*, utils::Instant};
 use bevy_egui::EguiContext;
 use bevy_inspector_egui::egui;
 
-use crate::AppState;
-
 use super::resources;
 // use bevy_
 
@@ -12,7 +10,6 @@ pub fn materials_egui_system(
     mut materials_res: ResMut<resources::Materials>,
     mut material_browser: ResMut<resources::MaterialBrowser>,
     // images: Res<Assets<Image>>,
-    mut asset_server: ResMut<AssetServer>,
     // mut cached_sections: Local<
 ) {
     let materials_res = &mut *materials_res;

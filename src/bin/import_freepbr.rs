@@ -1,20 +1,15 @@
 use std::{
-    f32::consts::E,
-    io::{BufReader, Cursor, Read},
+    io::Read,
     path::{Path, PathBuf},
     sync::Mutex,
 };
 
 use anyhow::{Context, Result};
-use bevy::{
-    prelude::Vec3,
-    render::texture::{ImageFormat, ImageType},
-    utils::HashMap,
-};
-use bevy_inspector_egui::egui::output;
-use clap::{builder::OsStr, Parser};
+use bevy::{prelude::Vec3, utils::HashMap};
+
+use clap::Parser;
 use image::{DynamicImage, ImageBuffer, Rgb};
-use log::{info, warn};
+use log::warn;
 use physics::material;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use zip::read::ZipArchive;
@@ -130,7 +125,7 @@ fn main() {
         {
             let materials_dir = args.asset_dir.join("materials");
             let material_path = materials_dir.join(format!("{}.ron", category_name));
-            let mut materials = Mutex::new(if let Ok(f) = std::fs::File::open(&material_path) {
+            let materials = Mutex::new(if let Ok(f) = std::fs::File::open(&material_path) {
                 // ron::ser::to_writer_pretty(f, &materials, Default::default()).expect("failed");
                 ron::de::from_reader(f).expect("failed to read existing material file")
             } else {
@@ -150,7 +145,7 @@ fn main() {
                     .asset_dir
                     .join("images")
                     // .join(&category_name)
-                    .join(&material_name);
+                    .join(material_name);
                 if output_dir.exists() {
                     return;
                 }
@@ -169,7 +164,7 @@ fn main() {
                 std::fs::create_dir_all(&output_dir).expect("create_dir failed");
 
                 if true {
-                    let material = match write_material_images(images, &material_name, output_dir) {
+                    let material = match write_material_images(images, material_name, output_dir) {
                         Ok(material) => material,
                         Err(e) => {
                             println!("in {} {:?}", material_name, ent.path());
@@ -373,7 +368,7 @@ fn write_material_images(
     rm_image
         .save_with_format(output_dir.join(&mr_output), image::ImageFormat::Png)
         .expect("failed tp rm albedo image");
-    if let Some((ao, ao_image)) = images.remove(&ImageKind::Ao) {
+    if let Some((_ao, ao_image)) = images.remove(&ImageKind::Ao) {
         // println!("ao image: {:?}", ao_image.color());
 
         let ao_image = ao_image.into_luma8();
@@ -416,6 +411,7 @@ fn write_material_images(
     })
 }
 
+#[allow(dead_code)]
 fn check_file(t: &str, name: &Option<String>, necessary: bool) {
     if necessary {
         match name.clone() {

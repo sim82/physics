@@ -9,11 +9,10 @@ use crate::{
     material, wsx,
 };
 use bevy::{
-    ecs::system::Remove,
     input::mouse::MouseWheel,
     prelude::{shape::Cube, *},
     render::primitives::Aabb,
-    utils::{HashSet, Instant},
+    utils::Instant,
 };
 use std::path::PathBuf;
 
@@ -70,10 +69,9 @@ pub fn editor_input_system(
     }
 
     if keycodes.just_pressed(KeyCode::B) {
-        let mut brush = csg::Brush::default();
-        for a in &brush.appearances {}
-
-        let entity = commands.spawn(EditorObject::Brush(brush)).id();
+        let entity = commands
+            .spawn(EditorObject::Brush(csg::Brush::default()))
+            .id();
 
         info!("new brush: {:?}", entity);
         selection.primary = Some(entity);
@@ -210,7 +208,6 @@ pub fn update_material_refs(
 
     mut materials_res: ResMut<resources::Materials>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut images: ResMut<Assets<Image>>,
     mut asset_server: ResMut<AssetServer>,
 
     query_changed: Query<(Entity, &components::MaterialRef), Changed<components::MaterialRef>>,
@@ -316,9 +313,6 @@ pub fn create_brush_csg_system(
     mut meshes: ResMut<Assets<Mesh>>,
     materials_res: ResMut<resources::Materials>,
 
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut asset_server: ResMut<AssetServer>,
-
     query: Query<&EditorObject>,
     query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
 ) {
@@ -352,14 +346,7 @@ pub fn create_brush_csg_system(
 
     u.invert();
 
-    spawn_csg_split(
-        &mut commands,
-        &materials_res,
-        &mut meshes,
-        &mut materials,
-        &mut asset_server,
-        &u,
-    );
+    spawn_csg_split(&mut commands, &materials_res, &mut meshes, &u);
 
     if false {
         for (collider, origin) in u.get_collision_polygons() {
@@ -472,7 +459,7 @@ pub fn load_save_editor_objects(
 
         // TODO: do not load twice. Probably makes no difference, but I still hate it...
         let pointlights = wsx::load_pointlights(filename);
-        for (pos, range) in pointlights {
+        for (pos, _range) in pointlights {
             commands
                 .spawn(PointLightBundle {
                     point_light: PointLight {

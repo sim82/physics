@@ -7,7 +7,7 @@ use std::{
 use bevy::{
     core_pipeline::fxaa::Fxaa,
     diagnostic::FrameTimeDiagnosticsPlugin,
-    pbr::wireframe::WireframePlugin,
+    // pbr::wireframe::WireframePlugin,
     // input::system::exit_on_esc_system,
     prelude::*,
     render::{
@@ -149,7 +149,7 @@ fn spawn_sphere(
     meshes: &mut Assets<Mesh>,
 ) {
     commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: meshes.add(
                 mesh::shape::Icosphere {
                     radius,
@@ -259,7 +259,7 @@ fn update_deferred_mesh_system(
             commands
                 .entity(entity)
                 .remove::<DeferredMesh>()
-                .insert_bundle(PbrBundle {
+                .insert(PbrBundle {
                     mesh: deferred_mesh.mesh.clone(),
                     material: deferred_mesh.material.clone(),
                     transform: deferred_mesh.transform,

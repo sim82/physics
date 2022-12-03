@@ -420,7 +420,7 @@ pub fn edit_input_system(
 
         // info!("updates: {:?}", updates);
 
-        if !true {
+        if false {
             for (entity, obj) in updates {
                 info!("apply update on {:?}", entity);
                 commands.entity(entity).insert(obj);

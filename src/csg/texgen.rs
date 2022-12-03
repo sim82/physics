@@ -14,7 +14,7 @@ pub enum MajorAxis {
 }
 
 impl MajorAxis {
-    pub fn project(&self, mut v: Vec3) -> Vec2 {
+    pub fn project(&self, v: Vec3) -> Vec2 {
         // v.y = -v.y;
         match self {
             MajorAxis::None => Vec2::ZERO,
