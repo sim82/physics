@@ -48,12 +48,6 @@ pub fn materials_egui_system(
 
                         entries.push((mat_name, iter.next().unwrap()));
                     }
-                    // egui_context.add_image(image)
-                    // let texture = ui.ctx().load_texture(
-                    //     "example",
-                    //     egui::ColorImage::example(),
-                    //     egui::TextureFilter::Linear,
-                    // );
 
                     egui::CollapsingHeader::new(section)
                         .default_open(false)
@@ -75,9 +69,6 @@ pub fn materials_egui_system(
                                     {
                                         material_clicked = Some(full_name);
                                     }
-                                    // if ui.button(short_name).clicked() {
-                                    //     material_clicked = Some(full_name);
-                                    // }
                                 }
                             });
                         });
