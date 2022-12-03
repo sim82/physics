@@ -36,44 +36,51 @@ pub fn materials_egui_system(
             // probably not the most efficient thing in the world but good enough since it is only done when the ui is shown, and
             // this way there is no kind of caching or preprocessing that might get out of sync...
             let mut iter = materials_res.material_defs.iter().peekable();
-            let mut entries = Vec::new();
             while let Some((first, _)) = iter.peek() {
                 if let Some((section, _)) = first.rsplit_once('/') {
-                    // extract elements with the same prefix. re-using temporary vector
-                    entries.clear();
-                    while let Some((cur, _)) = iter.peek() {
-                        let (_mat_section, mat_name) =
-                            if let Some((mat_section, mat_name)) = cur.rsplit_once('/') {
-                                if mat_section != section {
-                                    break;
-                                }
-                                (mat_section, mat_name)
-                            } else {
-                                break;
-                            };
-
-                        entries.push((mat_name, iter.next().unwrap()));
-                    }
-
+                    let mut used = false;
                     egui::CollapsingHeader::new(section)
                         .default_open(false)
                         .show(ui, |ui| {
                             ui.horizontal_wrapped(|ui| {
-                                for (_short_name, (full_name, material)) in &entries {
-                                    if ui
-                                        .add(egui::ImageButton::new(
-                                            material_browser
-                                                .get_preview(material)
-                                                .expect("missing preview"),
-                                            egui::Vec2::splat(64.0),
-                                        ))
-                                        .clicked()
+                                used = true;
+                                // scan through run with equal prefix, adding ImageButtons on the fly.
+                                while let Some((cur, material)) = iter.peek() {
+                                    let material_name = match cur.rsplit_once('/') {
+                                        Some((mat_section, _)) if mat_section != section => break, // end of run
+                                        None => break, // no prefix -> ignore
+                                        Some((_, name)) => name,
+                                    };
+                                    if let Some(preview_image) =
+                                        material_browser.get_preview(material)
                                     {
-                                        material_clicked = Some(*full_name);
+                                        if ui
+                                            .add(egui::ImageButton::new(
+                                                preview_image,
+                                                egui::Vec2::splat(64.0),
+                                            ))
+                                            .on_hover_text(material_name)
+                                            .clicked()
+                                        {
+                                            material_clicked = Some(*cur);
+                                        }
                                     }
+                                    let _ = iter.next();
                                 }
                             });
                         });
+                    if !used {
+                        // if the run was not consumed (i.e. the header was collapsed) skip over them in iterator.
+                        while let Some((cur, _material)) = iter.peek() {
+                            match cur.rsplit_once('/') {
+                                Some((mat_section, _)) if mat_section != section => break,
+                                None => break,
+                                _ => {
+                                    let _ = iter.next();
+                                }
+                            };
+                        }
+                    }
                 } else {
                     info!("no section in material name: {}", first);
                     iter.next();
