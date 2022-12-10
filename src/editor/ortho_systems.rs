@@ -12,14 +12,14 @@ use bevy::{
 };
 
 use super::{
-    components::EditorObject,
+    components::{self, EditorObject},
     resources::{self, EditorWindowSettings, Selection, TranslateDrag, LOWER_WINDOW, UPPER_WINDOW},
     util::Orientation2d,
 };
 use crate::{
-    csg::PLANE_EPSILON,
+    csg::{self, PLANE_EPSILON},
     editor::{
-        components::{DragAction, DragActionType},
+        components::{BoundingSphere, DragAction, DragActionType},
         util::SnapToGrid,
     },
 };
@@ -304,10 +304,19 @@ pub fn edit_input_system(
     keycodes: Res<Input<KeyCode>>,
     mut mouse_button: EventReader<MouseButtonInput>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
+    mut spatial_index: ResMut<resources::SpatialIndex>,
 
     camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<&EditorObject, Without<DragAction>>,
-    mut active_drag_query: Query<(Entity, &DragAction, &mut EditorObject), With<DragAction>>,
+    mut active_drag_query: Query<
+        (
+            Entity,
+            &DragAction,
+            &mut EditorObject,
+            &mut components::BoundingSphere,
+        ),
+        With<DragAction>,
+    >,
 ) {
     let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
@@ -362,7 +371,7 @@ pub fn edit_input_system(
                     }
                 }
             } else if event.button == MouseButton::Left && event.state == ButtonState::Released {
-                for (entity, _, _) in &active_drag_query {
+                for (entity, _, _, _) in &active_drag_query {
                     commands.entity(entity).remove::<DragAction>();
                     info!("stop drag for {:?}", entity);
                 }
@@ -372,7 +381,7 @@ pub fn edit_input_system(
         // update dragged planes. Do this in two steps, only touch EditorObject as mutable if there is a relevant change
         // to prevent triggering the bevy change detection.
         let mut updates = Vec::new();
-        for (entity, drag_action, editor_object) in &active_drag_query {
+        for (entity, drag_action, editor_object, bounds) in &active_drag_query {
             let EditorObject::Brush(brush) = editor_object else {
                 warn!( "drag: not a brush: {:?}", entity);
                 continue;
@@ -414,7 +423,21 @@ pub fn edit_input_system(
             }
 
             if relevant_change {
-                updates.push((entity, EditorObject::Brush(new_brush)));
+                spatial_index
+                    .sstree
+                    .remove_if(&bounds.center, bounds.radius, |e| *e == entity)
+                    .expect("failed to remove edited brush from index");
+
+                let csg: csg::Csg = new_brush.clone().try_into().unwrap();
+                let (center, radius) = csg.bounding_sphere();
+                updates.push((
+                    entity,
+                    (
+                        EditorObject::Brush(new_brush),
+                        BoundingSphere { center, radius },
+                    ),
+                ));
+                spatial_index.sstree.insert(entity, center, radius);
             }
         }
 
@@ -426,10 +449,13 @@ pub fn edit_input_system(
                 commands.entity(entity).insert(obj);
             }
         } else {
-            for (entity, obj) in updates {
+            for (entity, (obj, bounds)) in updates {
                 info!("apply update on {:?}", entity);
-                if let Ok((_, _, mut target_obj)) = active_drag_query.get_mut(entity) {
+                if let Ok((_, _, mut target_obj, mut target_bounds)) =
+                    active_drag_query.get_mut(entity)
+                {
                     *target_obj = obj;
+                    *target_bounds = bounds;
                 }
             }
         }

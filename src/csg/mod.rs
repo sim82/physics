@@ -434,6 +434,32 @@ impl Csg {
         }
         Aabb::from_min_max(min, max)
     }
+
+    pub fn bounding_sphere(&self) -> (Vec3, f32) {
+        let num: f32 = self
+            .polygons
+            .iter()
+            .map(|p| p.vertices.len())
+            .sum::<usize>() as f32;
+        let center: Vec3 = self
+            .polygons
+            .iter()
+            .flat_map(|p| p.vertices.iter().map(|v| v.position / num))
+            .sum();
+        let radius = self
+            .polygons
+            .iter()
+            .flat_map(|p| {
+                p.vertices
+                    .iter()
+                    .map(|v| bevy::utils::FloatOrd((center - v.position).length()))
+            })
+            .max()
+            .unwrap()
+            .0;
+
+        (center, radius)
+    }
 }
 
 // Holds a node in a BSP tree. A BSP tree is built from a collection of polygons

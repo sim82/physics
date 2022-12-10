@@ -1,4 +1,5 @@
 use arrayvec::ArrayVec;
+use bevy::prelude::Vec3;
 
 pub const MAX_TREE_HEIGHT: usize = 16;
 
@@ -52,6 +53,16 @@ impl<const K: usize> DimIndex for [f32; K] {
     const NUM_DIMENSIONS: usize = K;
 }
 
+impl Distance for Vec3 {
+    fn distance(&self, other: &Self) -> f32 {
+        (*self - *other).length()
+    }
+}
+
+impl DimIndex for Vec3 {
+    const NUM_DIMENSIONS: usize = 3;
+}
+
 #[test]
 fn test_distance() {
     assert_eq!([0.0, 0.0].distance(&[1.0, 1.0]), 2.0f32.sqrt());
@@ -63,6 +74,18 @@ fn test_distance() {
 pub enum SsNodeLinks<P, K: Distance + DimIndex + PartialEq, const M: usize> {
     Inner(Box<ArrayVec<SsNode<P, K, M>, M>>),
     Leaf(Box<ArrayVec<Entry<P, K>, M>>),
+}
+
+#[test]
+fn test_bevy_vec3() {
+    let mut tree = SsTree::<u32, Vec3, 8>::default();
+    let a = Vec3::ZERO;
+    println!("{}", a[0]);
+    tree.insert_entry(Entry {
+        payload: 1,
+        center: Vec3::ZERO,
+        radius: 1.0,
+    });
 }
 
 #[derive(Debug)]
@@ -477,7 +500,14 @@ impl<P, K: Default + Distance + DimIndex + PartialEq, const M: usize> SsTree<P, 
         }
     }
 
-    pub fn insert(&mut self, entry: Entry<P, K>) {
+    pub fn insert(&mut self, payload: P, center: K, radius: f32) {
+        self.insert_entry(Entry {
+            center,
+            radius,
+            payload,
+        })
+    }
+    pub fn insert_entry(&mut self, entry: Entry<P, K>) {
         if let Some((new_child_1, new_child_2)) = self.root.insert(entry, self.m) {
             let mut nodes = ArrayVec::<_, M>::new();
             nodes.push(new_child_1);
@@ -861,8 +891,8 @@ fn test_search() {
 
     let mut tree = SsTree::<(), [f32; 2], UPPER_M>::new(LOWER_M);
 
-    tree.insert(Entry::new([0.0, 0.0], 1.0, ()));
-    tree.insert(Entry::new([5.0, 5.0], 1.0, ()));
+    tree.insert_entry(Entry::new([0.0, 0.0], 1.0, ()));
+    tree.insert_entry(Entry::new([5.0, 5.0], 1.0, ()));
 
     let mut out = Vec::new();
     tree.find_entries_within_radius(&[0.5, 0.5], 1.0, &mut out);

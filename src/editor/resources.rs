@@ -8,7 +8,7 @@ use bevy::{
 use bevy_egui::egui;
 use serde::{Deserialize, Serialize};
 
-use crate::material;
+use crate::{material, sstree::SsTree};
 
 use super::util::Orientation2d;
 
@@ -146,4 +146,9 @@ impl MaterialBrowser {
             }
         }
     }
+}
+
+#[derive(Resource, Default)]
+pub struct SpatialIndex {
+    pub sstree: SsTree<Entity, Vec3, 8>,
 }

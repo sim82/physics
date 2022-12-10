@@ -21,6 +21,7 @@ impl Plugin for EditorPlugin {
         app.add_startup_system(systems::setup);
         app.init_resource::<resources::Materials>();
         app.init_resource::<resources::MaterialBrowser>();
+        app.init_resource::<resources::SpatialIndex>();
         app.add_event::<CleanupCsgOutputEvent>();
         app.add_system_set(
             SystemSet::on_update(AppState::DebugMenu).with_system(systems::editor_input_system),

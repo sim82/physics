@@ -35,3 +35,9 @@ pub struct MaterialRef {
 
 #[derive(Component)]
 pub struct CsgCollisionOutput;
+
+#[derive(Component)]
+pub struct BoundingSphere {
+    pub center: Vec3,
+    pub radius: f32,
+}

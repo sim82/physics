@@ -6,7 +6,7 @@ use super::{
 use crate::{
     csg,
     editor::{components::CsgCollisionOutput, util::spawn_csg_split},
-    material, wsx,
+    material, sstree, wsx,
 };
 use bevy::{
     input::mouse::MouseWheel,
@@ -52,6 +52,7 @@ pub fn editor_input_system(
     mut offset: Local<Option<Vec3>>,
 
     editor_windows_2d: ResMut<resources::EditorWindows2d>,
+    mut spatial_index: ResMut<resources::SpatialIndex>,
 
     keycodes: Res<Input<KeyCode>>,
     mut mouse_wheel: EventReader<MouseWheel>,
@@ -69,12 +70,20 @@ pub fn editor_input_system(
     }
 
     if keycodes.just_pressed(KeyCode::B) {
+        let brush = csg::Brush::default();
+        let csg: csg::Csg = brush.clone().try_into().unwrap();
+        let (center, radius) = csg.bounding_sphere();
+
         let entity = commands
-            .spawn(EditorObject::Brush(csg::Brush::default()))
+            .spawn((
+                EditorObject::Brush(brush),
+                components::BoundingSphere { center, radius },
+            ))
             .id();
 
         info!("new brush: {:?}", entity);
         selection.primary = Some(entity);
+        spatial_index.sstree.insert(entity, center, radius);
     }
 
     if keycodes.just_pressed(KeyCode::D) {
