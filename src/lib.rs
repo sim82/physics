@@ -9,6 +9,7 @@ pub mod sky;
 pub mod slidemove;
 pub mod trace;
 pub mod wsx;
+pub mod sstree;
 pub mod norm {
     // srgb workaround from https://github.com/bevyengine/bevy/issues/6371
     use bevy::asset::{AssetLoader, Error, LoadContext, LoadedAsset};
