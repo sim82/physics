@@ -58,6 +58,7 @@ pub struct Materials {
     pub id_to_name_map: HashMap<i32, String>, // not really the right place as this specific to the last loaded wsx file
     pub symlinks: HashMap<String, String>,
     pub dirty_symlinks: HashSet<String>,
+    pub instantiated_materials: HashMap<String, Handle<StandardMaterial>>,
     // pub dirty: bool,
     // pub working_set: HashSet<Handle<StandardMaterial>>,
 }
@@ -70,13 +71,14 @@ impl Default for Materials {
             symlinks: default(),
             // dirty: false,
             dirty_symlinks: default(),
+            instantiated_materials: default(),
         }
     }
 }
 
 impl Materials {
     pub fn get(
-        &self,
+        &mut self,
         name: &str,
         materials: &mut Assets<StandardMaterial>,
         asset_server: &mut AssetServer,
@@ -86,12 +88,20 @@ impl Materials {
         } else {
             name
         };
-        let material = self.material_defs.get(name)?;
-        Some(material::instantiate_material(
-            materials,
-            material,
-            asset_server,
-        ))
+        match self.instantiated_materials.entry(name.to_string()) {
+            hash_map::Entry::Occupied(e) => Some(e.get().clone()),
+            hash_map::Entry::Vacant(mut e) => {
+                let material = self.material_defs.get(name)?;
+                Some(
+                    e.insert(material::instantiate_material(
+                        materials,
+                        material,
+                        asset_server,
+                    ))
+                    .clone(),
+                )
+            }
+        }
     }
 
     pub fn update_symlink(&mut self, selected_appearance: String, clicked: String) {

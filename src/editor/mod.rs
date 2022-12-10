@@ -27,9 +27,9 @@ impl Plugin for EditorPlugin {
             SystemSet::on_update(AppState::DebugMenu).with_system(systems::editor_input_system),
         )
         .add_startup_system(systems::setup_selection_vis_system)
-        .add_system(systems::cleanup_brush_csg_system.after(systems::update_material_refs))
-        .add_system(systems::create_brush_csg_system.after(systems::cleanup_brush_csg_system))
-        .add_system(systems::update_material_refs)
+        // .add_system(systems::cleanup_brush_csg_system.after(systems::update_material_refs))
+        // .add_system(systems::create_brush_csg_system.after(systems::cleanup_brush_csg_system))
+        // .add_system(systems::update_material_refs)
         .add_system(systems::track_primary_selection)
         .add_startup_system(ortho_systems::setup_editor_window)
         .init_resource::<resources::Selection>()
@@ -50,8 +50,13 @@ impl Plugin for EditorPlugin {
             FixedUpdateStage,
             SystemStage::parallel()
                 .with_run_criteria(FixedTimestep::step(0.5))
-                // .with_system(systems::update_brush_csg_system)
+                .with_system(systems::cleanup_brush_csg_system)
+                .with_system(systems::create_brush_csg_system)
+                .with_system(systems::update_material_refs)
                 .with_system(ortho_systems::write_window_settings),
         );
+
+        app.add_system_to_stage(CoreStage::PostUpdate, systems::update_material_refs);
+        app.add_system_to_stage(CoreStage::PostUpdate, systems::update_symlinked_materials);
     }
 }

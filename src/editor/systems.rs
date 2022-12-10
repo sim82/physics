@@ -213,80 +213,68 @@ pub fn editor_input_system(
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn update_material_refs(
-    mut commands: Commands,
-
     mut materials_res: ResMut<resources::Materials>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut asset_server: ResMut<AssetServer>,
 
-    query_changed: Query<(Entity, &components::MaterialRef), Changed<components::MaterialRef>>,
-    query_cleanup: Query<(Entity, &components::MaterialRef)>,
-    query_material: Query<&Handle<StandardMaterial>>,
+    mut query_changed: Query<
+        (
+            Entity,
+            &components::MaterialRef,
+            &mut Handle<StandardMaterial>,
+        ),
+        Changed<components::MaterialRef>,
+    >,
 ) {
     if query_changed.is_empty() && materials_res.dirty_symlinks.is_empty() {
         return;
     }
-    info!("dirty: {:?}", materials_res.dirty_symlinks);
     // asset_server.mark_unused_assets()
-    let mut drop_material = Vec::new();
-    for (entity, material_ref) in &query_changed {
-        let Some(material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
+    for (entity, material_ref, mut material) in &mut query_changed {
+        let Some(new_material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
             warn!( "material resource not found for {}", material_ref.material_name);
             continue;
         };
-        // new_working_set.insert(material.clone());
-        if let Ok(old_material) = query_material.get(entity) {
-            drop_material.push(old_material.clone());
-        }
-        commands.entity(entity).insert(material);
+        // commands.entity(entity).insert(material);
+        *material = new_material;
+        info!("material ref changed {:?}", entity);
     }
+}
 
-    for (entity, material_ref) in &query_cleanup {
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+pub fn update_symlinked_materials(
+    mut materials_res: ResMut<resources::Materials>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut asset_server: ResMut<AssetServer>,
+
+    mut query_cleanup: Query<(
+        Entity,
+        &components::MaterialRef,
+        &mut Handle<StandardMaterial>,
+    )>,
+) {
+    if materials_res.dirty_symlinks.is_empty() {
+        return;
+    }
+    debug!("dirty symlink: {:?}", materials_res.dirty_symlinks);
+
+    for (entity, material_ref, mut material) in &mut query_cleanup {
         if !materials_res
             .dirty_symlinks
             .contains(&material_ref.material_name)
         {
             continue;
         }
-        let Some(material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
+        let Some(new_material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
             warn!( "material resource not found for {}", material_ref.material_name);
             continue;
         };
-        // new_working_set.insert(material.clone());
-        if let Ok(old_material) = query_material.get(entity) {
-            drop_material.push(old_material.clone());
-        }
-        commands.entity(entity).insert(material);
+        // commands.entity(entity).insert(material);
+        *material = new_material;
+        info!("chnaged due to symlink {:?}", entity);
     }
 
-    // for material in drop_material
-    // // materials_res.working_set.difference(&new_working_set)
-    // {
-    //     info!("drop from working set: {:?}", material);
-
-    //     if let Some(material) = materials.remove(material) {
-    //         if let Some(image) = material.base_color_texture {
-    //             images.remove(image);
-    //         }
-    //         if let Some(image) = material.normal_map_texture {
-    //             images.remove(image);
-    //         }
-    //         if let Some(image) = material.metallic_roughness_texture {
-    //             images.remove(image);
-    //         }
-    //         if let Some(image) = material.occlusion_texture {
-    //             images.remove(image);
-    //         }
-    //         if let Some(image) = material.emissive_texture {
-    //             images.remove(image);
-    //         }
-    //     }
-    // }
-
-    // asset_server.mark_unused_assets();
-    // asset_server.free_unused_assets();
     materials_res.dirty_symlinks.clear();
-    // materials_res.working_set = new_working_set;
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
@@ -305,7 +293,7 @@ pub fn cleanup_brush_csg_system(
     for _ in event_reader.iter() {} // TODO: is this necessary?
                                     // if any Brush has changed, first delete all existing CsgOutput entities including mesh and material resources
     for (entity, mesh, material) in &query_cleanup {
-        debug!("cleanup {:?} {:?} {:?}", entity, mesh, material);
+        info!("cleanup {:?} {:?} {:?}", entity, mesh, material);
         meshes.remove(mesh);
         commands.entity(entity).despawn();
     }
