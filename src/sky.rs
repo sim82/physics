@@ -12,7 +12,7 @@ struct CycleTimer(Timer, usize);
 #[allow(unused)]
 // We can edit the Atmosphere resource and it will be updated automatically
 fn daylight_cycle(
-    mut atmosphere: ResMut<Atmosphere>,
+    mut atmosphere: AtmosphereMut<Nishita>,
     mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
     mut timer: ResMut<CycleTimer>,
     time: Res<Time>,
@@ -48,48 +48,48 @@ fn examples_cycle(mut commands: Commands, time: Res<Time>, mut timer: ResMut<Cyc
 
     if timer.0.finished() {
         let atmospheres = [
-            Atmosphere {
+            AtmosphereModel::new(Nishita {
                 sun_position: Vec3::new(0., 0., -1.),
                 ..default()
-            },
-            Atmosphere {
+            }),
+            AtmosphereModel::new(Nishita {
                 sun_position: Vec3::new(0., 0., -1.),
                 rayleigh_coefficient: Vec3::new(1e-5, 1e-5, 1e-5),
                 ..default()
-            },
-            Atmosphere {
+            }),
+            AtmosphereModel::new(Nishita {
                 rayleigh_coefficient: Vec3::new(2e-5, 1e-5, 2e-5),
                 ..default()
-            },
-            Atmosphere {
+            }),
+            AtmosphereModel::new(Nishita {
                 mie_coefficient: 5e-5,
                 ..default()
-            },
-            Atmosphere {
+            }),
+            AtmosphereModel::new(Nishita {
                 rayleigh_scale_height: 16e3,
                 mie_scale_height: 2.4e3,
                 ..default()
-            },
-            Atmosphere {
+            }),
+            AtmosphereModel::new(Nishita {
                 sun_intensity: 11.0,
                 ..default()
-            },
-            Atmosphere {
+            }),
+            AtmosphereModel::new(Nishita {
                 ray_origin: Vec3::new(0., 6372e3 / 2., 0.),
                 planet_radius: 6371e3 / 2.,
                 atmosphere_radius: 6471e3 / 2.,
                 ..default()
-            },
-            Atmosphere {
+            }),
+            AtmosphereModel::new(Nishita {
                 ray_origin: Vec3::new(6372e3, 0., 0.),
                 ..default()
-            },
-            Atmosphere {
+            }),
+            AtmosphereModel::new(Nishita {
                 mie_direction: -0.758,
                 ..default()
-            },
+            }),
         ];
-        commands.insert_resource(atmospheres[timer.1 % atmospheres.len()]);
+        commands.insert_resource(atmospheres[timer.1 % atmospheres.len()].clone());
         timer.1 += 1;
     }
 }
@@ -97,7 +97,7 @@ fn examples_cycle(mut commands: Commands, time: Res<Time>, mut timer: ResMut<Cyc
 pub struct SkyPlugin;
 impl Plugin for SkyPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Atmosphere::default()) // Default Atmosphere material, we can edit it to simulate another planet
+        app.insert_resource(AtmosphereModel::default()) // Default Atmosphere material, we can edit it to simulate another planet
             .insert_resource(CycleTimer(
                 Timer::new(
                     bevy::utils::Duration::from_millis(5000), // Update our atmosphere every 50ms (in a real game, this would be much slower, but for the sake of an example we use a faster update)

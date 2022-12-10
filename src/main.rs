@@ -412,7 +412,7 @@ fn setup(
         // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
         // .insert(RenderPlayer(0))
         .insert(PlayerCamera)
-        .insert(AtmosphereCamera(None))
+        .insert(AtmosphereCamera::default())
         .insert(Fxaa::default());
 
     if SPAWN_STUFF {
