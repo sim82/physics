@@ -329,7 +329,11 @@ fn write_material_images(
             Rgb::<u8>([0, r.get_pixel(x, y).0[0], m.get_pixel(x, y).0[0]])
         })
     } else {
-        roughness_image.into_rgb8()
+        let r = roughness_image.into_luma8(); // .expect("as_rgb8 failed");
+        ImageBuffer::from_fn(albedo_image.width(), albedo_image.height(), |x, y| {
+            Rgb::<u8>([0, r.get_pixel(x, y).0[0], 0])
+        })
+        // roughness_image.into_rgb8()
     };
     let albedo_output = format!("{}_albedo.png", name);
     let normal_output = format!("{}_normal.norm", name);
