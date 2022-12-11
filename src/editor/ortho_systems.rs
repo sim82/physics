@@ -539,20 +539,12 @@ pub fn edit_input_system(
 
         // info!("updates: {:?}", updates);
 
-        if false {
-            for (entity, obj) in updates {
-                info!("apply update on {:?}", entity);
-                commands.entity(entity).insert(obj);
-            }
-        } else {
-            for (entity, (obj, bounds)) in updates {
-                info!("apply update on {:?}", entity);
-                if let Ok((_, _, mut target_obj, mut target_bounds)) =
-                    active_drag_query.get_mut(entity)
-                {
-                    *target_obj = obj;
-                    *target_bounds = bounds;
-                }
+        for (entity, (obj, bounds)) in updates {
+            info!("apply update on {:?}", entity);
+            if let Ok((_, _, mut target_obj, mut target_bounds)) = active_drag_query.get_mut(entity)
+            {
+                *target_obj = obj;
+                *target_bounds = bounds;
             }
         }
     }
