@@ -12,7 +12,11 @@ use bevy::{
     input::mouse::MouseWheel,
     pbr::wireframe::Wireframe,
     prelude::{shape::Cube, *},
-    render::{primitives::Aabb, view::RenderLayers},
+    render::{
+        mesh,
+        primitives::{Aabb, Sphere},
+        view::RenderLayers,
+    },
     utils::Instant,
 };
 use std::{collections::BTreeSet, path::PathBuf};
@@ -478,6 +482,32 @@ pub fn track_2d_vis_system(
                     continue;
                 };
         *old_mesh = mesh;
+    }
+}
+
+pub fn track_lights_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    materials_res: Res<resources::Materials>,
+    query: Query<(Entity, &EditorObject, &Transform), (With<EditorObject>, Without<Handle<Mesh>>)>,
+    // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
+) {
+    for (entity, editor_object, transform) in &query {
+        if !matches!(editor_object, EditorObject::PointLight) {
+            continue;
+        }
+
+        commands.entity(entity).insert((
+            meshes.add(
+                mesh::shape::Icosphere {
+                    radius: 0.1,
+                    subdivisions: 2,
+                }
+                .into(),
+            ),
+            materials_res.get_brush_2d_material(),
+            RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+        ));
     }
 }
 
