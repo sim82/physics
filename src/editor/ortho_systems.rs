@@ -239,21 +239,19 @@ pub fn control_input_system(
         }
     }
 
-    // meh... seems as if I'm up to something
-    #[allow(clippy::never_loop)]
-    'outer: loop {
-        let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'outer;};
-        let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
+    'block: {
+        let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'block;};
+        let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'block; };
         let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
             warn!("2d window camera not found: {:?}", window.camera); 
-            break 'outer;
+            break 'block;
         };
 
         if mouse_buttons.just_pressed(MouseButton::Middle) {
             info!("middle down");
             let Some(ray) = camera.viewport_to_world(global_transform, editor_windows_2d.cursor_pos) else {
                 warn!("viewport_to_world failed in {}", focused_name); 
-                break 'outer;
+                break 'block;
             };
             let mut transforms = Vec::new();
             for (_name, window) in &editor_windows_2d.windows {
@@ -280,7 +278,7 @@ pub fn control_input_system(
         {
             let Some(ray) = camera.viewport_to_world(start_global_transform, editor_windows_2d.cursor_pos) else {
                 warn!("viewport_to_world failed in {}", focused_name); 
-                break 'outer;
+                break 'block;
             };
             let d = start_ray.origin - ray.origin;
             for (entity, start_transform) in start_transforms {
@@ -289,7 +287,6 @@ pub fn control_input_system(
                 }
             }
         }
-        break;
     }
     if keycodes.just_pressed(KeyCode::F2) {
         for (_, mut window) in &mut editor_windows_2d.windows {
@@ -330,19 +327,17 @@ pub fn edit_input_system(
     // LControl is 'select mode'. Prohibits start of edit actions (but they can still update or end)
     let start_edit_allowed = !keycodes.pressed(KeyCode::LControl);
 
-    // meh... seems as if I'm up to something
-    #[allow(clippy::never_loop)]
-    'outer: loop {
-        let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'outer;};
-        let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
+    'block: {
+        let Some((focused_name, _)) = &editor_windows_2d.focused else { break 'block;};
+        let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'block; };
         let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
             warn!("2d window camera not found: {:?}", window.camera); 
-            break 'outer;
+            break 'block;
         };
 
         let Some(ray) = camera.viewport_to_world(global_transform, editor_windows_2d.cursor_pos) else {
             warn!("viewport_to_world failed in {}", focused_name); 
-            break 'outer;
+            break 'block;
         };
 
         for event in mouse_button.iter() {
@@ -470,7 +465,6 @@ pub fn edit_input_system(
                 }
             }
         }
-        break;
     }
 }
 
@@ -509,18 +503,16 @@ pub fn select_input_system(
     {
         info!("select");
 
-        // meh... seems as if I'm up to something
-        #[allow(clippy::never_loop)]
-        'outer: loop {
-            let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'outer; };
+        'block: {
+            let Some(window) = editor_windows_2d.windows.get(focused_name) else { break 'block; };
             let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
                 warn!("2d window camera not found: {:?}", window.camera);
-                break 'outer;
+                break 'block;
             };
 
             let Some(ray) = camera.viewport_to_world(global_transform, editor_windows_2d.cursor_pos) else {
                 warn!("viewport_to_world failed in {}", focused_name); 
-                break 'outer;
+                break 'block;
             };
 
             for (entity, obj) in &brush_query {
@@ -535,7 +527,6 @@ pub fn select_input_system(
                     _ => (),
                 }
             }
-            break;
         }
     }
 }
