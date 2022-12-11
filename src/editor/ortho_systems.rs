@@ -301,6 +301,92 @@ pub fn control_input_system(
     }
 }
 
+pub fn adjust_clip_planes(
+    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
+    mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
+) {
+    let Some(upper) = editor_windows_2d.windows.get(UPPER_WINDOW) else {
+        return;
+    };
+    let Some(lower) = editor_windows_2d.windows.get(LOWER_WINDOW) else {
+        return;
+    };
+
+    let Ok((upper_transform, upper_camera, upper_projection, _)) = camera_query.get(upper.camera) else {
+        return;
+    };
+
+    let Ok((lower_transform, lower_camera, lower_projection, _)) = camera_query.get(lower.camera) else {
+        return;
+    };
+
+    let Some((Some(upper_min), Some(upper_max))) =
+        upper_camera.logical_viewport_rect().map(|(min, max)| {
+            (
+                upper_camera.viewport_to_world(upper_transform, min),
+                upper_camera.viewport_to_world(upper_transform, max),
+            )
+        }) else {
+            return;
+        };
+
+    let Some((Some(lower_min), Some(lower_max))) =
+        lower_camera.logical_viewport_rect().map(|(min, max)| {
+            (
+                lower_camera.viewport_to_world(lower_transform, min),
+                lower_camera.viewport_to_world(lower_transform, max),
+            )
+        }) else {
+            return;
+        };
+
+    // FIXME: this is all pretty much hardcoded to the 'Right' view
+    // info!("upper bounds: {:?} {:?}", upper_min, upper_max);
+    // info!("lower bounds: {:?} {:?}", lower_min, lower_max);
+
+    {
+        let xmin = upper_min.origin.x;
+        let xmax = upper_max.origin.x;
+
+        let Ok((_, _, mut lower_projection, mut lower_transform)) = camera_query.get_mut(lower.camera) else {
+            return;
+        };
+        let Projection::Orthographic(lower_ortho) = &mut *lower_projection else {
+            return;
+        };
+
+        lower_transform.translation.x = xmin;
+        lower_ortho.far = xmax - xmin;
+    }
+
+    {
+        let ymin = lower_min.origin.y;
+        let ymax = lower_max.origin.y;
+
+        let Ok((_, _, mut upper_projection, mut upper_transform)) = camera_query.get_mut(upper.camera) else {
+            return;
+        };
+        let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
+            return;
+        };
+
+        upper_transform.translation.y = ymax;
+        upper_ortho.far = ymax - ymin;
+    }
+
+    // info!("far: {}", lower_ortho.far);
+
+    // let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
+    //     return
+    // };
+    // let Projection::Orthographic(lower_ortho) = &mut *lower_projection else {
+    //     return
+    // };
+
+    // upper.camera
+    // info!("upper: {:?} {:?}", upper_projection,);
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn edit_input_system(
     mut commands: Commands,
