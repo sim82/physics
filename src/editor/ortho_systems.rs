@@ -423,12 +423,16 @@ pub fn edit_input_system(
             }
 
             if relevant_change {
+                let Ok(csg) : Result<csg::Csg,_> = new_brush.clone().try_into() else {
+                    warn!("edit action degenerates brush. ignoring.");
+                    continue;
+                };
+
                 spatial_index
                     .sstree
                     .remove_if(&bounds.center, bounds.radius, |e| *e == entity)
                     .expect("failed to remove edited brush from index");
 
-                let csg: csg::Csg = new_brush.clone().try_into().unwrap();
                 let (center, radius) = csg.bounding_sphere();
                 updates.push((
                     entity,
