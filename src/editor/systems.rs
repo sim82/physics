@@ -10,6 +10,7 @@ use crate::{
 };
 use bevy::{
     input::mouse::MouseWheel,
+    pbr::wireframe::Wireframe,
     prelude::{shape::Cube, *},
     render::{primitives::Aabb, view::RenderLayers},
     utils::Instant,
@@ -21,6 +22,7 @@ pub fn setup(
     mut material_browser: ResMut<resources::MaterialBrowser>,
     mut asset_server: ResMut<AssetServer>,
     mut egui_context: ResMut<bevy_egui::EguiContext>,
+    mut material_assets: ResMut<Assets<StandardMaterial>>,
 ) {
     materials_res.material_defs =
         material::load_all_material_files(PathBuf::from("assets").join("materials"))
@@ -42,6 +44,13 @@ pub fn setup(
         &mut asset_server,
         &mut egui_context,
     );
+    let mut material: StandardMaterial = Color::rgba(0.5, 0.5, 1.0, 0.2).into();
+    material.unlit = true;
+    materials_res.brush_2d = material_assets.add(material);
+
+    let mut material: StandardMaterial = Color::rgba(1.0, 0.5, 0.5, 0.4).into();
+    material.unlit = true;
+    materials_res.brush_2d_selected = material_assets.add(material);
     info!("loaded {} material defs", materials_res.material_defs.len());
 }
 
@@ -391,25 +400,82 @@ pub fn track_primary_selection(
 
 pub fn setup_selection_vis_system(
     mut command: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    materials_res: Res<resources::Materials>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let mut material: StandardMaterial = Color::rgba(0.5, 0.5, 1.0, 0.4).into();
-    material.unlit = true;
-
     command
         .spawn(PbrBundle {
             mesh: meshes.add(Cube::default().into()),
-            material: materials.add(material),
+            material: materials_res.get_brush_2d_selected_material(),
             ..default()
         })
         .insert(SelectionVis)
-        // .insert(Wireframe)
+        .insert(Wireframe)
         .insert(Name::new("selection"))
         .insert(RenderLayers::from_layers(&[
             render_layers::TOP_2D,
             render_layers::SIDE_2D,
         ]));
+}
+
+pub fn track_2d_vis_system(
+    mut command: Commands,
+    materials_res: Res<resources::Materials>,
+    mut meshes: ResMut<Assets<Mesh>>,
+
+    new_query: Query<(Entity, &EditorObject), (Changed<EditorObject>, Without<Handle<Mesh>>)>,
+    changed_query: Query<(Entity, &EditorObject, &Handle<Mesh>), Changed<EditorObject>>,
+) {
+    for (entity, editor_object) in &new_query {
+        #[allow(clippy::single_match)]
+        match editor_object {
+            EditorObject::Brush(brush) => {
+                let Ok(csg) : Result<csg::Csg, _> = brush.clone().try_into() else {
+                    error!( "failed to create mesh for brush");
+                    continue
+                };
+                let mesh: Mesh = (&csg).into();
+
+                command
+                    .entity(entity)
+                    .insert(PbrBundle {
+                        mesh: meshes.add(mesh),
+                        material: materials_res.get_brush_2d_material(),
+                        ..default()
+                    })
+                    // .insert(Wireframe)
+                    .insert(RenderLayers::from_layers(&[
+                        render_layers::TOP_2D,
+                        render_layers::SIDE_2D,
+                    ]));
+            }
+            _ => (),
+        }
+    }
+
+    for (entity, editor_object, mesh_handle) in &changed_query {
+        #[allow(clippy::single_match)]
+        match editor_object {
+            EditorObject::Brush(brush) => {
+                let Ok(csg) : Result<csg::Csg, _> = brush.clone().try_into() else {
+                    error!( "failed to create mesh for brush");
+                    continue
+                };
+
+                let mesh: Mesh = (&csg).into();
+                // FIXME: use one material for all 2d brushes
+                let mut material: StandardMaterial = Color::rgba(0.5, 0.5, 1.0, 0.2).into();
+                material.unlit = true;
+
+                let Some(old_mesh) = meshes.get_mut(mesh_handle) else {
+                    error!( "could not lookup existing mesh");
+                    continue;
+                };
+                *old_mesh = mesh;
+            }
+            _ => (),
+        }
+    }
 }
 
 pub fn load_save_editor_objects(

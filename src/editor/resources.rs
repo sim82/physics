@@ -59,8 +59,10 @@ pub struct Materials {
     pub symlinks: HashMap<String, String>,
     pub dirty_symlinks: HashSet<String>,
     pub instantiated_materials: HashMap<String, Handle<StandardMaterial>>,
-    // pub dirty: bool,
-    // pub working_set: HashSet<Handle<StandardMaterial>>,
+
+    // special purpose materials for 2d views
+    pub brush_2d: Handle<StandardMaterial>,
+    pub brush_2d_selected: Handle<StandardMaterial>,
 }
 
 impl Default for Materials {
@@ -72,6 +74,8 @@ impl Default for Materials {
             // dirty: false,
             dirty_symlinks: default(),
             instantiated_materials: default(),
+            brush_2d: default(),
+            brush_2d_selected: default(),
         }
     }
 }
@@ -109,6 +113,13 @@ impl Materials {
             *linked_material = clicked;
             self.dirty_symlinks.insert(selected_appearance);
         }
+    }
+
+    pub fn get_brush_2d_material(&self) -> Handle<StandardMaterial> {
+        self.brush_2d.clone()
+    }
+    pub fn get_brush_2d_selected_material(&self) -> Handle<StandardMaterial> {
+        self.brush_2d_selected.clone()
     }
 }
 

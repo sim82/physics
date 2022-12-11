@@ -26,7 +26,7 @@ impl Plugin for EditorPlugin {
         app.add_system_set(
             SystemSet::on_update(AppState::DebugMenu).with_system(systems::editor_input_system),
         )
-        .add_startup_system(systems::setup_selection_vis_system)
+        .add_startup_system(systems::setup_selection_vis_system.after(systems::setup))
         // .add_system(systems::cleanup_brush_csg_system.after(systems::update_material_refs))
         // .add_system(systems::create_brush_csg_system.after(systems::cleanup_brush_csg_system))
         // .add_system(systems::update_material_refs)
@@ -58,5 +58,6 @@ impl Plugin for EditorPlugin {
 
         app.add_system_to_stage(CoreStage::PostUpdate, systems::update_material_refs);
         app.add_system_to_stage(CoreStage::PostUpdate, systems::update_symlinked_materials);
+        app.add_system_to_stage(CoreStage::PostUpdate, systems::track_2d_vis_system);
     }
 }
