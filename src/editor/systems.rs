@@ -1,5 +1,5 @@
 use super::{
-    components::{self, CsgOutput, EditorObject, SelectionVis},
+    components::{self, CsgOutput, CsgRepresentation, EditorObject, SelectionVis},
     resources::{self, Selection},
     CleanupCsgOutputEvent,
 };
@@ -88,7 +88,11 @@ pub fn editor_input_system(
         let entity = commands
             .spawn((
                 EditorObject::Brush(brush),
-                components::BoundingSphere { center, radius },
+                components::CsgRepresentation {
+                    center,
+                    radius,
+                    csg,
+                },
             ))
             .id();
 
@@ -99,9 +103,22 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::D) {
         if let Some(primary) = selection.primary {
-            if let Ok(obj) = query.get(primary) {
-                let entity = commands.spawn(obj.clone()).id();
+            if let Ok(EditorObject::Brush(brush)) = query.get(primary) {
+                let csg: csg::Csg = brush.clone().try_into().unwrap();
+                let (center, radius) = csg.bounding_sphere();
 
+                let entity = commands
+                    .spawn((
+                        EditorObject::Brush(brush.clone()),
+                        components::CsgRepresentation {
+                            center,
+                            radius,
+                            csg,
+                        },
+                    ))
+                    .id();
+
+                spatial_index.sstree.insert(entity, center, radius);
                 info!("duplicate brush: {:?} -> {:?}", primary, entity);
                 selection.primary = Some(entity);
             }
@@ -321,35 +338,37 @@ pub fn create_brush_csg_system(
     mut meshes: ResMut<Assets<Mesh>>,
     materials_res: ResMut<resources::Materials>,
 
-    query: Query<&EditorObject>,
-    query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
+    query: Query<&components::CsgRepresentation>,
+    query_changed: Query<Entity, Changed<components::CsgRepresentation>>,
 ) {
     if query_changed.is_empty() {
         return;
     }
 
-    for (entity, _) in query_changed.iter() {
+    for entity in query_changed.iter() {
         debug!("changed: {:?}", entity);
     }
 
     let start = Instant::now();
 
-    let mut csgs = query
-        .iter()
-        .filter_map(|brush| match brush {
-            EditorObject::Csg(csg) => Some(csg.clone()),
-            EditorObject::Brush(brush) => brush.clone().try_into().ok(),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+    // let mut csgs = query
+    //     .iter()
+    //     .filter_map(|brush| match brush {
+    //         EditorObject::Csg(csg) => Some(csg.clone()),
+    //         EditorObject::Brush(brush) => brush.clone().try_into().ok(),
+    //         _ => None,
+    //     })
+    //     .collect::<Vec<_>>();
 
-    let Some(mut u) = csgs.pop() else {
+    let mut csgs = query.iter().map(|x| &x.csg).collect::<Vec<_>>();
+
+    let Some(mut u) = csgs.pop().cloned() else {
         info!( "no Csg brushes");
         return;
     };
 
     for csg in csgs {
-        u = csg::union(&u, &csg).unwrap();
+        u = csg::union(&u, csg).unwrap();
     }
 
     u.invert();
@@ -420,63 +439,45 @@ pub fn setup_selection_vis_system(
         ]));
 }
 
+#[allow(clippy::type_complexity)]
 pub fn track_2d_vis_system(
     mut command: Commands,
     materials_res: Res<resources::Materials>,
     mut meshes: ResMut<Assets<Mesh>>,
 
-    new_query: Query<(Entity, &EditorObject), (Changed<EditorObject>, Without<Handle<Mesh>>)>,
-    changed_query: Query<(Entity, &EditorObject, &Handle<Mesh>), Changed<EditorObject>>,
+    new_query: Query<
+        (Entity, &CsgRepresentation),
+        (Changed<CsgRepresentation>, Without<Handle<Mesh>>),
+    >,
+    changed_query: Query<(Entity, &CsgRepresentation, &Handle<Mesh>), Changed<CsgRepresentation>>,
 ) {
-    for (entity, editor_object) in &new_query {
-        #[allow(clippy::single_match)]
-        match editor_object {
-            EditorObject::Brush(brush) => {
-                let Ok(csg) : Result<csg::Csg, _> = brush.clone().try_into() else {
-                    error!( "failed to create mesh for brush");
-                    continue
-                };
-                let mesh: Mesh = (&csg).into();
+    for (entity, csg_rep) in &new_query {
+        info!("new");
 
-                command
-                    .entity(entity)
-                    .insert(PbrBundle {
-                        mesh: meshes.add(mesh),
-                        material: materials_res.get_brush_2d_material(),
-                        ..default()
-                    })
-                    // .insert(Wireframe)
-                    .insert(RenderLayers::from_layers(&[
-                        render_layers::TOP_2D,
-                        render_layers::SIDE_2D,
-                    ]));
-            }
-            _ => (),
-        }
+        let mesh: Mesh = (&csg_rep.csg).into();
+
+        command
+            .entity(entity)
+            .insert(PbrBundle {
+                mesh: meshes.add(mesh),
+                material: materials_res.get_brush_2d_material(),
+                ..default()
+            })
+            // .insert(Wireframe)
+            .insert(RenderLayers::from_layers(&[
+                render_layers::TOP_2D,
+                render_layers::SIDE_2D,
+            ]));
     }
 
-    for (entity, editor_object, mesh_handle) in &changed_query {
-        #[allow(clippy::single_match)]
-        match editor_object {
-            EditorObject::Brush(brush) => {
-                let Ok(csg) : Result<csg::Csg, _> = brush.clone().try_into() else {
-                    error!( "failed to create mesh for brush");
-                    continue
-                };
+    for (_entity, csg_rep, mesh_handle) in &changed_query {
+        let mesh: Mesh = (&csg_rep.csg).into();
 
-                let mesh: Mesh = (&csg).into();
-                // FIXME: use one material for all 2d brushes
-                let mut material: StandardMaterial = Color::rgba(0.5, 0.5, 1.0, 0.2).into();
-                material.unlit = true;
-
-                let Some(old_mesh) = meshes.get_mut(mesh_handle) else {
+        let Some(old_mesh) = meshes.get_mut(mesh_handle) else {
                     error!( "could not lookup existing mesh");
                     continue;
                 };
-                *old_mesh = mesh;
-            }
-            _ => (),
-        }
+        *old_mesh = mesh;
     }
 }
 

@@ -22,7 +22,7 @@ use super::{
 use crate::{
     csg::{self, PLANE_EPSILON},
     editor::{
-        components::{BoundingSphere, DragAction, DragActionType},
+        components::{CsgRepresentation, DragAction, DragActionType},
         util::SnapToGrid,
     },
     render_layers,
@@ -403,7 +403,7 @@ pub fn edit_input_system(
             Entity,
             &DragAction,
             &mut EditorObject,
-            &mut components::BoundingSphere,
+            &mut components::CsgRepresentation,
         ),
         With<DragAction>,
     >,
@@ -526,7 +526,11 @@ pub fn edit_input_system(
                     entity,
                     (
                         EditorObject::Brush(new_brush),
-                        BoundingSphere { center, radius },
+                        CsgRepresentation {
+                            center,
+                            radius,
+                            csg,
+                        },
                     ),
                 ));
                 spatial_index.sstree.insert(entity, center, radius);

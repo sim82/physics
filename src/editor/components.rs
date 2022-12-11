@@ -1,5 +1,6 @@
-use crate::csg::{Brush, Csg};
+use crate::csg::{self, Brush, Csg};
 use bevy::prelude::*;
+use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Component, Serialize, Deserialize)]
@@ -36,8 +37,9 @@ pub struct MaterialRef {
 #[derive(Component)]
 pub struct CsgCollisionOutput;
 
-#[derive(Component)]
-pub struct BoundingSphere {
+#[derive(Component, Inspectable)]
+pub struct CsgRepresentation {
     pub center: Vec3,
     pub radius: f32,
+    pub csg: csg::Csg,
 }

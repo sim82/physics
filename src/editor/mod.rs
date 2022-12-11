@@ -1,4 +1,5 @@
 use bevy::{prelude::*, time::FixedTimestep};
+use bevy_inspector_egui::RegisterInspectable;
 
 use crate::AppState;
 
@@ -60,5 +61,7 @@ impl Plugin for EditorPlugin {
         app.add_system_to_stage(CoreStage::PostUpdate, systems::update_symlinked_materials);
         app.add_system_to_stage(CoreStage::PostUpdate, systems::track_2d_vis_system);
         app.add_system_to_stage(CoreStage::PostUpdate, ortho_systems::adjust_clip_planes);
+
+        app.register_inspectable::<components::CsgRepresentation>();
     }
 }

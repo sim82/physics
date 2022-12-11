@@ -68,7 +68,7 @@ use self::texgen::Texgen;
 
 // clean slate, bevy flavoured, port of csg.js
 
-#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, bevy_inspector_egui::Inspectable)]
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
@@ -106,7 +106,7 @@ impl Vertex {
 // point is on the plane.
 pub const PLANE_EPSILON: f32 = 1e-3; // HACK: work around stability problems. not sure if this is the right approach
 
-#[derive(Clone, Debug, Default, Copy, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Copy, Serialize, Deserialize, bevy_inspector_egui::Inspectable)]
 pub struct Plane {
     pub normal: Vec3,
     pub w: f32,
@@ -274,7 +274,7 @@ impl Plane {
 // TODO: Each convex polygon has a `shared` property, which is shared between all
 // polygons that are clones of each other or were split from the same polygon.
 // This can be used to define per-polygon properties (such as surface color).
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bevy_inspector_egui::Inspectable)]
 pub struct Polygon {
     pub vertices: Vec<Vertex>,
     pub plane: Plane,
@@ -326,7 +326,7 @@ impl Polygon {
 
 // Holds a binary space partition tree representing a 3D solid. Two solids can
 // be combined using the `union()`, `subtract()`, and `intersect()` functions.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bevy_inspector_egui::Inspectable)]
 pub struct Csg {
     pub polygons: Vec<Polygon>,
 }
