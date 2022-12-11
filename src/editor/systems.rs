@@ -6,12 +6,12 @@ use super::{
 use crate::{
     csg,
     editor::{components::CsgCollisionOutput, util::spawn_csg_split},
-    material, sstree, wsx,
+    material, render_layers, sstree, wsx,
 };
 use bevy::{
     input::mouse::MouseWheel,
     prelude::{shape::Cube, *},
-    render::primitives::Aabb,
+    render::{primitives::Aabb, view::RenderLayers},
     utils::Instant,
 };
 use std::path::PathBuf;
@@ -405,7 +405,11 @@ pub fn setup_selection_vis_system(
         })
         .insert(SelectionVis)
         // .insert(Wireframe)
-        .insert(Name::new("selection"));
+        .insert(Name::new("selection"))
+        .insert(RenderLayers::from_layers(&[
+            render_layers::TOP_2D,
+            render_layers::SIDE_2D,
+        ]));
 }
 
 pub fn load_save_editor_objects(

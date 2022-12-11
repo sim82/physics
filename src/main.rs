@@ -13,6 +13,7 @@ use bevy::{
     render::{
         mesh::{self},
         render_resource::{Extent3d, TextureDimension, TextureFormat},
+        view::RenderLayers,
     },
 };
 use bevy_atmosphere::prelude::*;
@@ -407,13 +408,15 @@ fn setup(
             Transform::from_xyz(10.0, 1.01, 10.0), //.looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
         );
 
+    const LAYER_MAIN_3D: u8 = 0;
     commands
         .spawn(Camera3dBundle::default())
         // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
         // .insert(RenderPlayer(0))
         .insert(PlayerCamera)
         .insert(AtmosphereCamera::default())
-        .insert(Fxaa::default());
+        .insert(Fxaa::default())
+        .insert(RenderLayers::layer(LAYER_MAIN_3D));
 
     if SPAWN_STUFF {
         const HALF_SIZE: f32 = 5.0;

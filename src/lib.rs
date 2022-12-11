@@ -7,9 +7,9 @@ pub mod csg;
 pub mod editor;
 pub mod sky;
 pub mod slidemove;
+pub mod sstree;
 pub mod trace;
 pub mod wsx;
-pub mod sstree;
 pub mod norm {
     // srgb workaround from https://github.com/bevyengine/bevy/issues/6371
     use bevy::asset::{AssetLoader, Error, LoadContext, LoadedAsset};
@@ -46,6 +46,14 @@ pub mod norm {
 }
 
 pub mod material;
+
+pub mod render_layers {
+    use bevy::render::view::Layer;
+
+    pub const MAIN_3D: Layer = 0;
+    pub const TOP_2D: Layer = 1;
+    pub const SIDE_2D: Layer = 2;
+}
 
 pub const OVERCLIP: f32 = 1.001;
 

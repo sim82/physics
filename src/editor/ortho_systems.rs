@@ -6,7 +6,10 @@ use bevy::{
         ButtonState,
     },
     prelude::*,
-    render::camera::{Projection, RenderTarget, ScalingMode},
+    render::{
+        camera::{Projection, RenderTarget, ScalingMode},
+        view::RenderLayers,
+    },
     utils::HashMap,
     window::{CreateWindow, WindowFocused, WindowId, WindowResized},
 };
@@ -22,6 +25,7 @@ use crate::{
         components::{BoundingSphere, DragAction, DragActionType},
         util::SnapToGrid,
     },
+    render_layers,
 };
 // systems related to 2d windows
 
@@ -43,16 +47,18 @@ pub fn setup_editor_window(
             UPPER_WINDOW,
             None,
             Orientation2d::DownFront,
+            RenderLayers::layer(render_layers::TOP_2D),
             // Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::X),
         ),
         (
             LOWER_WINDOW,
             None,
             Orientation2d::Front,
+            RenderLayers::layer(render_layers::SIDE_2D),
             // Transform::from_xyz(-6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
         ),
     ];
-    for (i, (name, window2d, t)) in transforms.iter_mut().enumerate() {
+    for (i, (name, window2d, t, render_layer)) in transforms.iter_mut().enumerate() {
         let settings = settings_map
             .get(*name)
             .cloned()
@@ -95,6 +101,7 @@ pub fn setup_editor_window(
                 }),
                 ..default()
             })
+            .insert(*render_layer)
             .id();
 
         *window2d = Some(resources::EditorWindow2d {
@@ -107,7 +114,7 @@ pub fn setup_editor_window(
     // extract name and Some(Window2d) values into name -> Window2d map
     editor_windows_2d.windows = transforms
         .drain(..)
-        .filter_map(|(name, window2d, _)| window2d.map(|window2d| (name.to_owned(), window2d)))
+        .filter_map(|(name, window2d, _, _)| window2d.map(|window2d| (name.to_owned(), window2d)))
         .collect()
 }
 

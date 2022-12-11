@@ -1,8 +1,14 @@
-use bevy::{prelude::*, render::mesh};
+use bevy::{
+    prelude::*,
+    render::{mesh, view::RenderLayers},
+};
 use bevy_rapier3d::prelude::Collider;
 use serde::{Deserialize, Serialize};
 
-use crate::csg::{self, Csg};
+use crate::{
+    csg::{self, Csg},
+    render_layers,
+};
 
 use super::{
     components::{self, CsgOutput},
@@ -128,6 +134,7 @@ pub fn spawn_csg_split(
                     material_name: material_name.clone(),
                 },
                 Name::new(format!("csg {:?}", material_name)),
+                RenderLayers::layer(render_layers::MAIN_3D),
             ));
         } else {
             entity_commands.insert(Name::new("csg <no material>"));
