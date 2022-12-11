@@ -15,7 +15,7 @@ use bevy::{
     render::{primitives::Aabb, view::RenderLayers},
     utils::Instant,
 };
-use std::path::PathBuf;
+use std::{collections::BTreeSet, path::PathBuf};
 
 pub fn setup(
     mut materials_res: ResMut<resources::Materials>,
@@ -46,10 +46,12 @@ pub fn setup(
     );
     let mut material: StandardMaterial = Color::rgba(0.5, 0.5, 1.0, 0.2).into();
     material.unlit = true;
+    material.cull_mode = None;
     materials_res.brush_2d = material_assets.add(material);
 
     let mut material: StandardMaterial = Color::rgba(1.0, 0.5, 0.5, 0.4).into();
     material.unlit = true;
+    material.cull_mode = None;
     materials_res.brush_2d_selected = material_assets.add(material);
     info!("loaded {} material defs", materials_res.material_defs.len());
 }
@@ -513,7 +515,9 @@ pub fn load_save_editor_objects(
     if keycodes.just_pressed(KeyCode::F7) {
         // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
 
+        let materials = &mut *materials;
         // let filename = &"t4.wsx";
+        // let filename = &"x8.wsx";
         let filename = &"nav3.wsx";
         let (brushes, appearance_map) = wsx::load_brushes(filename);
         materials.id_to_name_map = appearance_map;
@@ -522,6 +526,17 @@ pub fn load_save_editor_objects(
         }
         for brush in &brushes[..] {
             commands.spawn(EditorObject::Brush(brush.clone()));
+        }
+
+        let appearance_names = materials.id_to_name_map.values().collect::<BTreeSet<_>>();
+        let mut material_names = materials.material_defs.keys();
+        for name in appearance_names {
+            match materials.symlinks.entry(name.clone()) {
+                bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
+                    e.insert(material_names.next().unwrap().clone());
+                }
+                bevy::utils::hashbrown::hash_map::Entry::Occupied(_) => (),
+            }
         }
 
         // TODO: do not load twice. Probably makes no difference, but I still hate it...

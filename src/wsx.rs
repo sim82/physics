@@ -23,7 +23,7 @@ pub struct SceneNodes {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SceneNode {
     pub id: i32,
-    pub def: String,
+    pub def: Option<String>,
     pub Properties: Properties,
     pub Components: Components,
 }
@@ -34,6 +34,7 @@ pub struct Properties {
     pub origin: String,
     pub csgLevel: Option<i32>,
     pub attenuationRadius: Option<f32>,
+    pub thingdef: Option<String>,
 }
 
 #[allow(non_snake_case)]
@@ -120,7 +121,14 @@ pub fn load_brushes<F: AsRef<Path>>(filename: F) -> (Vec<csg::Brush>, HashMap<i3
     let mut next_appearance = 0;
     for node in &wsx.SceneNodes.SceneNode {
         // ignore csg level 2 or higher
-        if node.def != "CsgBrush" || !matches!(node.Properties.csgLevel, None | Some(1)) {
+        if node
+            .def
+            .clone()
+            .or_else(|| node.Properties.thingdef.clone())
+            .unwrap_or_default()
+            != "CsgBrush"
+            || !matches!(node.Properties.csgLevel, None | Some(1))
+        {
             continue;
         }
 
@@ -142,7 +150,7 @@ pub fn load_brushes<F: AsRef<Path>>(filename: F) -> (Vec<csg::Brush>, HashMap<i3
                 };
             }
 
-            // println!("{:?}", csg_brush);
+            println!("{:?}", csg_brush);
             res.push(csg_brush);
         }
     }
@@ -165,7 +173,13 @@ pub fn load_pointlights<F: AsRef<Path>>(filename: F) -> Vec<(Vec3, f32)> {
     let mut res = Vec::new();
     for node in &wsx.SceneNodes.SceneNode {
         // ignore csg level 2 or higher
-        if node.def != "PointLight" {
+        if node
+            .def
+            .clone()
+            .or_else(|| node.Properties.thingdef.clone())
+            .unwrap_or_default()
+            != "PointLight"
+        {
             continue;
         }
 
