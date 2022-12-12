@@ -377,14 +377,33 @@ pub fn create_brush_csg_system_inc(
     mut meshes: ResMut<Assets<Mesh>>,
     materials_res: ResMut<resources::Materials>,
 
-    mut query_changed: Query<
-        (Entity, &CsgRepresentation, &mut CsgOutputLink),
-        Changed<components::CsgRepresentation>,
-    >,
+    mut query_changed: Query<(Entity, &CsgRepresentation), Changed<components::CsgRepresentation>>,
+    // mut query_changed: Query<
+    //     (Entity, &CsgRepresentation, &mut CsgOutputLink),
+    //     Changed<components::CsgRepresentation>,
+    // >,
     query_csg: Query<&CsgRepresentation>,
+    mut query_csg_out: Query<&mut CsgOutputLink>,
 ) {
-    // let mut affected = HashSet::new();
-    for (entity, csg_repr, mut csg_output) in &mut query_changed {
+    let mut affected = query_changed.iter().map(|(e, _)| e).collect::<HashSet<_>>();
+
+    for (entity, csg_repr) in &mut query_changed {
+        let mut out = Vec::new();
+        spatial_index.sstree.find_entries_within_radius(
+            &csg_repr.center,
+            csg_repr.radius,
+            &mut out,
+        );
+        affected.extend(out.drain(..).map(|entry| entry.payload));
+    }
+
+    // for (entity, csg_repr, mut csg_output) in &mut query_changed {
+    for entity in affected {
+        let Ok(csg_repr) = query_csg.get(entity) else {
+            error!("affected csg not found for {:?}", entity);
+            continue;
+        };
+
         info!("csg changed: {:?}", entity);
         let mut out = Vec::new();
         spatial_index.sstree.find_entries_within_radius(
@@ -411,9 +430,12 @@ pub fn create_brush_csg_system_inc(
         }
         bsp.invert();
 
+        let mut csg_output = query_csg_out.get_mut(entity).expect("missing csg_out"); // should be impossible if CsgOutputLink is always created in bundle with CsgRepresentation
+
         for entity in csg_output.entities.drain(..) {
             commands.entity(entity).despawn();
         }
+
         csg_output.entities = spawn_csg_split(
             &mut commands,
             &materials_res,
