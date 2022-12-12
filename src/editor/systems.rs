@@ -1,11 +1,14 @@
 use super::{
     components::{self, CsgOutput, CsgRepresentation, EditorObject, SelectionVis},
-    resources::{self, Selection},
+    resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
 };
 use crate::{
     csg,
-    editor::{components::CsgCollisionOutput, util::spawn_csg_split},
+    editor::{
+        components::{BrushBundle, CsgCollisionOutput},
+        util::spawn_csg_split,
+    },
     material, render_layers, sstree, wsx,
 };
 use bevy::{
@@ -17,7 +20,7 @@ use bevy::{
         primitives::{Aabb, Sphere},
         view::RenderLayers,
     },
-    utils::Instant,
+    utils::{HashSet, Instant},
 };
 use std::{collections::BTreeSet, path::PathBuf};
 
@@ -85,44 +88,17 @@ pub fn editor_input_system(
     }
 
     if keycodes.just_pressed(KeyCode::B) {
-        let brush = csg::Brush::default();
-        let csg: csg::Csg = brush.clone().try_into().unwrap();
-        let (center, radius) = csg.bounding_sphere();
-
-        let entity = commands
-            .spawn((
-                EditorObject::Brush(brush),
-                components::CsgRepresentation {
-                    center,
-                    radius,
-                    csg,
-                },
-            ))
-            .id();
+        let entity = commands.spawn(BrushBundle::from_brush(default())).id();
 
         info!("new brush: {:?}", entity);
         selection.primary = Some(entity);
-        spatial_index.sstree.insert(entity, center, radius);
+        // spatial_index.sstree.insert(entity, center, radius);
     }
 
     if keycodes.just_pressed(KeyCode::D) {
         if let Some(primary) = selection.primary {
             if let Ok(EditorObject::Brush(brush)) = query.get(primary) {
-                let csg: csg::Csg = brush.clone().try_into().unwrap();
-                let (center, radius) = csg.bounding_sphere();
-
-                let entity = commands
-                    .spawn((
-                        EditorObject::Brush(brush.clone()),
-                        components::CsgRepresentation {
-                            center,
-                            radius,
-                            csg,
-                        },
-                    ))
-                    .id();
-
-                spatial_index.sstree.insert(entity, center, radius);
+                let entity = commands.spawn(BrushBundle::from_brush(brush.clone())).id();
                 info!("duplicate brush: {:?} -> {:?}", primary, entity);
                 selection.primary = Some(entity);
             }
@@ -244,7 +220,7 @@ pub fn editor_input_system(
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn update_material_refs(
+pub fn update_material_refs_system(
     mut materials_res: ResMut<resources::Materials>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut asset_server: ResMut<AssetServer>,
@@ -274,7 +250,7 @@ pub fn update_material_refs(
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn update_symlinked_materials(
+pub fn update_symlinked_materials_system(
     mut materials_res: ResMut<resources::Materials>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut asset_server: ResMut<AssetServer>,
@@ -511,6 +487,40 @@ pub fn track_lights_system(
     }
 }
 
+pub fn track_spatial_index_system(
+    mut spatial_index: ResMut<resources::SpatialIndex>,
+    query_added: Query<(Entity, &CsgRepresentation), Added<CsgRepresentation>>,
+    query_modified: Query<(Entity, &CsgRepresentation), Changed<CsgRepresentation>>,
+) {
+    let mut added_set = HashSet::new();
+    for (entity, csg_repr) in &query_added {
+        spatial_index
+            .sstree
+            .insert(entity, csg_repr.center, csg_repr.radius);
+        added_set.insert(entity);
+    }
+    for (entity, csg_repr) in &query_modified {
+        if added_set.contains(&entity) {
+            continue;
+        }
+
+        let Some(_entry)  = spatial_index
+            .sstree
+            .remove_if(&csg_repr.center, csg_repr.radius, |e| *e == entity) else {
+                error!( "failed to remove brush from spatial index for update");
+                panic!( "aborting.");
+                continue;
+            };
+        info!(
+            "update: {:?} {} -> {:?} {}",
+            _entry.center, _entry.radius, csg_repr.center, csg_repr.radius
+        );
+        spatial_index
+            .sstree
+            .insert(entity, csg_repr.center, csg_repr.radius);
+    }
+}
+
 pub fn load_save_editor_objects(
     mut commands: Commands,
     mut event_writer: EventWriter<CleanupCsgOutputEvent>,
@@ -555,8 +565,8 @@ pub fn load_save_editor_objects(
         for (entity, _) in existing_objects.iter() {
             commands.entity(entity).despawn();
         }
-        for brush in &brushes[..] {
-            commands.spawn(EditorObject::Brush(brush.clone()));
+        for brush in brushes {
+            commands.spawn(BrushBundle::from_brush(brush));
         }
 
         let appearance_names = materials.id_to_name_map.values().collect::<BTreeSet<_>>();

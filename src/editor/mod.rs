@@ -53,15 +53,22 @@ impl Plugin for EditorPlugin {
                 .with_run_criteria(FixedTimestep::step(0.5))
                 .with_system(systems::cleanup_brush_csg_system)
                 .with_system(systems::create_brush_csg_system)
-                .with_system(systems::update_material_refs)
+                .with_system(systems::update_material_refs_system)
                 .with_system(ortho_systems::write_window_settings),
         );
 
-        app.add_system_to_stage(CoreStage::PostUpdate, systems::update_material_refs);
-        app.add_system_to_stage(CoreStage::PostUpdate, systems::update_symlinked_materials);
+        app.add_system_to_stage(CoreStage::PostUpdate, systems::update_material_refs_system);
+        app.add_system_to_stage(
+            CoreStage::PostUpdate,
+            systems::update_symlinked_materials_system,
+        );
         app.add_system_to_stage(CoreStage::PostUpdate, systems::track_2d_vis_system);
-        app.add_system_to_stage(CoreStage::PostUpdate, ortho_systems::adjust_clip_planes);
+        app.add_system_to_stage(
+            CoreStage::PostUpdate,
+            ortho_systems::adjust_clip_planes_system,
+        );
         app.add_system_to_stage(CoreStage::PostUpdate, systems::track_lights_system);
+        app.add_system_to_stage(CoreStage::PostUpdate, systems::track_spatial_index_system);
 
         app.register_inspectable::<components::CsgRepresentation>();
     }

@@ -301,7 +301,7 @@ pub fn control_input_system(
     }
 }
 
-pub fn adjust_clip_planes(
+pub fn adjust_clip_planes_system(
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
 ) {
@@ -516,10 +516,10 @@ pub fn edit_input_system(
                     continue;
                 };
 
-                spatial_index
-                    .sstree
-                    .remove_if(&bounds.center, bounds.radius, |e| *e == entity)
-                    .expect("failed to remove edited brush from index");
+                // spatial_index
+                //     .sstree
+                //     .remove_if(&bounds.center, bounds.radius, |e| *e == entity)
+                //     .expect("failed to remove edited brush from index");
 
                 let (center, radius) = csg.bounding_sphere();
                 updates.push((
@@ -533,7 +533,7 @@ pub fn edit_input_system(
                         },
                     ),
                 ));
-                spatial_index.sstree.insert(entity, center, radius);
+                // spatial_index.sstree.insert(entity, center, radius);
             }
         }
 

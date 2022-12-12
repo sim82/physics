@@ -11,6 +11,29 @@ pub enum EditorObject {
     PointLight,
 }
 
+#[derive(Bundle)]
+pub struct BrushBundle {
+    pub editor_object: EditorObject,
+    pub csg_representation: CsgRepresentation,
+}
+
+impl BrushBundle {
+    pub fn from_brush(brush: Brush) -> Self {
+        let csg: csg::Csg = brush.clone().try_into().unwrap();
+        let (center, radius) = csg.bounding_sphere();
+
+        let csg_representation = CsgRepresentation {
+            center,
+            radius,
+            csg,
+        };
+        BrushBundle {
+            editor_object: EditorObject::Brush(brush),
+            csg_representation,
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct CsgOutput;
 
