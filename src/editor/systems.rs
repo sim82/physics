@@ -1,5 +1,5 @@
 use super::{
-    components::{self, CsgOutput, CsgRepresentation, EditorObject, SelectionVis},
+    components::{self, CsgOutput, CsgOutputLink, CsgRepresentation, EditorObject, SelectionVis},
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
 };
@@ -370,6 +370,59 @@ pub fn create_brush_csg_system(
     // asset_server.free_unused_assets();
 }
 
+pub fn create_brush_csg_system_inc(
+    mut commands: Commands,
+    spatial_index: Res<SpatialIndex>,
+
+    mut meshes: ResMut<Assets<Mesh>>,
+    materials_res: ResMut<resources::Materials>,
+
+    mut query_changed: Query<
+        (Entity, &CsgRepresentation, &mut CsgOutputLink),
+        Changed<components::CsgRepresentation>,
+    >,
+    query_csg: Query<&CsgRepresentation>,
+) {
+    // let mut affected = HashSet::new();
+    for (entity, csg_repr, mut csg_output) in &mut query_changed {
+        info!("csg changed: {:?}", entity);
+        let mut out = Vec::new();
+        spatial_index.sstree.find_entries_within_radius(
+            &csg_repr.center,
+            csg_repr.radius,
+            &mut out,
+        );
+        let mut bsp =
+            csg::Node::from_polygons(&csg_repr.csg.polygons).expect("Node::from_polygons failed");
+        for entry in out {
+            if entry.payload == entity {
+                // ignore self
+                continue;
+            }
+            info!("intersects: {:?}", entry.payload);
+
+            let Ok(other_csg) = query_csg.get(entry.payload) else {
+                error!( "failed to get CsgRepresentation for {:?}", entry.payload);
+                continue;
+            };
+            let other = csg::Node::from_polygons(&other_csg.csg.polygons)
+                .expect("Node::from_polygons failed");
+            bsp.clip_to(&other);
+        }
+        bsp.invert();
+
+        for entity in csg_output.entities.drain(..) {
+            commands.entity(entity).despawn();
+        }
+        csg_output.entities = spawn_csg_split(
+            &mut commands,
+            &materials_res,
+            &mut meshes,
+            &csg::Csg::from_polygons(bsp.all_polygons()),
+        );
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct SelectionChangeTracking {
     primary: Option<Entity>,
@@ -393,7 +446,7 @@ pub fn track_primary_selection(
     let Some(mesh) = meshes.get_mut(vis) else { return };
     let Ok(csg): Result<csg::Csg, _> = brush.clone().try_into() else {return};
 
-    info!("selection vis changed: {:?}", entity);
+    debug!("selection vis changed: {:?}", entity);
     tracking.primary = selection.primary;
     *aabb = csg.get_aabb();
     *mesh = (&csg).into();
@@ -511,7 +564,7 @@ pub fn track_spatial_index_system(
                 panic!( "aborting.");
                 continue;
             };
-        info!(
+        debug!(
             "update: {:?} {} -> {:?} {}",
             _entry.center, _entry.radius, csg_repr.center, csg_repr.radius
         );

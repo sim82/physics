@@ -15,6 +15,7 @@ pub enum EditorObject {
 pub struct BrushBundle {
     pub editor_object: EditorObject,
     pub csg_representation: CsgRepresentation,
+    pub csg_output_link: CsgOutputLink,
 }
 
 impl BrushBundle {
@@ -30,6 +31,7 @@ impl BrushBundle {
         BrushBundle {
             editor_object: EditorObject::Brush(brush),
             csg_representation,
+            csg_output_link: default(),
         }
     }
 }
@@ -65,4 +67,9 @@ pub struct CsgRepresentation {
     pub center: Vec3,
     pub radius: f32,
     pub csg: csg::Csg,
+}
+
+#[derive(Component, Default)]
+pub struct CsgOutputLink {
+    pub entities: Vec<Entity>,
 }

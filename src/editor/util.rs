@@ -104,11 +104,11 @@ pub fn spawn_csg_split(
     materials_res: &resources::Materials,
     meshes: &mut Assets<Mesh>,
     csg: &Csg,
-) {
+) -> Vec<Entity> {
     let center = Vec3::ZERO;
 
     let split_meshes = csg::csg_to_split_meshes(csg);
-
+    let mut entities = Vec::new();
     for (id, mesh) in split_meshes {
         let mesh = meshes.add(mesh);
         // todo some fallback if map lookups fail
@@ -140,7 +140,9 @@ pub fn spawn_csg_split(
             entity_commands.insert(Name::new("csg <no material>"));
         }
         info!("spawned csg output: {:?}", entity_commands.id());
+        entities.push(entity_commands.id());
     }
+    entities
 }
 
 // // TODO: throw out with bevy 0.9

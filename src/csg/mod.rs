@@ -468,7 +468,7 @@ impl Csg {
 // the front and/or back subtrees. This is not a leafy BSP tree since there is
 // no distinction between internal and leaf nodes.
 #[derive(Clone, Debug, Default)]
-struct Node {
+pub struct Node {
     pub plane: Plane,
     pub front: Option<Box<Node>>,
     pub back: Option<Box<Node>>,
@@ -548,7 +548,7 @@ impl Node {
     }
 
     // Convert solid space to empty space and empty space to solid space.
-    fn invert(&mut self) {
+    pub fn invert(&mut self) {
         self.polygons.iter_mut().for_each(Polygon::flip);
         self.plane.flip();
         if let Some(front) = &mut self.front {
