@@ -13,7 +13,7 @@ use crate::{
 };
 use bevy::{
     input::mouse::MouseWheel,
-    pbr::wireframe::Wireframe,
+    pbr::{wireframe::Wireframe, NotShadowCaster, NotShadowReceiver},
     prelude::{shape::Cube, *},
     render::{
         mesh,
@@ -107,8 +107,19 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::L) {
         let entity = commands
-            .spawn(EditorObject::Csg(
-                csg::Cube::new(Vec3::splat(2.0), 0.5).into(),
+            // .spawn(PointLightBundle {
+            //     point_light: PointLight {
+            //         range: 5.0, //range * 0.5,
+            //         shadows_enabled: true,
+            //         ..default()
+            //     },
+            //     transform: Transform::from_translation(Vec3::ZERO),
+            //     ..default()
+            // })
+            .spawn((
+                SpatialBundle::default(),
+                EditorObject::PointLight,
+                RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
             ))
             .id();
 
@@ -569,7 +580,9 @@ pub fn track_2d_vis_system(
             .insert(RenderLayers::from_layers(&[
                 render_layers::TOP_2D,
                 render_layers::SIDE_2D,
-            ]));
+            ]))
+            .insert(NotShadowCaster)
+            .insert(NotShadowReceiver);
     }
 
     for (_entity, csg_rep, mesh_handle) in &changed_query {
@@ -595,16 +608,32 @@ pub fn track_lights_system(
             continue;
         }
 
-        commands.entity(entity).insert((
-            meshes.add(
-                mesh::shape::Icosphere {
-                    radius: 0.1,
-                    subdivisions: 2,
-                }
-                .into(),
-            ),
-            materials_res.get_brush_2d_material(),
-            RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+        commands
+            .entity(entity)
+            .insert((
+                meshes.add(
+                    mesh::shape::Icosphere {
+                        radius: 0.1,
+                        subdivisions: 2,
+                    }
+                    .into(),
+                ),
+                materials_res.get_brush_2d_material(),
+                RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+            ))
+            .insert(NotShadowCaster)
+            .insert(NotShadowReceiver);
+
+        commands.spawn((
+            PointLightBundle {
+                transform: *transform,
+                point_light: PointLight {
+                    shadows_enabled: false,
+                    ..default()
+                },
+                ..default()
+            },
+            RenderLayers::layer(render_layers::MAIN_3D),
         ));
     }
 }
