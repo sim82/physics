@@ -139,7 +139,7 @@ pub fn spawn_csg_split(
         } else {
             entity_commands.insert(Name::new("csg <no material>"));
         }
-        info!("spawned csg output: {:?}", entity_commands.id());
+        debug!("spawned csg output: {:?}", entity_commands.id());
         entities.push(entity_commands.id());
     }
     entities

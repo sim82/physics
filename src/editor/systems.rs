@@ -245,7 +245,7 @@ pub fn update_material_refs_system(
         };
         // commands.entity(entity).insert(material);
         *material = new_material;
-        info!("material ref changed {:?}", entity);
+        debug!("material ref changed {:?}", entity);
     }
 }
 
@@ -378,16 +378,44 @@ pub fn create_brush_csg_system_inc(
     materials_res: ResMut<resources::Materials>,
 
     mut query_changed: Query<(Entity, &CsgRepresentation), Changed<components::CsgRepresentation>>,
-    // mut query_changed: Query<
-    //     (Entity, &CsgRepresentation, &mut CsgOutputLink),
-    //     Changed<components::CsgRepresentation>,
-    // >,
     query_csg: Query<&CsgRepresentation>,
     mut query_csg_out: Query<&mut CsgOutputLink>,
 ) {
-    let mut affected = query_changed.iter().map(|(e, _)| e).collect::<HashSet<_>>();
+    let start = Instant::now();
 
-    for (entity, csg_repr) in &mut query_changed {
+    // Incrementally update csg. It may help to think about the brushes forming a graph, where
+    // brushes are connected if their bounds overlap (according to the spatial index).
+    //
+    // Basically there are three sets of brushes to consider for the update:
+    // 1. Changed by user interaction
+    // 2. Overlapping with brushes in set 1.
+    // 3. Overlapping with brushes in set 2 (but not set 1)
+    // (4. all the rest, we don't care about them)
+    //
+    // What we need to do with them:
+    // Set 1:
+    //  - Obviously we need to re-create their meshes, as they were changed
+    //  - need to be clipped against brushes in set 2
+    // Set 2:
+    //  - meshes also need to be re-created (but potentially they are unchanged)
+    //  - need to be clipped against brushes in set 3 (as they can touch them), and set 1
+    // Set 3:
+    //  - We need to query for them to clip set 2 brushes
+    //  - we must *not* re-create their meshes: although brushes in set 2 are re-clipped,
+    //    their actual dimensions do not change and thus cannot affect the meshes of set 3 brushes.
+    //    Formally they comprise the 'outer boundary' for traversing the 'brush overlap graph',
+    //    which effectively makes the incremental update possible.
+    //
+    // NOTE: set 3 is only used for illustration here, it is never explicitly generated. Set 1&2 brushes
+    //       always query their individual overalpping set.
+
+    // find set of brushes (potentially) affected by recent changes:
+    // 1. changed brushes
+    // 2. brushes overlapping (approximately, according to spatial index) with changed brushes
+    // TODO: brushes overlapping the old geometry of changed brushes, otherwise fast moving (teleporting) brushes
+    // can leave holes etc.
+    let mut affected = query_changed.iter().map(|(e, _)| e).collect::<HashSet<_>>();
+    for (_entity, csg_repr) in &mut query_changed {
         let mut out = Vec::new();
         spatial_index.sstree.find_entries_within_radius(
             &csg_repr.center,
@@ -397,39 +425,54 @@ pub fn create_brush_csg_system_inc(
         affected.extend(out.drain(..).map(|entry| entry.payload));
     }
 
-    // for (entity, csg_repr, mut csg_output) in &mut query_changed {
+    // re-create meshes for all affected brushes:
+    // clip them against (potentially) overlapping brushes (according to spatial index)
+    let num_affected = affected.len();
     for entity in affected {
         let Ok(csg_repr) = query_csg.get(entity) else {
             error!("affected csg not found for {:?}", entity);
             continue;
         };
 
-        info!("csg changed: {:?}", entity);
+        debug!("csg changed: {:?}", entity);
         let mut out = Vec::new();
         spatial_index.sstree.find_entries_within_radius(
             &csg_repr.center,
             csg_repr.radius,
             &mut out,
         );
+        // TODO: check if we should store bsp trees rather than Csg objects.in CsgRepresentation
         let mut bsp =
             csg::Node::from_polygons(&csg_repr.csg.polygons).expect("Node::from_polygons failed");
-        for entry in out {
-            if entry.payload == entity {
-                // ignore self
+
+        // TODO: check if additional culling (e.g. AABBs) would improve performance (probably not if we store bsp trees, see above TODO)
+        let others = out
+            .iter()
+            .filter_map(|entry| {
+                let other_csg = query_csg.get(entry.payload).ok()?;
+                Some((
+                    csg::Node::from_polygons(&other_csg.csg.polygons)?,
+                    entity < entry.payload,
+                ))
+            })
+            .collect::<Vec<_>>();
+        // clip to overlapping brushes
+        for (other_bsp, _) in &others {
+            bsp.clip_to(other_bsp);
+        }
+
+        // invert (since we want them to be hollow)
+        bsp.invert();
+        // re-clip against overlapping brushes to remove overlapping coplanar faces (since the normal is now flipped)
+        for (other_bsp, clip_inverse) in &others {
+            // but only if their entity-id is higher than ours (this is an arbitary criterion to resolve ties,
+            // i.e. one of the brushes must loose in this step.)
+            if !*clip_inverse {
                 continue;
             }
-            info!("intersects: {:?}", entry.payload);
-
-            let Ok(other_csg) = query_csg.get(entry.payload) else {
-                error!( "failed to get CsgRepresentation for {:?}", entry.payload);
-                continue;
-            };
-            let other = csg::Node::from_polygons(&other_csg.csg.polygons)
-                .expect("Node::from_polygons failed");
-            bsp.clip_to(&other);
+            bsp.clip_to(other_bsp);
         }
-        bsp.invert();
-
+        // TODO: here it probably would help to check if the csg output actually changed before tearing down the meshes...
         let mut csg_output = query_csg_out.get_mut(entity).expect("missing csg_out"); // should be impossible if CsgOutputLink is always created in bundle with CsgRepresentation
 
         for entity in csg_output.entities.drain(..) {
@@ -442,6 +485,10 @@ pub fn create_brush_csg_system_inc(
             &mut meshes,
             &csg::Csg::from_polygons(bsp.all_polygons()),
         );
+    }
+
+    if num_affected > 0 {
+        info!("csg update: {} in {:?}", num_affected, start.elapsed());
     }
 }
 
