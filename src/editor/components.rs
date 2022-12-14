@@ -3,12 +3,15 @@ use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
+pub struct PointLightProperties {
+    pub shadows_enabled: bool,
+}
+
 #[derive(Debug, Clone, Component, Serialize, Deserialize)]
 pub enum EditorObject {
-    MinMax(Vec3, Vec3),
-    Csg(Csg),
     Brush(Brush),
-    PointLight,
+    PointLight(PointLightProperties),
 }
 
 #[derive(Bundle)]

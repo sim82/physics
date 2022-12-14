@@ -79,14 +79,6 @@ pub fn editor_input_system(
 
     mut query: Query<&mut EditorObject>,
 ) {
-    if keycodes.just_pressed(KeyCode::K) {
-        let entity = commands
-            .spawn(EditorObject::MinMax(Vec3::splat(-1.0), Vec3::splat(1.0)))
-            .id();
-
-        selection.primary = Some(entity);
-    }
-
     if keycodes.just_pressed(KeyCode::B) {
         let entity = commands.spawn(BrushBundle::from_brush(default())).id();
 
@@ -107,127 +99,21 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::L) {
         let entity = commands
-            // .spawn(PointLightBundle {
-            //     point_light: PointLight {
-            //         range: 5.0, //range * 0.5,
-            //         shadows_enabled: true,
-            //         ..default()
-            //     },
-            //     transform: Transform::from_translation(Vec3::ZERO),
-            //     ..default()
-            // })
             .spawn((
                 SpatialBundle::default(),
-                EditorObject::PointLight,
+                EditorObject::PointLight(components::PointLightProperties {
+                    shadows_enabled: true,
+                }),
                 RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
             ))
             .id();
 
         selection.primary = Some(entity);
     }
-    if keycodes.just_pressed(KeyCode::M) {
-        if let Some(selected_entity) = selection.primary {
-            if let Ok(_brush) = query.get_mut(selected_entity) {
-                info!("spawn");
-                let offset = offset.get_or_insert(Vec3::splat(2.5));
-
-                let entity = commands
-                    .spawn(EditorObject::Csg(
-                        csg::Cylinder {
-                            start: Vec3::new(0.0, -1.0, 0.0) + *offset,
-                            end: Vec3::new(0.0, 1.0, 0.0) + *offset,
-                            radius: 2.0,
-                            ..default()
-                        }
-                        // csg::Sphere::new(*offset, 1.0, 16, 8)
-                        .into(),
-                    ))
-                    .id();
-
-                *offset += Vec3::splat(0.5);
-                selection.primary = Some(entity);
-            }
-        }
-    }
-    if keycodes.just_pressed(KeyCode::N) {
-        if let Some(selection) = selection.primary {
-            if let Ok(mut brush) = query.get_mut(selection) {
-                if let EditorObject::Csg(ref mut csg) = *brush {
-                    csg.invert();
-                }
-            }
-        }
-    }
-
     // the remaining stuff only works in the 3d window
     if editor_windows_2d.focused.is_some() {
         return;
     }
-
-    let mut dmin = Vec3::ZERO;
-    let mut dmax = Vec3::ZERO;
-
-    for event in mouse_wheel.iter() {
-        let d = event.y.signum() * 0.1;
-
-        if keycodes.pressed(KeyCode::Q) {
-            dmin.x -= d;
-            dmax.x += d;
-        }
-        if keycodes.pressed(KeyCode::A) {
-            dmin.y -= d;
-            dmax.y += d;
-        }
-        if keycodes.pressed(KeyCode::Z) {
-            dmin.z -= d;
-            dmax.z += d;
-        }
-        if keycodes.pressed(KeyCode::W) {
-            dmin.x += d;
-            dmax.x += d;
-        }
-        if keycodes.pressed(KeyCode::S) {
-            dmin.y += d;
-            dmax.y += d;
-        }
-        if keycodes.pressed(KeyCode::X) {
-            dmin.z += d;
-            dmax.z += d;
-        }
-    }
-
-    if let Some(selection) = selection.primary {
-        if let Ok(mut brush) = query.get_mut(selection) {
-            if dmin.length() > 0.0 || dmax.length() > 0.0 {
-                match *brush {
-                    EditorObject::MinMax(ref mut min, ref mut max) => {
-                        *min += dmin;
-                        *max += dmax;
-                    }
-                    EditorObject::Csg(ref mut csg) => {
-                        csg.translate(dmin);
-                    }
-                    EditorObject::Brush(ref mut brush) => {
-                        let mut new_brush = brush.clone();
-                        new_brush.planes[0].w += dmax.x;
-                        new_brush.planes[1].w -= dmin.x;
-                        new_brush.planes[2].w += dmax.y;
-                        new_brush.planes[3].w -= dmin.y;
-                        new_brush.planes[4].w += dmax.z;
-                        new_brush.planes[5].w -= dmin.z;
-                        if std::convert::TryInto::<csg::Csg>::try_into(new_brush.clone()).is_ok() {
-                            *brush = new_brush
-                        }
-                    }
-                    EditorObject::PointLight => (),
-                }
-            }
-        }
-    }
-
-    // if mouse.any_pressed(MouseButton::Other(()))
-
-    // if keycodes.just_pr
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
@@ -604,9 +490,13 @@ pub fn track_lights_system(
     // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
 ) {
     for (entity, editor_object, transform) in &query {
-        if !matches!(editor_object, EditorObject::PointLight) {
+        // if !matches!(editor_object, EditorObject::PointLight(_)) {
+        //     continue;
+        // }
+
+        let components::EditorObject::PointLight(light_props) = editor_object else {
             continue;
-        }
+        };
 
         commands
             .entity(entity)
@@ -628,7 +518,7 @@ pub fn track_lights_system(
             PointLightBundle {
                 transform: *transform,
                 point_light: PointLight {
-                    shadows_enabled: false,
+                    shadows_enabled: light_props.shadows_enabled,
                     ..default()
                 },
                 ..default()
@@ -744,7 +634,7 @@ pub fn load_save_editor_objects(
                     transform: Transform::from_translation(pos),
                     ..default()
                 })
-                .insert(EditorObject::PointLight);
+                .insert(EditorObject::PointLight(default()));
         }
     }
 
