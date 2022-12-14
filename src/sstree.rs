@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use bevy::prelude::Vec3;
+use bevy::prelude::{warn, Vec3};
 
 pub const MAX_TREE_HEIGHT: usize = 16;
 
@@ -18,12 +18,6 @@ pub struct Entry<P, K> {
     pub center: K,
     pub radius: f32,
     pub payload: P,
-}
-
-impl<P, K: PartialEq> PartialEq for Entry<P, K> {
-    fn eq(&self, other: &Self) -> bool {
-        self.center == other.center && self.radius == other.radius
-    }
 }
 
 impl<P, K: Distance> Entry<P, K> {
@@ -154,10 +148,6 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
     pub fn insert(&mut self, entry: Entry<P, K>, m: usize) -> Option<(Self, Self)> {
         match &mut self.links {
             SsNodeLinks::Leaf(points) => {
-                if points.iter().any(|p| *p == entry) {
-                    return None;
-                }
-
                 if points.len() < M {
                     points.push(entry);
                     self.update_bounding_envelope();
@@ -884,42 +874,55 @@ mod inner {
         }
     }
 }
-#[test]
-fn test_search() {
-    const UPPER_M: usize = 8;
-    const LOWER_M: usize = 4;
 
-    let mut tree = SsTree::<(), [f32; 2], UPPER_M>::new(LOWER_M);
+#[cfg(test)]
+mod test {
+    use super::Entry;
+    use crate::sstree::SsTree;
 
-    tree.insert_entry(Entry::new([0.0, 0.0], 1.0, ()));
-    tree.insert_entry(Entry::new([5.0, 5.0], 1.0, ()));
+    impl<P, K: PartialEq> PartialEq for Entry<P, K> {
+        fn eq(&self, other: &Self) -> bool {
+            self.center == other.center && self.radius == other.radius
+        }
+    }
 
-    let mut out = Vec::new();
-    tree.find_entries_within_radius(&[0.5, 0.5], 1.0, &mut out);
-    assert_eq!(out, vec!(&Entry::new([0.0, 0.0], 1.0, ())));
+    #[test]
+    fn test_search() {
+        const UPPER_M: usize = 8;
+        const LOWER_M: usize = 4;
 
-    let mut out = Vec::new();
-    tree.find_entries_within_radius(&[4.5, 5.5], 1.0, &mut out);
-    assert_eq!(out, vec!(&Entry::new([5.0, 5.0], 1.0, ())));
-    let mut out = Vec::new();
+        let mut tree = SsTree::<(), [f32; 2], UPPER_M>::new(LOWER_M);
 
-    // do search between the entries with radius big enough to just reach them
-    tree.find_entries_within_radius(
-        &[2.5, 2.5],
-        (2.5 * std::f32::consts::SQRT_2 + 0.0001) - 1.0,
-        &mut out,
-    );
-    assert_eq!(out.len(), 2);
-    assert!(out.contains(&&Entry::new([5.0, 5.0], 1.0, ())));
-    assert!(out.contains(&&Entry::new([0.0, 0.0], 1.0, ())));
+        tree.insert_entry(Entry::new([0.0, 0.0], 1.0, ()));
+        tree.insert_entry(Entry::new([5.0, 5.0], 1.0, ()));
 
-    let mut out = Vec::new();
+        let mut out = Vec::new();
+        tree.find_entries_within_radius(&[0.5, 0.5], 1.0, &mut out);
+        assert_eq!(out, vec!(&Entry::new([0.0, 0.0], 1.0, ())));
 
-    // the same as befor but with radius just barely too small
-    tree.find_entries_within_radius(
-        &[2.5, 2.5],
-        (2.5 * std::f32::consts::SQRT_2 - 0.0001) - 1.0,
-        &mut out,
-    );
-    assert!(out.is_empty());
+        let mut out = Vec::new();
+        tree.find_entries_within_radius(&[4.5, 5.5], 1.0, &mut out);
+        assert_eq!(out, vec!(&Entry::new([5.0, 5.0], 1.0, ())));
+        let mut out = Vec::new();
+
+        // do search between the entries with radius big enough to just reach them
+        tree.find_entries_within_radius(
+            &[2.5, 2.5],
+            (2.5 * std::f32::consts::SQRT_2 + 0.0001) - 1.0,
+            &mut out,
+        );
+        assert_eq!(out.len(), 2);
+        assert!(out.contains(&&Entry::new([5.0, 5.0], 1.0, ())));
+        assert!(out.contains(&&Entry::new([0.0, 0.0], 1.0, ())));
+
+        let mut out = Vec::new();
+
+        // the same as befor but with radius just barely too small
+        tree.find_entries_within_radius(
+            &[2.5, 2.5],
+            (2.5 * std::f32::consts::SQRT_2 - 0.0001) - 1.0,
+            &mut out,
+        );
+        assert!(out.is_empty());
+    }
 }

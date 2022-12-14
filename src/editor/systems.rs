@@ -558,6 +558,8 @@ pub fn track_spatial_index_system(
             .sstree
             .remove_if(&csg_repr.center, csg_repr.radius, |e| *e == entity) else {
                 error!( "failed to remove brush from spatial index for update");
+                // info!( "{:?} {} {:?}", csg_repr.center, csg_repr.radius, entity);
+                // info!( "{:?}", spatial_index.sstree);
                 panic!( "aborting.");
                 continue;
             };
