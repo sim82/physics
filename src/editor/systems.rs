@@ -1,7 +1,7 @@
 use super::{
     components::{
         self, CsgOutput, CsgRepresentation, EditorObject, EditorObjectBundle,
-        EditorObjectOutputLink, SelectionVis,
+        EditorObjectOutputLink, PointLightProperties, SelectionVis,
     },
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
@@ -40,11 +40,12 @@ pub fn setup(
             .collect();
     materials_res.symlinks.insert(
         "appearance/test/con52_1".into(),
-        "material/ground/bog".into(),
+        "material/floors/bathroomtile1".into(),
     );
+
     materials_res.symlinks.insert(
         "appearance/test/whiteconcret3".into(),
-        "material/architecture/woodframe1".into(),
+        "material/floors/green-shower-tile1".into(),
     );
     materials_res
         .id_to_name_map
@@ -104,6 +105,7 @@ pub fn editor_input_system(
                 EditorObjectBundle {
                     editor_object: EditorObject::PointLight(components::PointLightProperties {
                         shadows_enabled: true,
+                        ..default()
                     }),
                     ..default()
                 },
@@ -348,11 +350,20 @@ pub fn create_brush_csg_system_inc(
         let others = out
             .iter()
             .filter_map(|entry| {
+                if entry.payload == entity {
+                    return None;
+                }
                 let other_csg = query_csg.get(entry.payload).ok()?;
-                Some((
-                    csg::Node::from_polygons(&other_csg.csg.polygons)?,
-                    entity < entry.payload,
-                ))
+                let other_bsp = csg::Node::from_polygons(&other_csg.csg.polygons)?;
+
+                // if !csg::do_intersect(bsp.clone(), other_bsp.clone()) {
+                //     return None;
+                // }
+                if !csg_repr.csg.intersects_or_touches(&other_csg.csg) {
+                    return None;
+                }
+
+                Some((other_bsp, entity < entry.payload))
             })
             .collect::<Vec<_>>();
         // clip to overlapping brushes
@@ -521,6 +532,7 @@ pub fn track_lights_system(
                 transform: *transform,
                 point_light: PointLight {
                     shadows_enabled: light_props.shadows_enabled,
+                    range: light_props.range.unwrap_or_else(|| default()),
                     ..default()
                 },
                 ..default()
@@ -613,11 +625,34 @@ pub fn load_save_editor_objects(
         }
 
         let appearance_names = materials.id_to_name_map.values().collect::<BTreeSet<_>>();
-        let mut material_names = materials.material_defs.keys();
+        // let mut material_names = materials.material_defs.keys();
+        let mut material_names = [
+            "material/floors/bathroomtile2",
+            "material/floors/bathroomtile1",
+            "material/floors/rich-brown-tile",
+            "material/floors/modern-tile1",
+            "material/floors/green-shower-tile1",
+            "material/floors/green-ceramic-tiles",
+            "material/floors/industrial-tile1",
+            "material/floors/diamond-inlay-tile",
+            "material/floors/cheap-old-linoleum",
+            "material/floors/gross-dirty-tiles",
+            "material/floors/bathroomtile2",
+            "material/floors/bathroomtile1",
+            "material/floors/rich-brown-tile",
+            "material/floors/modern-tile1",
+            "material/floors/green-shower-tile1",
+            "material/floors/green-ceramic-tiles",
+            "material/floors/industrial-tile1",
+            "material/floors/diamond-inlay-tile",
+            "material/floors/cheap-old-linoleum",
+            "material/floors/gross-dirty-tiles",
+        ]
+        .iter();
         for name in appearance_names {
             match materials.symlinks.entry(name.clone()) {
                 bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
-                    e.insert(material_names.next().unwrap().clone());
+                    e.insert(material_names.next().unwrap().to_string());
                 }
                 bevy::utils::hashbrown::hash_map::Entry::Occupied(_) => (),
             }
@@ -629,7 +664,10 @@ pub fn load_save_editor_objects(
             commands.spawn((
                 SpatialBundle::from_transform(Transform::from_translation(pos)),
                 EditorObjectBundle {
-                    editor_object: EditorObject::PointLight(default()),
+                    editor_object: EditorObject::PointLight(PointLightProperties {
+                        range: Some(10.0),
+                        ..default()
+                    }),
                     ..default()
                 },
             ));

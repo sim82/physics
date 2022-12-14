@@ -162,6 +162,18 @@ impl Plane {
         }
     }
 
+    pub fn location_of_polygon(&self, polygon: &Polygon) -> Location {
+        let mut polygon_type = Location::NONE;
+
+        for v in &polygon.vertices {
+            let vertex_pos = v.position;
+            let location = self.location_of_point(vertex_pos);
+
+            polygon_type |= location;
+            // types.push(location);
+        }
+        polygon_type
+    }
     // Split `polygon` by this plane if needed, then put the polygon or polygon
     // fragments in the appropriate lists. Coplanar polygons go into either
     // `coplanarFront` or `coplanarBack` depending on their orientation with
@@ -460,6 +472,18 @@ impl Csg {
 
         (center, radius)
     }
+
+    pub fn intersects_or_touches(&self, other: &Csg) -> bool {
+        // TODO: use bsp tree...
+        let mut behind_all = true;
+        for my_polygon in &self.polygons {
+            let behind = other.polygons.iter().any(|other_polygon| {
+                my_polygon.plane.location_of_polygon(other_polygon) != Location::FRONT
+            });
+            behind_all &= behind;
+        }
+        behind_all
+    }
 }
 
 // Holds a node in a BSP tree. A BSP tree is built from a collection of polygons
@@ -666,6 +690,24 @@ pub fn subtract(a: &Csg, b: &Csg) -> Option<Csg> {
     } else {
         None
     }
+}
+
+pub fn do_intersect(mut a: Node, mut b: Node) -> bool {
+    // TODO: this probably can be implemented without actually clipping the bsp-trees, but this is good enough as POC
+    a.invert();
+    b.clip_to(&a);
+    b.invert();
+    a.clip_to(&b);
+    b.clip_to(&a);
+
+    // info!(
+    //     "probe: {:?} {:?} {} {}",
+    //     entity,
+    //     entry.payload,
+    //     a.polygons.len(),
+    //     b.polygons.len(),
+    // );
+    !a.polygons.is_empty() || !b.polygons.is_empty()
 }
 
 impl From<&Csg> for Mesh {

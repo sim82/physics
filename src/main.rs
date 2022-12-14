@@ -7,7 +7,7 @@ use std::{
 use bevy::{
     core_pipeline::fxaa::Fxaa,
     diagnostic::FrameTimeDiagnosticsPlugin,
-    pbr::wireframe::WireframePlugin,
+    pbr::wireframe::{WireframeConfig, WireframePlugin},
     // input::system::exit_on_esc_system,
     prelude::*,
     render::{
@@ -76,7 +76,8 @@ fn main() {
     .add_system(update_deferred_mesh_system)
     // .add_plugin(FpsControllerPlugin)
     // .add_plugin(AtmospherePlugin)
-    .add_plugin(WireframePlugin)
+    // .add_plugin(WireframePlugin)
+    // .insert_resource(WireframeConfig { global: false })
     .add_plugin(sky::SkyPlugin)
     // .insert_resource(Atmosphere {
     //     ray_origin: Vec3::new(0.0, 7000e3, 0.0),

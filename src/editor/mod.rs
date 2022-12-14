@@ -53,7 +53,9 @@ impl Plugin for EditorPlugin {
                 .with_run_criteria(FixedTimestep::step(0.1))
                 // .with_system(systems::cleanup_brush_csg_system)
                 // .with_system(systems::create_brush_csg_system)
-                .with_system(systems::create_brush_csg_system_inc)
+                .with_system(
+                    systems::create_brush_csg_system_inc.after(systems::track_spatial_index_system),
+                )
                 .with_system(systems::update_material_refs_system)
                 .with_system(ortho_systems::write_window_settings),
         );

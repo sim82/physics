@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
 pub struct PointLightProperties {
     pub shadows_enabled: bool,
+    pub range: Option<f32>,
 }
 
 #[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
