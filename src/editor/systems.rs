@@ -346,7 +346,6 @@ pub fn create_brush_csg_system_inc(
         let mut bsp =
             csg::Node::from_polygons(&csg_repr.csg.polygons).expect("Node::from_polygons failed");
 
-        // TODO: check if additional culling (e.g. AABBs) would improve performance (probably not if we store bsp trees, see above TODO)
         let others = out
             .iter()
             .filter_map(|entry| {
@@ -355,10 +354,6 @@ pub fn create_brush_csg_system_inc(
                 }
                 let other_csg = query_csg.get(entry.payload).ok()?;
                 let other_bsp = csg::Node::from_polygons(&other_csg.csg.polygons)?;
-
-                // if !csg::do_intersect(bsp.clone(), other_bsp.clone()) {
-                //     return None;
-                // }
                 if !csg_repr.csg.intersects_or_touches(&other_csg.csg) {
                     return None;
                 }
