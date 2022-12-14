@@ -1,4 +1,5 @@
 use bevy::{
+    pbr::wireframe::Wireframe,
     prelude::*,
     render::{mesh, view::RenderLayers},
 };
@@ -135,6 +136,7 @@ pub fn spawn_csg_split(
                 },
                 Name::new(format!("csg {:?}", material_name)),
                 RenderLayers::layer(render_layers::MAIN_3D),
+                Wireframe,
             ));
         } else {
             entity_commands.insert(Name::new("csg <no material>"));

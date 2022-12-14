@@ -1,4 +1,7 @@
-use crate::csg::{self, Brush, Csg};
+use crate::{
+    csg::{self, Brush, Csg},
+    render_layers,
+};
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
@@ -8,20 +11,23 @@ pub struct PointLightProperties {
     pub shadows_enabled: bool,
 }
 
-#[derive(Debug, Clone, Component, Serialize, Deserialize)]
+#[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
 pub enum EditorObject {
+    #[default]
+    None,
     Brush(Brush),
     PointLight(PointLightProperties),
 }
 
 #[derive(Bundle)]
-pub struct BrushBundle {
+pub struct EditorObjectBrushBundle {
     pub editor_object: EditorObject,
     pub csg_representation: CsgRepresentation,
-    pub csg_output_link: CsgOutputLink,
+    pub csg_output_link: EditorObjectOutputLink,
+    pub render_layers: bevy::render::view::RenderLayers,
 }
 
-impl BrushBundle {
+impl EditorObjectBrushBundle {
     pub fn from_brush(brush: Brush) -> Self {
         let csg: csg::Csg = brush.clone().try_into().unwrap();
         let (center, radius) = csg.bounding_sphere();
@@ -31,10 +37,34 @@ impl BrushBundle {
             radius,
             csg,
         };
-        BrushBundle {
+        EditorObjectBrushBundle {
             editor_object: EditorObject::Brush(brush),
             csg_representation,
             csg_output_link: default(),
+            render_layers: bevy::render::view::RenderLayers::from_layers(&[
+                render_layers::SIDE_2D,
+                render_layers::TOP_2D,
+            ]),
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct EditorObjectBundle {
+    pub editor_object: EditorObject,
+    pub output_links: EditorObjectOutputLink,
+    pub render_layers: bevy::render::view::RenderLayers,
+}
+
+impl Default for EditorObjectBundle {
+    fn default() -> Self {
+        Self {
+            editor_object: Default::default(),
+            output_links: Default::default(),
+            render_layers: bevy::render::view::RenderLayers::from_layers(&[
+                render_layers::SIDE_2D,
+                render_layers::TOP_2D,
+            ]),
         }
     }
 }
@@ -73,6 +103,6 @@ pub struct CsgRepresentation {
 }
 
 #[derive(Component, Default)]
-pub struct CsgOutputLink {
+pub struct EditorObjectOutputLink {
     pub entities: Vec<Entity>,
 }

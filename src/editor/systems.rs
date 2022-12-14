@@ -1,12 +1,15 @@
 use super::{
-    components::{self, CsgOutput, CsgOutputLink, CsgRepresentation, EditorObject, SelectionVis},
+    components::{
+        self, CsgOutput, CsgRepresentation, EditorObject, EditorObjectBundle,
+        EditorObjectOutputLink, SelectionVis,
+    },
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
 };
 use crate::{
     csg,
     editor::{
-        components::{BrushBundle, CsgCollisionOutput},
+        components::{CsgCollisionOutput, EditorObjectBrushBundle},
         util::spawn_csg_split,
     },
     material, render_layers, sstree, wsx,
@@ -67,20 +70,15 @@ pub fn setup(
 pub fn editor_input_system(
     mut commands: Commands,
 
-    mut offset: Local<Option<Vec3>>,
-
     editor_windows_2d: ResMut<resources::EditorWindows2d>,
-    mut spatial_index: ResMut<resources::SpatialIndex>,
-
     keycodes: Res<Input<KeyCode>>,
-    mut mouse_wheel: EventReader<MouseWheel>,
-
     mut selection: ResMut<Selection>,
-
-    mut query: Query<&mut EditorObject>,
+    query: Query<&EditorObject>,
 ) {
     if keycodes.just_pressed(KeyCode::B) {
-        let entity = commands.spawn(BrushBundle::from_brush(default())).id();
+        let entity = commands
+            .spawn(EditorObjectBrushBundle::from_brush(default()))
+            .id();
 
         info!("new brush: {:?}", entity);
         selection.primary = Some(entity);
@@ -90,7 +88,9 @@ pub fn editor_input_system(
     if keycodes.just_pressed(KeyCode::D) {
         if let Some(primary) = selection.primary {
             if let Ok(EditorObject::Brush(brush)) = query.get(primary) {
-                let entity = commands.spawn(BrushBundle::from_brush(brush.clone())).id();
+                let entity = commands
+                    .spawn(EditorObjectBrushBundle::from_brush(brush.clone()))
+                    .id();
                 info!("duplicate brush: {:?} -> {:?}", primary, entity);
                 selection.primary = Some(entity);
             }
@@ -101,10 +101,12 @@ pub fn editor_input_system(
         let entity = commands
             .spawn((
                 SpatialBundle::default(),
-                EditorObject::PointLight(components::PointLightProperties {
-                    shadows_enabled: true,
-                }),
-                RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                EditorObjectBundle {
+                    editor_object: EditorObject::PointLight(components::PointLightProperties {
+                        shadows_enabled: true,
+                    }),
+                    ..default()
+                },
             ))
             .id();
 
@@ -276,7 +278,7 @@ pub fn create_brush_csg_system_inc(
 
     mut query_changed: Query<(Entity, &CsgRepresentation), Changed<components::CsgRepresentation>>,
     query_csg: Query<&CsgRepresentation>,
-    mut query_csg_out: Query<&mut CsgOutputLink>,
+    mut query_csg_out: Query<&mut EditorObjectOutputLink>,
 ) {
     let start = Instant::now();
 
@@ -430,7 +432,7 @@ pub fn setup_selection_vis_system(
             ..default()
         })
         .insert(SelectionVis)
-        .insert(Wireframe)
+        // .insert(Wireframe)
         .insert(Name::new("selection"))
         .insert(RenderLayers::from_layers(&[
             render_layers::TOP_2D,
@@ -463,10 +465,10 @@ pub fn track_2d_vis_system(
                 ..default()
             })
             // .insert(Wireframe)
-            .insert(RenderLayers::from_layers(&[
-                render_layers::TOP_2D,
-                render_layers::SIDE_2D,
-            ]))
+            // .insert(RenderLayers::from_layers(&[
+            //     render_layers::TOP_2D,
+            //     render_layers::SIDE_2D,
+            // ]))
             .insert(NotShadowCaster)
             .insert(NotShadowReceiver);
     }
@@ -509,7 +511,7 @@ pub fn track_lights_system(
                     .into(),
                 ),
                 materials_res.get_brush_2d_material(),
-                RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
             ))
             .insert(NotShadowCaster)
             .insert(NotShadowReceiver);
@@ -607,7 +609,7 @@ pub fn load_save_editor_objects(
             commands.entity(entity).despawn();
         }
         for brush in brushes {
-            commands.spawn(BrushBundle::from_brush(brush));
+            commands.spawn(EditorObjectBrushBundle::from_brush(brush));
         }
 
         let appearance_names = materials.id_to_name_map.values().collect::<BTreeSet<_>>();
@@ -624,17 +626,13 @@ pub fn load_save_editor_objects(
         // TODO: do not load twice. Probably makes no difference, but I still hate it...
         let pointlights = wsx::load_pointlights(filename);
         for (pos, _range) in pointlights {
-            commands
-                .spawn(PointLightBundle {
-                    point_light: PointLight {
-                        range: 5.0, //range * 0.5,
-                        shadows_enabled: false,
-                        ..default()
-                    },
-                    transform: Transform::from_translation(pos),
+            commands.spawn((
+                SpatialBundle::from_transform(Transform::from_translation(pos)),
+                EditorObjectBundle {
+                    editor_object: EditorObject::PointLight(default()),
                     ..default()
-                })
-                .insert(EditorObject::PointLight(default()));
+                },
+            ));
         }
     }
 
