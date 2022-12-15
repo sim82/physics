@@ -16,6 +16,8 @@ use super::util::Orientation2d;
 pub struct Selection {
     pub primary: Option<Entity>,
     pub last_primary: Option<Entity>,
+    pub last_set: Vec<Entity>,
+    pub last_set_index: usize,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, Default)]
@@ -49,6 +51,8 @@ pub struct EditorWindows2d {
     pub focused: Option<(String, WindowId)>,
     pub cursor_pos: Vec2,
     pub translate_drag: Option<TranslateDrag>,
+    pub view_min: Vec3,
+    pub view_max: Vec3,
 }
 
 #[derive(Resource)]

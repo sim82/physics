@@ -115,7 +115,10 @@ pub fn setup_editor_window(
     editor_windows_2d.windows = transforms
         .drain(..)
         .filter_map(|(name, window2d, _, _)| window2d.map(|window2d| (name.to_owned(), window2d)))
-        .collect()
+        .collect();
+
+    editor_windows_2d.view_max = Vec3::splat(f32::INFINITY);
+    editor_windows_2d.view_min = Vec3::splat(f32::NEG_INFINITY);
 }
 
 pub fn track_window_props(
@@ -305,6 +308,8 @@ pub fn adjust_clip_planes_system(
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
 ) {
+    let editor_windows_2d = &mut *editor_windows_2d;
+
     let Some(upper) = editor_windows_2d.windows.get(UPPER_WINDOW) else {
         return;
     };
@@ -357,6 +362,9 @@ pub fn adjust_clip_planes_system(
 
         lower_transform.translation.x = xmin;
         lower_ortho.far = xmax - xmin;
+
+        editor_windows_2d.view_max.x = xmax;
+        editor_windows_2d.view_min.x = xmin;
     }
 
     {
@@ -372,6 +380,9 @@ pub fn adjust_clip_planes_system(
 
         upper_transform.translation.y = ymax;
         upper_ortho.far = ymax - ymin;
+
+        editor_windows_2d.view_max.y = ymax;
+        editor_windows_2d.view_min.y = ymin;
     }
 
     // info!("far: {}", lower_ortho.far);
@@ -572,7 +583,7 @@ pub fn select_input_system(
     mut selection: ResMut<Selection>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
     camera_query: Query<(&GlobalTransform, &Camera)>,
-    brush_query: Query<(Entity, &EditorObject)>,
+    brush_query: Query<(Entity, &EditorObject, &CsgRepresentation)>,
 ) {
     click_timer.timer.tick(time.delta());
     let Some((focused_name, _)) = &editor_windows_2d.focused else { return };
@@ -597,17 +608,50 @@ pub fn select_input_system(
                 break 'block;
             };
 
-            for (entity, obj) in &brush_query {
-                #[allow(clippy::single_match)] // nope, this will change
-                match obj {
+            info!(
+                "minmax: {:?} {:?}",
+                editor_windows_2d.view_min, editor_windows_2d.view_max
+            );
+            // editor_windows_2d.
+            let selection_set = brush_query
+                .iter()
+                .filter_map(|(entity, obj, csg)| match obj {
                     EditorObject::Brush(brush) => {
+                        if !csg.csg.polygons.iter().any(|poly| {
+                            poly.vertices.iter().any(|v| {
+                                v.position.x >= editor_windows_2d.view_min.x
+                                    && v.position.y >= editor_windows_2d.view_min.y
+                                    && v.position.z >= editor_windows_2d.view_min.z
+                                    && v.position.x <= editor_windows_2d.view_max.x
+                                    && v.position.y <= editor_windows_2d.view_max.y
+                                    && v.position.z <= editor_windows_2d.view_max.z
+                            })
+                        }) {
+                            return None;
+                        }
+
                         let affected_faces = brush.get_planes_behind_ray(ray);
                         if affected_faces.is_empty() {
-                            selection.primary = Some(entity);
+                            Some(entity)
+                        } else {
+                            None
                         }
                     }
-                    _ => (),
-                }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            info!("selection set: {:?}", selection_set);
+
+            if selection_set != selection.last_set {
+                selection.last_set = selection_set;
+                selection.last_set_index = 0;
+            } else {
+                selection.last_set_index += 1;
+            }
+
+            if !selection.last_set.is_empty() {
+                selection.primary =
+                    Some(selection.last_set[selection.last_set_index % selection.last_set.len()]);
             }
         }
     }
