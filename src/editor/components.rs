@@ -86,6 +86,7 @@ pub struct DragAction {
 pub enum DragActionType {
     Face { affected_faces: Vec<(usize, f32)> },
     WholeBrush { affected_faces: Vec<(usize, f32)> },
+    NonBrush { start_translation: Vec3 },
 }
 
 #[derive(Component)]

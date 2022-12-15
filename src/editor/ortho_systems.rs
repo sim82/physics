@@ -409,15 +409,10 @@ pub fn edit_input_system(
 
     camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<&EditorObject, Without<DragAction>>,
-    mut active_drag_query: Query<
-        (
-            Entity,
-            &DragAction,
-            &mut EditorObject,
-            &mut components::CsgRepresentation,
-        ),
-        With<DragAction>,
-    >,
+    mut active_drag_query: Query<(Entity, &DragAction, &mut EditorObject), With<DragAction>>,
+
+    mut csg_repr_query: Query<&mut components::CsgRepresentation, With<DragAction>>,
+    mut transform_query: Query<&mut Transform>,
 ) {
     let Some((focus_name, _focus_id)) = &editor_windows_2d.focused else {return};
 
@@ -445,32 +440,47 @@ pub fn edit_input_system(
                 info!("click ray {}: {:?}", focus_name, ray);
 
                 if let Some(primary) = selection.primary {
-                    if let Ok(EditorObject::Brush(brush)) = brush_query.get(primary) {
-                        let affected_faces = brush.get_planes_behind_ray(ray);
+                    match brush_query.get(primary) {
+                        Ok(EditorObject::Brush(brush)) => {
+                            let affected_faces = brush.get_planes_behind_ray(ray);
 
-                        if !affected_faces.is_empty() {
-                            commands.entity(primary).insert(DragAction {
-                                start_ray: ray,
-                                action: DragActionType::Face { affected_faces },
-                            });
-                            info!("start face drag for {:?}", primary); // the crowd put on their affected_faces as The Iron Sheik did his signature face-drag on el Pollo Loco
-                        } else {
-                            let affected_faces = brush
-                                .planes
-                                .iter()
-                                .enumerate()
-                                .map(|(i, face)| (i, face.w))
-                                .collect();
-                            commands.entity(primary).insert(DragAction {
-                                start_ray: ray,
-                                action: DragActionType::WholeBrush { affected_faces },
-                            });
-                            info!("start whole-brush drag for {:?}", primary);
+                            if !affected_faces.is_empty() {
+                                commands.entity(primary).insert(DragAction {
+                                    start_ray: ray,
+                                    action: DragActionType::Face { affected_faces },
+                                });
+                                info!("start face drag for {:?}", primary); // the crowd put on their affected_faces as The Iron Sheik did his signature face-drag on el Pollo Loco
+                            } else {
+                                let affected_faces = brush
+                                    .planes
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, face)| (i, face.w))
+                                    .collect();
+                                commands.entity(primary).insert(DragAction {
+                                    start_ray: ray,
+                                    action: DragActionType::WholeBrush { affected_faces },
+                                });
+                                info!("start whole-brush drag for {:?}", primary);
+                            }
                         }
+                        Ok(EditorObject::PointLight(_)) => {
+                            if let Ok(transform) = transform_query.get(primary) {
+                                info!("light drag start");
+
+                                commands.entity(primary).insert(DragAction {
+                                    start_ray: ray,
+                                    action: DragActionType::NonBrush {
+                                        start_translation: transform.translation,
+                                    },
+                                });
+                            }
+                        }
+                        _ => (),
                     }
                 }
             } else if event.button == MouseButton::Left && event.state == ButtonState::Released {
-                for (entity, _, _, _) in &active_drag_query {
+                for (entity, _, _) in &active_drag_query {
                     commands.entity(entity).remove::<DragAction>();
                     info!("stop drag for {:?}", entity);
                 }
@@ -479,8 +489,9 @@ pub fn edit_input_system(
 
         // update dragged planes. Do this in two steps, only touch EditorObject as mutable if there is a relevant change
         // to prevent triggering the bevy change detection.
-        let mut updates = Vec::new();
-        for (entity, drag_action, editor_object, bounds) in &active_drag_query {
+        let mut csg_updates = Vec::new();
+        let mut transform_updates = Vec::new();
+        for (entity, drag_action, editor_object) in &active_drag_query {
             let EditorObject::Brush(brush) = editor_object else {
                 warn!( "drag: not a brush: {:?}", entity);
                 continue;
@@ -519,6 +530,9 @@ pub fn edit_input_system(
                         relevant_change = true;
                     }
                 }
+                DragActionType::NonBrush{ start_translation } => {
+                    transform_updates.push((entity, *start_translation + drag_delta));
+                },
             }
 
             if relevant_change {
@@ -533,7 +547,7 @@ pub fn edit_input_system(
                 //     .expect("failed to remove edited brush from index");
 
                 let (center, radius) = csg.bounding_sphere();
-                updates.push((
+                csg_updates.push((
                     entity,
                     (
                         EditorObject::Brush(new_brush),
@@ -550,12 +564,19 @@ pub fn edit_input_system(
 
         // info!("updates: {:?}", updates);
 
-        for (entity, (obj, bounds)) in updates {
+        for (entity, (obj, bounds)) in csg_updates {
             info!("apply update on {:?}", entity);
-            if let Ok((_, _, mut target_obj, mut target_bounds)) = active_drag_query.get_mut(entity)
-            {
-                *target_obj = obj;
-                *target_bounds = bounds;
+            if let Ok((_, _, mut target_obj)) = active_drag_query.get_mut(entity) {
+                if let Ok(mut target_bounds) = csg_repr_query.get_mut(entity) {
+                    *target_obj = obj;
+                    *target_bounds = bounds;
+                }
+            }
+        }
+
+        for (entity, translation) in transform_updates {
+            if let Ok(mut transform) = transform_query.get_mut(entity) {
+                transform.translation = translation;
             }
         }
     }
