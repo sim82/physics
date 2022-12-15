@@ -26,6 +26,9 @@ pub struct CmdlineArgs {
     name: Option<String>,
 
     #[clap(short, long)]
+    category: Option<String>,
+
+    #[clap(short, long)]
     existing: bool,
 
     #[clap(short, long)]
@@ -51,7 +54,7 @@ impl ImageKind {
             return Some(ImageKind::Preview);
         }
 
-        if !lower.ends_with(".png") || lower.contains("preview") {
+        if !lower.ends_with(".png") || lower.contains("preview") || lower.contains("normaldx") {
             return None;
         }
 
@@ -60,6 +63,7 @@ impl ImageKind {
             || lower.contains("base_color")
             || lower.contains("default_color")
             || lower.ends_with("-alb.png")
+            || lower.ends_with("color.png")
         {
             Some(ImageKind::Albedo)
         } else if lower.contains("emissive") {
@@ -71,8 +75,8 @@ impl ImageKind {
         {
             // println!("lower: {}", lower);
 
-            if !lower.contains("ogl") {
-                warn!("not 'ogl' in normal map. Check handedness.: {}", name);
+            if !lower.contains("gl") {
+                warn!("no 'gl' in normal map. Check handedness.: {}", name);
             }
             Some(ImageKind::Normal)
         } else if lower.contains("rough") {
@@ -97,7 +101,28 @@ fn main() {
     // }
 
     if !args.batch {
-        import_single_material(args.input_pbr, &args.name, args.asset_dir, args.existing);
+        let (material, name) =
+            import_single_material(args.input_pbr, &args.name, &args.asset_dir, args.existing);
+
+        if let Some(category_name) = args.category {
+            let materials_dir = args.asset_dir.join("materials");
+            let material_path = materials_dir.join(format!("{}.ron", category_name));
+            let mut materials: HashMap<String, material::Material> =
+                if let Ok(f) = std::fs::File::open(&material_path) {
+                    // ron::ser::to_writer_pretty(f, &materials, Default::default()).expect("failed");
+                    ron::de::from_reader(f).expect("failed to read existing material file")
+                } else {
+                    HashMap::new()
+                };
+
+            materials.insert(format!("material/{}/{}", category_name, name), material);
+            std::fs::create_dir_all(&materials_dir).expect("create_dir failed");
+            if !materials.is_empty() {
+                if let Ok(f) = std::fs::File::create(material_path) {
+                    ron::ser::to_writer_pretty(f, &materials, Default::default()).expect("failed");
+                }
+            }
+        }
     } else {
         // the freepbr bulk package is organized in filters like metals-bl/vertical-lined-metal-bl/*.png
         // so we can re-use the same filter for traversing both directory levels
@@ -195,7 +220,7 @@ fn import_single_material(
     name: &Option<String>,
     asset_dir: impl AsRef<Path>,
     existing: bool,
-) {
+) -> (material::Material, String) {
     let input_pbr = input_pbr.as_ref();
     let asset_dir = asset_dir.as_ref();
     let name = match name {
@@ -224,27 +249,28 @@ fn import_single_material(
         println!("outdir is not a directory: {:?}", output_dir);
         std::process::exit(1);
     }
-    let material_name = asset_dir.join("materials").join(format!("{}.ron", name));
-    if material_name.exists() {
-        println!("material name exists {:?}", material_name);
-        if !existing {
-            std::process::exit(1)
-        }
-    }
+    // let material_name = asset_dir.join("materials").join(format!("{}.ron", name));
+    // if material_name.exists() {
+    //     println!("material name exists {:?}", material_name);
+    //     if !existing {
+    //         std::process::exit(1)
+    //     }
+    // }
     let images = read_images(input_pbr).expect("read_images failed");
     let material =
         write_material_images(images, &name, output_dir).expect("write_material_images failed");
-    if let Ok(f) = std::fs::File::create(material_name) {
-        let choices = ["appearance/test/whiteconcret3", "appearance/test/con52_1"];
-        let idx = dialoguer::Select::new()
-            .items(&choices)
-            .interact()
-            .expect("select failed");
+    // if let Ok(f) = std::fs::File::create(material_name) {
+    //     let choices = ["appearance/test/whiteconcret3", "appearance/test/con52_1"];
+    //     let idx = dialoguer::Select::new()
+    //         .items(&choices)
+    //         .interact()
+    //         .expect("select failed");
 
-        let mut map = HashMap::new();
-        map.insert(choices[idx], material);
-        ron::ser::to_writer_pretty(f, &map, Default::default()).expect("failed");
-    }
+    //     let mut map = HashMap::new();
+    //     map.insert(choices[idx], material);
+    //     ron::ser::to_writer_pretty(f, &map, Default::default()).expect("failed");
+    // }
+    (material, name)
 }
 
 fn read_images<A>(
