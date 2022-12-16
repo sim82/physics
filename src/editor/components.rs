@@ -6,10 +6,19 @@ use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PointLightProperties {
     pub shadows_enabled: bool,
-    pub range: Option<f32>,
+    pub range: f32,
+}
+
+impl Default for PointLightProperties {
+    fn default() -> Self {
+        Self {
+            shadows_enabled: false,
+            range: 5.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
@@ -108,3 +117,6 @@ pub struct CsgRepresentation {
 pub struct EditorObjectOutputLink {
     pub entities: Vec<Entity>,
 }
+
+#[derive(Component)]
+pub struct EditorObjectLinkedBevyTransform(pub Entity);

@@ -1,7 +1,8 @@
 use super::{
     components::{
         self, CsgOutput, CsgRepresentation, EditorObject, EditorObjectBundle,
-        EditorObjectOutputLink, PointLightProperties, SelectionVis,
+        EditorObjectLinkedBevyTransform, EditorObjectOutputLink, PointLightProperties,
+        SelectionVis,
     },
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
@@ -506,6 +507,21 @@ pub fn track_lights_system(
             continue;
         };
 
+        let light_entity = commands
+            .spawn((
+                PointLightBundle {
+                    transform: *transform,
+                    point_light: PointLight {
+                        shadows_enabled: light_props.shadows_enabled,
+                        range: light_props.range,
+                        ..default()
+                    },
+                    ..default()
+                },
+                RenderLayers::layer(render_layers::MAIN_3D),
+            ))
+            .id();
+
         commands
             .entity(entity)
             .insert((
@@ -520,20 +536,19 @@ pub fn track_lights_system(
                 // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
             ))
             .insert(NotShadowCaster)
-            .insert(NotShadowReceiver);
+            .insert(NotShadowReceiver)
+            .insert(EditorObjectLinkedBevyTransform(light_entity));
+    }
+}
 
-        commands.spawn((
-            PointLightBundle {
-                transform: *transform,
-                point_light: PointLight {
-                    shadows_enabled: light_props.shadows_enabled,
-                    range: light_props.range.unwrap_or_else(|| default()),
-                    ..default()
-                },
-                ..default()
-            },
-            RenderLayers::layer(render_layers::MAIN_3D),
-        ));
+pub fn track_linked_transforms_system(
+    query: Query<(&Transform, &EditorObjectLinkedBevyTransform)>,
+    mut transform_query: Query<&mut Transform, Without<EditorObjectLinkedBevyTransform>>,
+) {
+    for (src_transform, linked) in &query {
+        if let Ok(mut dest_transform) = transform_query.get_mut(linked.0) {
+            *dest_transform = *src_transform;
+        }
     }
 }
 
@@ -661,10 +676,7 @@ pub fn load_save_editor_objects(
             commands.spawn((
                 SpatialBundle::from_transform(Transform::from_translation(pos)),
                 EditorObjectBundle {
-                    editor_object: EditorObject::PointLight(PointLightProperties {
-                        range: Some(10.0),
-                        ..default()
-                    }),
+                    editor_object: EditorObject::PointLight(PointLightProperties { ..default() }),
                     ..default()
                 },
             ));

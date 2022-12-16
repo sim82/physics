@@ -487,26 +487,20 @@ pub fn edit_input_system(
             }
         }
 
-        // update dragged planes. Do this in two steps, only touch EditorObject as mutable if there is a relevant change
+        // update dragged objects. Do this in two steps, only touch EditorObject as mutable if there is a relevant change
         // to prevent triggering the bevy change detection.
         let mut csg_updates = Vec::new();
         let mut transform_updates = Vec::new();
         for (entity, drag_action, editor_object) in &active_drag_query {
-            let EditorObject::Brush(brush) = editor_object else {
-                warn!( "drag: not a brush: {:?}", entity);
-                continue;
-            };
-
             let drag_delta = ray.origin - drag_action.start_ray.origin;
 
             debug!("drag: {:?} on {:?}", drag_delta, entity);
 
-            let mut new_brush = brush.clone();
-            let mut relevant_change = false;
-
-            match &drag_action.action {
-                DragActionType::Face { affected_faces }
-                | DragActionType::WholeBrush { affected_faces } /* yay, free implementation */ => {
+            match (&drag_action.action, editor_object) {
+                (DragActionType::Face { affected_faces }, EditorObject::Brush(brush))
+                | (DragActionType::WholeBrush { affected_faces }, EditorObject::Brush(brush)) /* yay, free implementation */ => {
+                    let mut new_brush = brush.clone();
+                    let mut relevant_change = false;
                     for (face, start_w) in affected_faces {
                         let normal = brush.planes[*face].normal;
 
@@ -529,36 +523,33 @@ pub fn edit_input_system(
                         new_brush.planes[*face].w = new_w;
                         relevant_change = true;
                     }
+                    if relevant_change {
+                        let csg: Result<csg::Csg, _> = new_brush.clone().try_into();
+                        match csg {
+                            Ok(csg) => {
+                                let (center, radius) = csg.bounding_sphere();
+                                csg_updates.push((
+                                    entity,
+                                    (
+                                        EditorObject::Brush(new_brush),
+                                        CsgRepresentation {
+                                            center,
+                                            radius,
+                                            csg,
+                                        },
+                                    ),
+                                ));
+                            }
+                            Err(_) => {
+                                warn!("edit action degenerates brush. ignoring.");
+                            }
+                        }
+                    }
                 }
-                DragActionType::NonBrush{ start_translation } => {
+                (DragActionType::NonBrush{ start_translation }, EditorObject::PointLight(_)) => {
                     transform_updates.push((entity, *start_translation + drag_delta));
                 },
-            }
-
-            if relevant_change {
-                let Ok(csg) : Result<csg::Csg,_> = new_brush.clone().try_into() else {
-                    warn!("edit action degenerates brush. ignoring.");
-                    continue;
-                };
-
-                // spatial_index
-                //     .sstree
-                //     .remove_if(&bounds.center, bounds.radius, |e| *e == entity)
-                //     .expect("failed to remove edited brush from index");
-
-                let (center, radius) = csg.bounding_sphere();
-                csg_updates.push((
-                    entity,
-                    (
-                        EditorObject::Brush(new_brush),
-                        CsgRepresentation {
-                            center,
-                            radius,
-                            csg,
-                        },
-                    ),
-                ));
-                // spatial_index.sstree.insert(entity, center, radius);
+                _ => warn!( "invalid combinaton of editor object and drag action."),
             }
         }
 
