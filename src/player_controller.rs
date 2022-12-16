@@ -254,7 +254,8 @@ impl Default for PlayerControllerBundle {
             character_controller: default(),
             input_queue: default(),
             input_source: default(),
-            collider: Collider::cylinder(0.9, 0.3),
+            // collider: Collider::cylinder(0.9, 0.3),
+            collider: Collider::cuboid(0.3, 0.9, 0.3),
         }
     }
 }

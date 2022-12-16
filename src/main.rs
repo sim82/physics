@@ -22,6 +22,7 @@ use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier3d::prelude::*;
 use parry3d::shape::{ConvexPolyhedron, SharedShape};
 use physics::{
+    debug_gui::DebugGuiPlugin,
     editor::{self, util::spawn_box},
     norm,
     player_controller::{self, PlayerCamera, PlayerControllerBundle},
@@ -62,6 +63,11 @@ fn main() {
     // .add_system(bevy_mod_mipmap_generator::generate_mipmaps::<StandardMaterial>)
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     .add_plugin(RapierDebugRenderPlugin::default())
+    .insert_resource(DebugRenderContext {
+        enabled: false,
+        always_on_top: false,
+        ..default()
+    })
     .add_plugin(bevy_prototype_debug_lines::DebugLinesPlugin::default())
     // .add_plugin(EditorPlugin)
     .add_startup_system(setup)
@@ -104,6 +110,8 @@ fn main() {
     }
     app.add_system_set(SystemSet::on_enter(AppState::DebugMenu).with_system(open_debug_windows));
     app.add_system_set(SystemSet::on_exit(AppState::DebugMenu).with_system(close_debug_windows));
+
+    app.add_plugin(DebugGuiPlugin);
     app.run();
 
     info!("after app.run");
@@ -402,12 +410,11 @@ fn setup(
         );
     }
     commands
-        .spawn(SpatialBundle::default())
+        .spawn(SpatialBundle::from_transform(Transform::from_xyz(
+            5.0, 2.01, 5.0,
+        )))
         .insert(PlayerControllerBundle::default())
-        .insert(Name::new("player"))
-        .insert(
-            Transform::from_xyz(10.0, 1.01, 10.0), //.looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y),
-        );
+        .insert(Name::new("player"));
 
     const LAYER_MAIN_3D: u8 = 0;
     commands

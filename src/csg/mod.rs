@@ -50,7 +50,7 @@ use bevy::{
 // use bevy_rapier3d::rapier::geometry::Collider;
 
 mod cube;
-use bevy_rapier3d::prelude::Collider;
+use bevy_rapier3d::prelude::{Collider, TriMeshFlags};
 pub use cube::Cube;
 
 mod cylinder;
@@ -411,7 +411,7 @@ impl Csg {
             for vs in 1..(points.len() as u32 - 1) {
                 indices.push([0, vs, vs + 1]);
             }
-            info!("points: {:?}, indices: {:?}", points, indices);
+            debug!("points: {:?}, indices: {:?}", points, indices);
             // colliders.push(Collider::convex_mesh(points, &indices[..]).unwrap());
             colliders.push((Collider::trimesh(points, indices), origin));
         }
