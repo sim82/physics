@@ -385,12 +385,23 @@ pub fn create_brush_csg_system_inc(
             commands.entity(entity).despawn();
         }
 
-        csg_output.entities = spawn_csg_split(
-            &mut commands,
-            &materials_res,
-            &mut meshes,
-            &csg::Csg::from_polygons(bsp.all_polygons()),
-        );
+        let output_shape = csg::Csg::from_polygons(bsp.all_polygons());
+        csg_output.entities =
+            spawn_csg_split(&mut commands, &materials_res, &mut meshes, &output_shape);
+
+        if !false {
+            for (collider, origin) in output_shape.get_collision_polygons() {
+                println!("collider: {:?}", collider);
+                let entity = commands
+                    .spawn(collider)
+                    .insert(SpatialBundle::from_transform(Transform::from_translation(
+                        origin,
+                    )))
+                    .insert(CsgCollisionOutput)
+                    .id();
+                csg_output.entities.push(entity);
+            }
+        }
     }
 
     if num_affected > 0 {
