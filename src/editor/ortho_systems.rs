@@ -317,11 +317,11 @@ pub fn adjust_clip_planes_system(
         return;
     };
 
-    let Ok((upper_transform, upper_camera, upper_projection, _)) = camera_query.get(upper.camera) else {
+    let Ok((upper_transform, upper_camera, _upper_projection, _)) = camera_query.get(upper.camera) else {
         return;
     };
 
-    let Ok((lower_transform, lower_camera, lower_projection, _)) = camera_query.get(lower.camera) else {
+    let Ok((lower_transform, lower_camera, _lower_projection, _)) = camera_query.get(lower.camera) else {
         return;
     };
 
@@ -405,7 +405,6 @@ pub fn edit_input_system(
     keycodes: Res<Input<KeyCode>>,
     mut mouse_button: EventReader<MouseButtonInput>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
-    mut spatial_index: ResMut<resources::SpatialIndex>,
 
     camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<&EditorObject, Without<DragAction>>,

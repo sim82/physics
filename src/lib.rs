@@ -78,26 +78,21 @@ pub mod test_texture {
 
         for y in 0..TH as i32 {
             for x in 0..TW as i32 {
-                let l = (0x1FF
+                let l = 0x1FF
                     >> [x, y, TW as i32 - 1 - x, TH as i32 - 1 - y, 31]
                         .iter()
                         .min()
-                        .unwrap()) as i32;
+                        .unwrap();
 
-                let d = std::cmp::min(
-                    50,
-                    std::cmp::max(
-                        0,
-                        255 - 50
-                            * f32::powf(
-                                f32::hypot(
-                                    x as f32 / (TW / 2) as f32 - 1.0f32,
-                                    y as f32 / (TH / 2) as f32 - 1.0f32,
-                                ) * 4.0,
-                                2.0f32,
-                            ) as i32,
-                    ),
-                );
+                let d = (255
+                    - 50 * f32::powf(
+                        f32::hypot(
+                            x as f32 / (TW / 2) as f32 - 1.0f32,
+                            y as f32 / (TH / 2) as f32 - 1.0f32,
+                        ) * 4.0,
+                        2.0f32,
+                    ) as i32)
+                    .clamp(0, 50);
                 let r = (!x & !y) & 255;
                 let g = (x & !y) & 255;
                 let b = (!x & y) & 255;
@@ -212,7 +207,7 @@ mod systems {
 
                         std::fs::create_dir_all(cache_dir).expect("could not create cache dir");
                         let mut f = File::create(cache_dir.join(&deferred_mesh.id)).unwrap();
-                        let buf = flexbuffers::to_vec(&y).unwrap();
+                        let buf = flexbuffers::to_vec(y).unwrap();
                         f.write_all(&buf[..]).unwrap();
                     }
                     collider
@@ -310,8 +305,8 @@ pub fn spawn_gltf2(
 ) {
     let bevy_path = format!("models/{}", filename);
 
-    let mesh = asset_server.load(&format!("{}#Mesh0/Primitive0", bevy_path));
-    let material = asset_server.load(&format!("{}#Material0", bevy_path));
+    let mesh = asset_server.load(format!("{}#Mesh0/Primitive0", bevy_path));
+    let material = asset_server.load(format!("{}#Material0", bevy_path));
 
     commands
         .spawn(components::DeferredMesh {

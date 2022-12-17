@@ -98,7 +98,7 @@ impl Materials {
         };
         match self.instantiated_materials.entry(name.to_string()) {
             hash_map::Entry::Occupied(e) => Some(e.get().clone()),
-            hash_map::Entry::Vacant(mut e) => {
+            hash_map::Entry::Vacant(e) => {
                 let material = self.material_defs.get(name)?;
                 Some(
                     e.insert(material::instantiate_material(

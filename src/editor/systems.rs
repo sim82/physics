@@ -13,17 +13,12 @@ use crate::{
         components::{CsgCollisionOutput, EditorObjectBrushBundle},
         util::spawn_csg_split,
     },
-    material, render_layers, sstree, wsx,
+    material, render_layers, wsx,
 };
 use bevy::{
-    input::mouse::MouseWheel,
-    pbr::{wireframe::Wireframe, NotShadowCaster, NotShadowReceiver},
+    pbr::{NotShadowCaster, NotShadowReceiver},
     prelude::{shape::Cube, *},
-    render::{
-        mesh,
-        primitives::{Aabb, Sphere},
-        view::RenderLayers,
-    },
+    render::{mesh, primitives::Aabb, view::RenderLayers},
     utils::{HashSet, Instant},
 };
 use std::{collections::BTreeSet, path::PathBuf};
@@ -72,7 +67,6 @@ pub fn setup(
 pub fn editor_input_system(
     mut commands: Commands,
 
-    editor_windows_2d: ResMut<resources::EditorWindows2d>,
     keycodes: Res<Input<KeyCode>>,
     mut selection: ResMut<Selection>,
     query: Query<&EditorObject>,
@@ -114,10 +108,6 @@ pub fn editor_input_system(
             .id();
 
         selection.primary = Some(entity);
-    }
-    // the remaining stuff only works in the 3d window
-    if editor_windows_2d.focused.is_some() {
-        return;
     }
 }
 
@@ -389,7 +379,8 @@ pub fn create_brush_csg_system_inc(
         csg_output.entities =
             spawn_csg_split(&mut commands, &materials_res, &mut meshes, &output_shape);
 
-        if !false {
+        const GENERATE_COLLISION_GEOMETRY: bool = true;
+        if GENERATE_COLLISION_GEOMETRY {
             for (collider, origin) in output_shape.get_collision_polygons() {
                 println!("collider: {:?}", collider);
                 let entity = commands
@@ -502,6 +493,7 @@ pub fn track_2d_vis_system(
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub fn track_lights_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -587,7 +579,7 @@ pub fn track_spatial_index_system(
                 // info!( "{:?} {} {:?}", csg_repr.center, csg_repr.radius, entity);
                 // info!( "{:?}", spatial_index.sstree);
                 panic!( "aborting.");
-                continue;
+                // continue;
             };
         debug!(
             "update: {:?} {} -> {:?} {}",

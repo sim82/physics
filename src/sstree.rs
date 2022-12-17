@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use bevy::prelude::{warn, Vec3};
+use bevy::prelude::Vec3;
 
 pub const MAX_TREE_HEIGHT: usize = 16;
 
