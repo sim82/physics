@@ -245,4 +245,5 @@ pub struct WmState {
     pub slot_upper2d: WmSlot,
     pub slot_lower2d: WmSlot,
     pub slot_main3d: WmSlot,
+    pub separator_bias: f32,
 }

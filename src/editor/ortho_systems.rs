@@ -318,16 +318,17 @@ pub fn control_input_wm_system(
     camera_query: Query<(&GlobalTransform, &Camera)>,
     mut transform_query: Query<&mut Transform>,
     mut event_reader: EventReader<util::WmEvent>,
+    mut projection_query: Query<&mut Projection>,
 ) {
     for event in event_reader.iter() {
         // let focused_name = event.
-        info!("event: {:?}", event);
+        // info!("event: {:?}", event);
 
         match *event {
             util::WmEvent::DragStart {
                 window: focused_name,
                 button: WmMouseButton::Middle,
-                pos,
+                pointer_state,
             } => {
                 let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
                 let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
@@ -335,7 +336,7 @@ pub fn control_input_wm_system(
                     continue;
                 };
                 info!("middle down");
-                let Some(ray) = camera.viewport_to_world(global_transform, pos) else {
+                let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
                     warn!("viewport_to_world failed in {}", focused_name); 
                     continue;
                 };
@@ -356,7 +357,7 @@ pub fn control_input_wm_system(
             util::WmEvent::DragUpdate {
                 window: focused_name,
                 button: WmMouseButton::Middle,
-                pos,
+                pointer_state,
             } => {
                 let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
                 let Ok((_global_transform, camera)) = camera_query.get(window.camera) else {
@@ -376,12 +377,11 @@ pub fn control_input_wm_system(
                     start_transforms,
                 }) = &editor_windows_2d.translate_drag
                 {
-                    let Some(ray) = camera.viewport_to_world(start_global_transform, pos) else {
+                    let Some(ray) = camera.viewport_to_world(start_global_transform, pointer_state.get_pos_origin_down()) else {
                         warn!("viewport_to_world failed in {}", focused_name); 
                         continue;
                     };
                     let mut d = start_ray.origin - ray.origin;
-                    d.y = -d.y; // 3d viewport is lower right
                     info!(
                         "translate drag update: {:?} {:?}",
                         start_ray.origin, ray.origin
@@ -396,10 +396,32 @@ pub fn control_input_wm_system(
             util::WmEvent::DragEnd {
                 window: _,
                 button: WmMouseButton::Middle,
-                pos: _,
+                pointer_state: _,
             } => {
                 info!("translate drag end");
                 editor_windows_2d.translate_drag = None;
+            }
+            util::WmEvent::ZoomDelta(zoom_delta) => {
+                for (_name, window) in &editor_windows_2d.windows {
+                    let Ok(mut projection) = projection_query.get_mut(window.camera) else {
+                        warn!("2d window camera transform / projection not found: {:?}", window.camera); 
+                        continue;
+                    };
+
+                    let Projection::Orthographic(ortho) = &mut *projection else {
+                        warn!("2d window camera has not ortho projection: {:?}", window.camera); 
+                        continue;
+                    };
+
+                    let ScalingMode::FixedHorizontal(scaling) = &mut ortho.scaling_mode else {
+                        warn!("2d window camera has not ortho projection: {:?}", window.camera); 
+                        continue;
+                    };
+
+                    if *scaling * zoom_delta > 0.0 {
+                        *scaling *= zoom_delta;
+                    }
+                }
             }
             _ => (),
         }
@@ -674,6 +696,198 @@ pub fn edit_input_system(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn edit_input_wm_system(
+    mut commands: Commands,
+    mut event_reader: EventReader<util::WmEvent>,
+    selection: Res<Selection>,
+    keycodes: Res<Input<KeyCode>>,
+    editor_windows_2d: Res<resources::EditorWindows2d>,
+
+    camera_query: Query<(&GlobalTransform, &Camera)>,
+    brush_query: Query<&EditorObject, Without<DragAction>>,
+    mut active_drag_query: Query<(Entity, &DragAction, &mut EditorObject), With<DragAction>>,
+
+    mut csg_repr_query: Query<&mut components::CsgRepresentation, With<DragAction>>,
+    mut transform_query: Query<&mut Transform>,
+) {
+    for event in event_reader.iter() {
+        info!("event edit: {:?}", event);
+        match *event {
+            util::WmEvent::DragStart {
+                window: focused_name,
+                button: util::WmMouseButton::Left,
+                pointer_state,
+            } => {
+                let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
+                let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
+                    warn!("2d window camera not found: {:?}", window.camera); 
+                    continue;
+                };
+                info!("left down");
+                let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
+                    warn!("viewport_to_world failed in {}", focused_name); 
+                    continue;
+                };
+
+                info!("click ray {}: {:?}", focused_name, ray);
+
+                if let Some(primary) = selection.primary {
+                    match brush_query.get(primary) {
+                        Ok(EditorObject::Brush(brush)) => {
+                            let affected_faces = brush.get_planes_behind_ray(ray);
+
+                            if !affected_faces.is_empty() {
+                                commands.entity(primary).insert(DragAction {
+                                    start_ray: ray,
+                                    action: DragActionType::Face { affected_faces },
+                                });
+                                info!("start face drag for {:?}", primary); // the crowd put on their affected_faces as The Iron Sheik did his signature face-drag on el Pollo Loco
+                            } else {
+                                let affected_faces = brush
+                                    .planes
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, face)| (i, face.w))
+                                    .collect();
+                                commands.entity(primary).insert(DragAction {
+                                    start_ray: ray,
+                                    action: DragActionType::WholeBrush { affected_faces },
+                                });
+                                info!("start whole-brush drag for {:?}", primary);
+                            }
+                        }
+                        Ok(EditorObject::PointLight(_)) => {
+                            if let Ok(transform) = transform_query.get(primary) {
+                                info!("light drag start");
+
+                                commands.entity(primary).insert(DragAction {
+                                    start_ray: ray,
+                                    action: DragActionType::NonBrush {
+                                        start_translation: transform.translation,
+                                    },
+                                });
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
+            util::WmEvent::DragUpdate {
+                window: focused_name,
+                button: util::WmMouseButton::Left,
+                pointer_state,
+            } => {
+                let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
+                let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
+                    warn!("2d window camera not found: {:?}", window.camera); 
+                    continue;
+                };
+                info!("left down");
+                let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
+                    warn!("viewport_to_world failed in {}", focused_name); 
+                    continue;
+                };
+
+                // update dragged objects. Do this in two steps, only touch EditorObject as mutable if there is a relevant change
+                // to prevent triggering the bevy change detection.
+                let mut csg_updates = Vec::new();
+                let mut transform_updates = Vec::new();
+                for (entity, drag_action, editor_object) in &active_drag_query {
+                    let drag_delta = ray.origin - drag_action.start_ray.origin;
+
+                    debug!("drag: {:?} on {:?}", drag_delta, entity);
+
+                    match (&drag_action.action, editor_object) {
+                        (DragActionType::Face { affected_faces }, EditorObject::Brush(brush))
+                        | (DragActionType::WholeBrush { affected_faces }, EditorObject::Brush(brush)) /* yay, free implementation */ => {
+                            let mut new_brush = brush.clone();
+                            let mut relevant_change = false;
+                            for (face, start_w) in affected_faces {
+                                let normal = brush.planes[*face].normal;
+
+                                let d = drag_delta.dot(normal);
+
+                                let snap = if keycodes.pressed(KeyCode::LAlt) {
+                                    0.5
+                                } else {
+                                    0.1
+                                };
+                                // let d_snap = (d / snap).round() * snap;
+
+                                let new_w = (*start_w + d).snap(snap);
+
+                                // compare to the current w of the plane, only apply new value if it changed
+                                let current_w = brush.planes[*face].w;
+                                if (new_w - current_w).abs() < PLANE_EPSILON {
+                                    continue;
+                                }
+                                new_brush.planes[*face].w = new_w;
+                                relevant_change = true;
+                            }
+                            if relevant_change {
+                                let csg: Result<csg::Csg, _> = new_brush.clone().try_into();
+                                match csg {
+                                    Ok(csg) => {
+                                        let (center, radius) = csg.bounding_sphere();
+                                        csg_updates.push((
+                                            entity,
+                                            (
+                                                EditorObject::Brush(new_brush),
+                                                CsgRepresentation {
+                                                    center,
+                                                    radius,
+                                                    csg,
+                                                },
+                                            ),
+                                        ));
+                                    }
+                                    Err(_) => {
+                                        warn!("edit action degenerates brush. ignoring.");
+                                    }
+                                }
+                            }
+                        }
+                        (DragActionType::NonBrush{ start_translation }, EditorObject::PointLight(_)) => {
+                            transform_updates.push((entity, *start_translation + drag_delta));
+                        },
+                        _ => warn!( "invalid combinaton of editor object and drag action."),
+                    }
+                }
+                // info!("updates: {:?}", updates);
+
+                for (entity, (obj, bounds)) in csg_updates {
+                    info!("apply update on {:?}", entity);
+                    if let Ok((_, _, mut target_obj)) = active_drag_query.get_mut(entity) {
+                        if let Ok(mut target_bounds) = csg_repr_query.get_mut(entity) {
+                            *target_obj = obj;
+                            *target_bounds = bounds;
+                        }
+                    }
+                }
+
+                for (entity, translation) in transform_updates {
+                    if let Ok(mut transform) = transform_query.get_mut(entity) {
+                        transform.translation = translation;
+                    }
+                }
+            }
+
+            util::WmEvent::DragEnd {
+                window,
+                button: util::WmMouseButton::Left,
+                pointer_state,
+            } => {
+                for (entity, _, _) in &active_drag_query {
+                    commands.entity(entity).remove::<DragAction>();
+                    info!("stop drag for {:?}", entity);
+                }
+            }
+            _ => (),
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct ClickTimer {
     pub timer: Timer,
@@ -725,6 +939,81 @@ pub fn select_input_system(
                 "minmax: {:?} {:?}",
                 editor_windows_2d.view_min, editor_windows_2d.view_max
             );
+            // editor_windows_2d.
+            let selection_set = brush_query
+                .iter()
+                .filter_map(|(entity, obj, csg)| match obj {
+                    EditorObject::Brush(brush) => {
+                        if !csg.csg.polygons.iter().any(|poly| {
+                            poly.vertices.iter().any(|v| {
+                                v.position.x >= editor_windows_2d.view_min.x
+                                    && v.position.y >= editor_windows_2d.view_min.y
+                                    && v.position.z >= editor_windows_2d.view_min.z
+                                    && v.position.x <= editor_windows_2d.view_max.x
+                                    && v.position.y <= editor_windows_2d.view_max.y
+                                    && v.position.z <= editor_windows_2d.view_max.z
+                            })
+                        }) {
+                            return None;
+                        }
+
+                        let affected_faces = brush.get_planes_behind_ray(ray);
+                        if affected_faces.is_empty() {
+                            Some(entity)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            info!("selection set: {:?}", selection_set);
+
+            if selection_set != selection.last_set {
+                selection.last_set = selection_set;
+                selection.last_set_index = 0;
+            } else {
+                selection.last_set_index += 1;
+            }
+
+            if !selection.last_set.is_empty() {
+                selection.primary =
+                    Some(selection.last_set[selection.last_set_index % selection.last_set.len()]);
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn select_input_wm_system(
+    time: Res<Time>,
+    mut event_reader: EventReader<util::WmEvent>,
+    mut click_timer: Local<ClickTimer>,
+    mouse_buttons: Res<Input<MouseButton>>,
+    keycodes: Res<Input<KeyCode>>,
+    mut selection: ResMut<Selection>,
+    editor_windows_2d: Res<resources::EditorWindows2d>,
+    camera_query: Query<(&GlobalTransform, &Camera)>,
+    brush_query: Query<(Entity, &EditorObject, &CsgRepresentation)>,
+) {
+    for event in event_reader.iter() {
+        if let util::WmEvent::Clicked {
+            window: focused_name,
+            button: util::WmMouseButton::Left,
+            pointer_state,
+        } = *event
+        {
+            let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue };
+            let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
+                warn!("2d window camera not found: {:?}", window.camera);
+                continue;
+            };
+
+            let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
+                warn!("viewport_to_world failed in {}", focused_name); 
+                continue;
+            };
+
             // editor_windows_2d.
             let selection_set = brush_query
                 .iter()

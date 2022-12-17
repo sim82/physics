@@ -249,7 +249,7 @@ impl SnapToGrid for f32 {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub enum WmMouseButton {
     #[default]
     Left,
@@ -257,21 +257,43 @@ pub enum WmMouseButton {
     Right,
 }
 
+#[derive(Debug, Default, Copy, Clone)]
+pub struct WmEventPointerState {
+    pub pos: Vec2,
+    pub bounds: Rect,
+}
+
+impl WmEventPointerState {
+    pub fn get_pos_origin_down(&self) -> Vec2 {
+        // flip y coord
+        Vec2::new(
+            self.pos.x - self.bounds.min.x,
+            self.bounds.max.y - self.pos.y,
+        )
+    }
+}
+
 #[derive(Debug)]
 pub enum WmEvent {
+    Clicked {
+        window: &'static str,
+        button: WmMouseButton,
+        pointer_state: WmEventPointerState,
+    },
     DragStart {
         window: &'static str,
         button: WmMouseButton,
-        pos: Vec2,
+        pointer_state: WmEventPointerState,
     },
     DragUpdate {
         window: &'static str,
         button: WmMouseButton,
-        pos: Vec2,
+        pointer_state: WmEventPointerState,
     },
     DragEnd {
         window: &'static str,
         button: WmMouseButton,
-        pos: Vec2,
+        pointer_state: WmEventPointerState,
     },
+    ZoomDelta(f32),
 }
