@@ -50,7 +50,7 @@ use bevy::{
 // use bevy_rapier3d::rapier::geometry::Collider;
 
 mod cube;
-use bevy_rapier3d::prelude::{Collider, TriMeshFlags};
+use bevy_rapier3d::prelude::Collider;
 pub use cube::Cube;
 
 mod cylinder;

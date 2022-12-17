@@ -1,5 +1,5 @@
 use crate::{
-    csg::{self, Brush, Csg},
+    csg::{self, Brush},
     render_layers,
 };
 use bevy::prelude::*;
