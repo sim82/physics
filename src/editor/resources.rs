@@ -5,12 +5,12 @@ use bevy::{
     utils::{hashbrown::hash_map, HashMap, HashSet},
     window::WindowId,
 };
-use bevy_egui::egui;
+use bevy_egui::{egui, EguiContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{material, sstree::SsTree};
 
-use super::util::Orientation2d;
+use super::util::{self, Orientation2d};
 
 #[derive(Default, Resource)]
 pub struct Selection {
@@ -176,4 +176,73 @@ impl MaterialBrowser {
 #[derive(Resource, Default)]
 pub struct SpatialIndex {
     pub sstree: SsTree<Entity, Vec3, 8>,
+}
+
+#[derive(Default)]
+pub struct WmSlot {
+    pub offscreen_image: Handle<Image>,
+    pub offscreen_egui_texture: egui::TextureId,
+    pub target_size: egui::Vec2,
+    pub current_size: wgpu::Extent3d,
+    // pub drag_initial_button: util::WmMouseButton,
+    pub drag_active: bool,
+}
+
+impl WmSlot {
+    pub fn new(image_assets: &mut Assets<Image>, egui_context: &mut EguiContext) -> Self {
+        let size = wgpu::Extent3d {
+            width: 512,
+            height: 512,
+            ..default()
+        };
+
+        // This is the texture that will be rendered to.
+        let mut image = Image {
+            texture_descriptor: wgpu::TextureDescriptor {
+                label: None,
+                size,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Bgra8UnormSrgb,
+                mip_level_count: 1,
+                sample_count: 1,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            },
+            ..default()
+        };
+        image.resize(size);
+        let offscreen_image = image_assets.add(image);
+
+        Self {
+            offscreen_egui_texture: egui_context.add_image(offscreen_image.clone()),
+            offscreen_image,
+            target_size: egui::Vec2::new(size.width as f32, size.height as f32),
+            current_size: size,
+            ..default()
+        }
+    }
+
+    pub fn check_resize(&mut self, image_assets: &mut Assets<Image>) {
+        if self.target_size.x as u32 != self.current_size.width
+            || self.target_size.y as u32 != self.current_size.height
+        {
+            if let Some(image) = image_assets.get_mut(&self.offscreen_image) {
+                let new_size = wgpu::Extent3d {
+                    width: self.target_size.x as u32,
+                    height: self.target_size.y as u32,
+                    ..default()
+                };
+                image.resize(new_size);
+                self.current_size = new_size;
+            }
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct WmState {
+    pub slot_upper2d: WmSlot,
+    pub slot_lower2d: WmSlot,
+    pub slot_main3d: WmSlot,
 }

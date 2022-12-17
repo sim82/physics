@@ -147,7 +147,11 @@ mod systems {
         path::Path,
     };
 
-    use bevy::{core_pipeline::fxaa::Fxaa, prelude::*, render::view::RenderLayers};
+    use bevy::{
+        core_pipeline::fxaa::Fxaa,
+        prelude::*,
+        render::{camera::RenderTarget, view::RenderLayers},
+    };
     use bevy_atmosphere::prelude::AtmosphereCamera;
     use bevy_inspector_egui::WorldInspectorParams;
     use bevy_rapier3d::prelude::*;
@@ -156,7 +160,7 @@ mod systems {
     use crate::{
         components, editor,
         player_controller::{PlayerCamera, PlayerControllerBundle},
-        AppState,
+        render_layers, AppState,
     };
 
     pub fn update_deferred_mesh_system(
@@ -270,6 +274,7 @@ mod systems {
 
     pub fn setup_player_system(
         mut commands: Commands,
+        mut wm_state: Res<editor::resources::WmState>,
         mut _debug_lines: ResMut<bevy_prototype_debug_lines::DebugLines>,
     ) {
         commands
@@ -279,15 +284,20 @@ mod systems {
             .insert(PlayerControllerBundle::default())
             .insert(Name::new("player"));
 
-        const LAYER_MAIN_3D: u8 = 0;
         commands
-            .spawn(Camera3dBundle::default())
+            .spawn(Camera3dBundle {
+                camera: Camera {
+                    target: RenderTarget::Image(wm_state.slot_main3d.offscreen_image.clone()),
+                    ..default()
+                },
+                ..default()
+            })
             // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
             // .insert(RenderPlayer(0))
             .insert(PlayerCamera)
             .insert(AtmosphereCamera::default())
             .insert(Fxaa::default())
-            .insert(RenderLayers::layer(LAYER_MAIN_3D));
+            .insert(RenderLayers::layer(render_layers::MAIN_3D));
     }
 
     pub fn setup_debug_render_system(mut debug_render_context: ResMut<DebugRenderContext>) {

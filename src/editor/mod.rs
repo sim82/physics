@@ -9,6 +9,7 @@ pub mod ortho_systems;
 pub mod resources;
 pub mod systems;
 pub mod util;
+pub mod wm_systems;
 
 pub struct EditorPlugin;
 
@@ -39,7 +40,8 @@ impl Plugin for EditorPlugin {
         app.add_system(ortho_systems::track_window_props)
             .add_system(ortho_systems::track_focused_window)
             .add_system(ortho_systems::edit_input_system)
-            .add_system(ortho_systems::control_input_system)
+            // .add_system(ortho_systems::control_input_system)
+            .add_system(ortho_systems::control_input_wm_system)
             .add_system(ortho_systems::select_input_system)
             .add_system(systems::load_save_editor_objects);
 
@@ -78,5 +80,11 @@ impl Plugin for EditorPlugin {
         );
 
         app.register_inspectable::<components::CsgRepresentation>();
+
+        // Wm test
+        app.init_resource::<resources::WmState>();
+        app.add_startup_system_to_stage(StartupStage::PreStartup, wm_systems::wm_test_setup_system);
+        app.add_system(wm_systems::wm_test_system);
+        app.add_event::<util::WmEvent>();
     }
 }

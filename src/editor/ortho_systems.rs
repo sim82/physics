@@ -17,19 +17,20 @@ use bevy::{
 use super::{
     components::{self, EditorObject},
     resources::{self, EditorWindowSettings, Selection, TranslateDrag, LOWER_WINDOW, UPPER_WINDOW},
-    util::Orientation2d,
+    util::{self, Orientation2d},
 };
 use crate::{
     csg::{self, PLANE_EPSILON},
     editor::{
         components::{CsgRepresentation, DragAction, DragActionType},
-        util::SnapToGrid,
+        util::{SnapToGrid, WmMouseButton},
     },
     render_layers,
 };
 // systems related to 2d windows
 
 pub fn setup_editor_window(
+    wm_state: Res<resources::WmState>,
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut commands: Commands,
     mut create_window_events: EventWriter<CreateWindow>,
@@ -48,6 +49,7 @@ pub fn setup_editor_window(
             None,
             Orientation2d::DownFront,
             RenderLayers::layer(render_layers::TOP_2D),
+            wm_state.slot_upper2d.offscreen_image.clone(),
             // Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::X),
         ),
         (
@@ -55,10 +57,12 @@ pub fn setup_editor_window(
             None,
             Orientation2d::Front,
             RenderLayers::layer(render_layers::SIDE_2D),
+            wm_state.slot_lower2d.offscreen_image.clone(),
             // Transform::from_xyz(-6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
         ),
     ];
-    for (i, (name, window2d, t, render_layer)) in transforms.iter_mut().enumerate() {
+    for (i, (name, window2d, t, render_layer, offscreen_image)) in transforms.iter_mut().enumerate()
+    {
         let settings = settings_map
             .get(*name)
             .cloned()
@@ -73,26 +77,28 @@ pub fn setup_editor_window(
         let window_id = WindowId::new();
 
         // sends out a "CreateWindow" event, which will be received by the windowing backend
-        create_window_events.send(CreateWindow {
-            id: window_id,
-            descriptor: WindowDescriptor {
-                width: settings.width as f32,
-                height: settings.height as f32,
-                position: WindowPosition::At(Vec2::new(
-                    settings.pos_x as f32,
-                    settings.pos_y as f32,
-                )),
-                title: format!("window {}: {}", i, name),
-                ..default()
-            },
-        });
+        // create_window_events.send(CreateWindow {
+        //     id: window_id,
+        //     descriptor: WindowDescriptor {
+        //         width: settings.width as f32,
+        //         height: settings.height as f32,
+        //         position: WindowPosition::At(Vec2::new(
+        //             settings.pos_x as f32,
+        //             settings.pos_y as f32,
+        //         )),
+        //         title: format!("window {}: {}", i, name),
+        //         ..default()
+        //     },
+        // });
 
         // second window camera
         let entity = commands
             .spawn(Camera3dBundle {
                 transform: settings.orientation.get_transform(),
                 camera: Camera {
-                    target: RenderTarget::Window(window_id),
+                    // target: RenderTarget::Window(window_id),
+                    target: RenderTarget::Image(offscreen_image.clone()),
+                    priority: -1,
                     ..default()
                 },
                 projection: Projection::Orthographic(OrthographicProjection {
@@ -114,7 +120,9 @@ pub fn setup_editor_window(
     // extract name and Some(Window2d) values into name -> Window2d map
     editor_windows_2d.windows = transforms
         .drain(..)
-        .filter_map(|(name, window2d, _, _)| window2d.map(|window2d| (name.to_owned(), window2d)))
+        .filter_map(|(name, window2d, _, _, _)| {
+            window2d.map(|window2d| (name.to_owned(), window2d))
+        })
         .collect();
 
     editor_windows_2d.view_max = Vec3::splat(f32::INFINITY);
@@ -300,6 +308,100 @@ pub fn control_input_system(
 
             window.settings.orientation = window.settings.orientation.flipped();
             *transform = window.settings.orientation.get_transform();
+        }
+    }
+}
+
+pub fn control_input_wm_system(
+    // keycodes: Res<Input<KeyCode>>,
+    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
+    camera_query: Query<(&GlobalTransform, &Camera)>,
+    mut transform_query: Query<&mut Transform>,
+    mut event_reader: EventReader<util::WmEvent>,
+) {
+    for event in event_reader.iter() {
+        // let focused_name = event.
+        info!("event: {:?}", event);
+
+        match *event {
+            util::WmEvent::DragStart {
+                window: focused_name,
+                button: WmMouseButton::Middle,
+                pos,
+            } => {
+                let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
+                let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
+                    warn!("2d window camera not found: {:?}", window.camera); 
+                    continue;
+                };
+                info!("middle down");
+                let Some(ray) = camera.viewport_to_world(global_transform, pos) else {
+                    warn!("viewport_to_world failed in {}", focused_name); 
+                    continue;
+                };
+                let mut transforms = Vec::new();
+                for (_name, window) in &editor_windows_2d.windows {
+                    if let Ok(transform) = transform_query.get(window.camera) {
+                        transforms.push((window.camera, *transform));
+                    }
+                }
+
+                editor_windows_2d.translate_drag = Some(TranslateDrag {
+                    start_ray: ray,
+                    start_focus: focused_name.to_string(),
+                    start_global_transform: *global_transform,
+                    start_transforms: transforms,
+                });
+            }
+            util::WmEvent::DragUpdate {
+                window: focused_name,
+                button: WmMouseButton::Middle,
+                pos,
+            } => {
+                let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
+                let Ok((_global_transform, camera)) = camera_query.get(window.camera) else {
+                    warn!("2d window camera not found: {:?}", window.camera); 
+                    continue;
+                };
+                let mut transforms = Vec::new();
+                for (_name, window) in &editor_windows_2d.windows {
+                    if let Ok(transform) = transform_query.get(window.camera) {
+                        transforms.push((window.camera, *transform));
+                    }
+                }
+                if let Some(TranslateDrag {
+                    start_ray,
+                    start_focus: _,
+                    start_global_transform,
+                    start_transforms,
+                }) = &editor_windows_2d.translate_drag
+                {
+                    let Some(ray) = camera.viewport_to_world(start_global_transform, pos) else {
+                        warn!("viewport_to_world failed in {}", focused_name); 
+                        continue;
+                    };
+                    let mut d = start_ray.origin - ray.origin;
+                    d.y = -d.y; // 3d viewport is lower right
+                    info!(
+                        "translate drag update: {:?} {:?}",
+                        start_ray.origin, ray.origin
+                    );
+                    for (entity, start_transform) in start_transforms {
+                        if let Ok(mut transform) = transform_query.get_mut(*entity) {
+                            transform.translation = start_transform.translation + d;
+                        }
+                    }
+                }
+            }
+            util::WmEvent::DragEnd {
+                window: _,
+                button: WmMouseButton::Middle,
+                pos: _,
+            } => {
+                info!("translate drag end");
+                editor_windows_2d.translate_drag = None;
+            }
+            _ => (),
         }
     }
 }

@@ -248,3 +248,30 @@ impl SnapToGrid for f32 {
         (self / s).round() * s
     }
 }
+
+#[derive(Debug, Default, Copy, Clone)]
+pub enum WmMouseButton {
+    #[default]
+    Left,
+    Middle,
+    Right,
+}
+
+#[derive(Debug)]
+pub enum WmEvent {
+    DragStart {
+        window: &'static str,
+        button: WmMouseButton,
+        pos: Vec2,
+    },
+    DragUpdate {
+        window: &'static str,
+        button: WmMouseButton,
+        pos: Vec2,
+    },
+    DragEnd {
+        window: &'static str,
+        button: WmMouseButton,
+        pos: Vec2,
+    },
+}
