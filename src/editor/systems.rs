@@ -625,8 +625,17 @@ pub fn load_save_editor_objects(
             for (entity, _) in existing_objects.iter() {
                 commands.entity(entity).despawn();
             }
-            for obj in objects {
-                commands.spawn(obj);
+            for editor_object in objects {
+                match editor_object {
+                    EditorObject::None => todo!(),
+                    EditorObject::Brush(brush) => {
+                        commands.spawn(EditorObjectBrushBundle::from_brush(brush))
+                    }
+                    EditorObject::PointLight(_) => commands.spawn(EditorObjectBundle {
+                        editor_object,
+                        ..default()
+                    }),
+                };
             }
         }
     }
