@@ -42,9 +42,10 @@ pub fn wm_test_system(
 
     egui::SidePanel::left("left side panel")
         .resizable(true)
+        .default_width(768.0)
         .show(egui_context.ctx_mut(), |ui| {
             ui.vertical(|ui| {
-                info!("avalable: {:?}", ui.available_width());
+                // info!("avalable: {:?}", ui.available_width());
                 let width = ui.available_width();
                 let size = egui::Vec2::new(width, 512.0);
                 ui.image(wm_state.slot_main3d.offscreen_egui_texture, size);
@@ -111,45 +112,60 @@ pub fn wm_test_system(
         // egui::Resize::default().show(ui, |ui| {
         // ui.horizontal_centered(|ui| {
 
-        ui.vertical(|ui| {
-            let size_upper = egui::Vec2::new(
-                ui.available_width().max(32.0),
-                ui.available_height() / 2.0 - 4.0 + wm_state.separator_bias,
-            );
-            let size_lower = egui::Vec2::new(
-                ui.available_width().max(32.0),
-                ui.available_height() / 2.0 - 4.0 - wm_state.separator_bias,
-            );
+        egui::TopBottomPanel::top("top 3d view")
+            .resizable(true)
+            .min_height(32.0)
+            .default_height(512.0)
+            .show(ui.ctx(), |ui| {
+                let size_upper = ui.available_size();
+                show_2d_view(
+                    ui,
+                    &mut wm_state.slot_upper2d,
+                    &mut event_writer,
+                    resources::UPPER_WINDOW,
+                    size_upper,
+                );
+            });
 
-            // let size_upper = egui::Vec2::new(512.0, 512.0);
-            // let size_lower = egui::Vec2::new(512.0, 512.0);
+        // egui::TopBottomPanel::bottom("side 3d view")
+        // .resizable(true)
+        egui::CentralPanel::default()
+            // .min_height(32.0)
+            .show(ui.ctx(), |ui| {
+                ui.set_min_height(32.0);
+                let size_lower = ui.available_size();
 
-            show_2d_view(
-                ui,
-                &mut wm_state.slot_upper2d,
-                &mut event_writer,
-                resources::UPPER_WINDOW,
-                size_upper,
-            );
+                show_2d_view(
+                    ui,
+                    &mut wm_state.slot_lower2d,
+                    &mut event_writer,
+                    resources::LOWER_WINDOW,
+                    size_lower,
+                );
+            });
 
-            // TODO: somehow make the separator draggable
+        // ui.vertical(|ui| {
+        //     let size_upper = egui::Vec2::new(
+        //         ui.available_width().max(32.0),
+        //         ui.available_height() / 2.0 - 4.0 + wm_state.separator_bias,
+        //     );
+        //     let size_lower = egui::Vec2::new(
+        //         ui.available_width().max(32.0),
+        //         ui.available_height() / 2.0 - 4.0 - wm_state.separator_bias,
+        //     );
 
-            show_2d_view(
-                ui,
-                &mut wm_state.slot_lower2d,
-                &mut event_writer,
-                resources::LOWER_WINDOW,
-                size_lower,
-            );
+        //     // let size_upper = egui::Vec2::new(512.0, 512.0);
+        //     // let size_lower = egui::Vec2::new(512.0, 512.0);
 
-            let zoom_delta = ui.input().zoom_delta();
-            if zoom_delta != 1.0 {
-                event_writer.send(WmEvent::ZoomDelta(zoom_delta)); // uhm yeah, why not...
-            }
-        });
-        // })
+        //     // TODO: somehow make the separator draggable
+
         // });
-
+        // // })
+        // });
+        let zoom_delta = ui.input().zoom_delta();
+        if zoom_delta != 1.0 {
+            event_writer.send(WmEvent::ZoomDelta(zoom_delta)); // uhm yeah, why not...
+        }
         // wm_state.separator_bias += response.drag_delta().y;
     });
     wm_state.slot_main3d.check_resize(&mut image_assets);
