@@ -26,28 +26,27 @@ impl Plugin for EditorPlugin {
         app.init_resource::<resources::SpatialIndex>();
         app.add_event::<CleanupCsgOutputEvent>();
         app.add_system_set(
-            SystemSet::on_update(AppState::DebugMenu).with_system(systems::editor_input_system),
-        )
-        .add_startup_system(systems::setup_selection_vis_system.after(systems::setup))
-        // .add_system(systems::cleanup_brush_csg_system.after(systems::update_material_refs))
-        // .add_system(systems::create_brush_csg_system.after(systems::cleanup_brush_csg_system))
-        // .add_system(systems::update_material_refs)
-        .add_system(systems::track_primary_selection)
-        .add_startup_system(ortho_systems::setup_editor_window)
-        .init_resource::<resources::Selection>()
-        .init_resource::<resources::EditorWindows2d>();
+            SystemSet::on_update(AppState::Editor).with_system(systems::editor_input_system),
+        );
+        app.add_system_set(
+            SystemSet::on_enter(AppState::Editor).with_system(ortho_systems::enter_editor_state),
+        );
+        app.add_system_set(
+            SystemSet::on_exit(AppState::Editor).with_system(ortho_systems::leave_editor_state),
+        );
+
+        app.add_startup_system(systems::setup_selection_vis_system.after(systems::setup))
+            .add_system(systems::track_primary_selection)
+            .add_startup_system(ortho_systems::setup_editor_system)
+            .init_resource::<resources::Selection>()
+            .init_resource::<resources::EditorWindows2d>();
 
         app.add_system(ortho_systems::track_window_props)
             .add_system(ortho_systems::track_focused_window)
-            // .add_system(ortho_systems::edit_input_system)
             .add_system(ortho_systems::edit_input_wm_system)
-            // .add_system(ortho_systems::control_input_system)
             .add_system(ortho_systems::control_input_wm_system)
-            // .add_system(ortho_systems::select_input_system)
             .add_system(ortho_systems::select_input_wm_system)
             .add_system(systems::load_save_editor_objects);
-
-        // app.add_system(gui_systems::materials_egui_system);
 
         // fixed timestep stage for non realtime stuff like writing config
         app.add_stage_after(
@@ -55,8 +54,6 @@ impl Plugin for EditorPlugin {
             FixedUpdateStage,
             SystemStage::parallel()
                 .with_run_criteria(FixedTimestep::step(0.1))
-                // .with_system(systems::cleanup_brush_csg_system)
-                // .with_system(systems::create_brush_csg_system)
                 .with_system(
                     systems::create_brush_csg_system_inc.after(systems::track_spatial_index_system),
                 )
@@ -86,7 +83,10 @@ impl Plugin for EditorPlugin {
         // Wm test
         app.init_resource::<resources::WmState>();
         app.add_startup_system_to_stage(StartupStage::PreStartup, wm_systems::wm_test_setup_system);
-        app.add_system(wm_systems::wm_test_system);
+
+        app.add_system_set(
+            SystemSet::on_update(AppState::Editor).with_system(wm_systems::wm_test_system),
+        );
         app.add_event::<util::WmEvent>();
     }
 }

@@ -120,3 +120,9 @@ pub struct EditorObjectOutputLink {
 
 #[derive(Component)]
 pub struct EditorObjectLinkedBevyTransform(pub Entity);
+
+#[derive(Component)]
+pub struct Ortho2dCamera;
+
+#[derive(Component)]
+pub struct Main3dCamera;

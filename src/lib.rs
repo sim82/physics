@@ -115,8 +115,9 @@ pub mod player_controller;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
-    DebugMenu,
+    // DebugMenu,
     InGame,
+    Editor,
     // Paused,
 }
 
@@ -138,6 +139,9 @@ mod components {
         pub transform: Transform,
         pub id: String,
     }
+
+    #[derive(Component)]
+    pub struct IngameCamera;
 }
 
 mod systems {
@@ -158,7 +162,8 @@ mod systems {
     use parry3d::shape::{ConvexPolyhedron, SharedShape};
 
     use crate::{
-        components, editor,
+        components,
+        editor::{self, resources},
         player_controller::{PlayerCamera, PlayerControllerBundle},
         render_layers, AppState,
     };
@@ -266,8 +271,9 @@ mod systems {
     ) {
         if key_codes.just_pressed(KeyCode::F3) {
             match app_state.current() {
-                AppState::DebugMenu => app_state.set(AppState::InGame).unwrap(),
-                AppState::InGame => app_state.set(AppState::DebugMenu).unwrap(),
+                AppState::Editor => app_state.set(AppState::InGame).unwrap(),
+                AppState::InGame => app_state.set(AppState::Editor).unwrap(),
+                _ => panic!("unsipported state {:?}", app_state.current()),
             }
         }
     }
@@ -283,7 +289,14 @@ mod systems {
             )))
             .insert(PlayerControllerBundle::default())
             .insert(Name::new("player"));
+    }
 
+    pub fn setup_debug_render_system(mut debug_render_context: ResMut<DebugRenderContext>) {
+        // FIXME: for some reason this is enabled on startup, even though we insert initialize it explicity. Probably an ordering problem somewhere
+        debug_render_context.enabled = false;
+    }
+
+    pub fn enter_editor_system(mut commands: Commands, wm_state: Res<resources::WmState>) {
         commands
             .spawn(Camera3dBundle {
                 camera: Camera {
@@ -297,12 +310,36 @@ mod systems {
             .insert(PlayerCamera)
             .insert(AtmosphereCamera::default())
             .insert(Fxaa::default())
-            .insert(RenderLayers::layer(render_layers::MAIN_3D));
+            .insert(RenderLayers::layer(render_layers::MAIN_3D))
+            .insert(editor::components::Main3dCamera);
+    }
+    pub fn leave_editor_system(
+        mut commands: Commands,
+        query: Query<Entity, With<editor::components::Main3dCamera>>,
+    ) {
+        for entity in &query {
+            commands.entity(entity).despawn();
+        }
     }
 
-    pub fn setup_debug_render_system(mut debug_render_context: ResMut<DebugRenderContext>) {
-        // FIXME: for some reason this is enabled on startup, even though we insert initialize it explicity. Probably an ordering problem somewhere
-        debug_render_context.enabled = false;
+    pub fn enter_ingame_system(mut commands: Commands, wm_state: Res<resources::WmState>) {
+        commands
+            .spawn(Camera3dBundle { ..default() })
+            // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
+            // .insert(RenderPlayer(0))
+            .insert(PlayerCamera)
+            .insert(AtmosphereCamera::default())
+            .insert(Fxaa::default())
+            .insert(RenderLayers::layer(render_layers::MAIN_3D))
+            .insert(components::IngameCamera);
+    }
+    pub fn leave_ingame_system(
+        mut commands: Commands,
+        query: Query<Entity, With<components::IngameCamera>>,
+    ) {
+        for entity in &query {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
@@ -338,23 +375,30 @@ impl Plugin for GameplayPlugin {
         app.add_startup_system(systems::setup_player_system);
         app.add_startup_system(systems::setup_debug_render_system);
         app.add_system(systems::update_deferred_mesh_system);
-        app.add_state(AppState::DebugMenu);
+        app.add_state(AppState::InGame);
         app.add_system(systems::toggle_debug_menu_system);
         app.add_asset_loader(norm::NormalMappedImageTextureLoader);
         #[cfg(feature = "inspector")]
         {
             app.insert_resource(WorldInspectorParams {
-                enabled: false,
+                enabled: true,
                 ..default()
             });
             app.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
             // app.add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin);
         }
         app.add_system_set(
-            SystemSet::on_enter(AppState::DebugMenu).with_system(systems::open_debug_windows),
+            SystemSet::on_enter(AppState::Editor).with_system(systems::enter_editor_system),
         );
         app.add_system_set(
-            SystemSet::on_exit(AppState::DebugMenu).with_system(systems::close_debug_windows),
+            SystemSet::on_exit(AppState::Editor).with_system(systems::leave_editor_system),
+        );
+
+        app.add_system_set(
+            SystemSet::on_enter(AppState::InGame).with_system(systems::enter_ingame_system),
+        );
+        app.add_system_set(
+            SystemSet::on_exit(AppState::InGame).with_system(systems::leave_ingame_system),
         );
 
         // FIXME: those do not really belong here (related to external plugins)
