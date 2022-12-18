@@ -240,10 +240,18 @@ impl WmSlot {
     }
 }
 
+#[derive(Default, Debug, PartialEq, Eq)]
+pub enum WmSidpanelContent {
+    #[default]
+    Material,
+    Miscsettings,
+}
+
 #[derive(Resource, Default)]
 pub struct WmState {
     pub slot_upper2d: WmSlot,
     pub slot_lower2d: WmSlot,
     pub slot_main3d: WmSlot,
     pub separator_bias: f32,
+    pub sidepanel_content: WmSidpanelContent,
 }

@@ -47,7 +47,7 @@ impl Plugin for EditorPlugin {
             .add_system(ortho_systems::select_input_wm_system)
             .add_system(systems::load_save_editor_objects);
 
-        app.add_system(gui_systems::materials_egui_system);
+        // app.add_system(gui_systems::materials_egui_system);
 
         // fixed timestep stage for non realtime stuff like writing config
         app.add_stage_after(

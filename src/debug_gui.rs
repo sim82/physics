@@ -28,6 +28,6 @@ pub struct DebugGuiPlugin;
 
 impl Plugin for DebugGuiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(debug_gui_system);
+        // app.add_system(debug_gui_system);
     }
 }
