@@ -6,7 +6,7 @@ fn main() {
 
     app.add_plugins(DefaultPlugins.set(ImagePlugin {
         default_sampler: wgpu::SamplerDescriptor {
-            mag_filter: wgpu::FilterMode::Linear,
+            // mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
             address_mode_u: wgpu::AddressMode::Repeat,

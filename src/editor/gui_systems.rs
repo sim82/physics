@@ -23,67 +23,8 @@ pub fn materials_egui_system(
         .open(&mut window_open)
         .vscroll(true)
         .show(egui_context.ctx_mut(), |ui| {
-            for app in materials_res.symlinks.keys() {
-                if ui.button(app).clicked() {
-                    appearance_clicked = Some(app);
-                }
-            }
-
-            // material browser ui: generate section headers on the fly by scanning runs with equal prefix in (sorted) material map.
-            // probably not the most efficient thing in the world but good enough since it is only done when the ui is shown, and
-            // this way there is no kind of caching or preprocessing that might get out of sync...
-            let mut iter = materials_res.material_defs.iter().peekable();
-            while let Some((first, _)) = iter.peek() {
-                if let Some((section, _)) = first.rsplit_once('/') {
-                    let mut used = false;
-                    egui::CollapsingHeader::new(section)
-                        .default_open(false)
-                        .show(ui, |ui| {
-                            ui.horizontal_wrapped(|ui| {
-                                used = true;
-                                // scan through run with equal prefix, adding ImageButtons on the fly.
-                                while let Some((cur, material)) = iter.peek() {
-                                    let material_name = match cur.rsplit_once('/') {
-                                        Some((mat_section, _)) if mat_section != section => break, // end of run
-                                        None => break, // no prefix -> ignore
-                                        Some((_, name)) => name,
-                                    };
-                                    if let Some(preview_image) =
-                                        material_browser.get_preview(material)
-                                    {
-                                        if ui
-                                            .add(egui::ImageButton::new(
-                                                preview_image,
-                                                egui::Vec2::splat(64.0),
-                                            ))
-                                            .on_hover_text(material_name)
-                                            .clicked()
-                                        {
-                                            material_clicked = Some(*cur);
-                                        }
-                                    }
-                                    let _ = iter.next();
-                                }
-                            });
-                        });
-                    if !used {
-                        // if the run was not consumed (i.e. the header was collapsed) skip over them in iterator.
-                        while let Some((cur, _material)) = iter.peek() {
-                            match cur.rsplit_once('/') {
-                                Some((mat_section, _)) if mat_section != section => break,
-                                None => break,
-                                _ => {
-                                    let _ = iter.next();
-                                }
-                            };
-                        }
-                    }
-                } else {
-                    info!("no section in material name: {}", first);
-                    iter.next();
-                    continue;
-                }
-            }
+            (appearance_clicked, material_clicked) =
+                material_browser_ui(materials_res, ui, &mut *material_browser, None);
         });
 
     debug!("dt: {:?}", start.elapsed());
@@ -99,4 +40,80 @@ pub fn materials_egui_system(
         );
     }
     material_browser.window_open = window_open;
+}
+
+pub fn material_browser_ui(
+    materials_res: &mut resources::Materials,
+    ui: &mut egui::Ui,
+    // appearance_clicked: &mut Option<&String>,
+    material_browser: &mut resources::MaterialBrowser,
+    // material_clicked: &mut Option<&String>,
+    max_width: Option<f32>,
+) -> (Option<String>, Option<String>) {
+    let mut appearance_clicked = None;
+    let mut material_clicked = None;
+
+    for app in materials_res.symlinks.keys() {
+        if ui.button(app).clicked() {
+            appearance_clicked = Some(app.clone());
+        }
+    }
+    // material browser ui: generate section headers on the fly by scanning runs with equal prefix in (sorted) material map.
+    // probably not the most efficient thing in the world but good enough since it is only done when the ui is shown, and
+    // this way there is no kind of caching or preprocessing that might get out of sync...
+    let mut iter = materials_res.material_defs.iter().peekable();
+    while let Some((first, _)) = iter.peek() {
+        if let Some((section, _)) = first.rsplit_once('/') {
+            let mut used = false;
+            egui::CollapsingHeader::new(section)
+                .default_open(false)
+                .show(ui, |ui| {
+                    if let Some(width) = max_width {
+                        ui.set_max_width(width);
+                    }
+
+                    ui.horizontal_wrapped(|ui| {
+                        used = true;
+                        // scan through run with equal prefix, adding ImageButtons on the fly.
+                        while let Some((cur, material)) = iter.peek() {
+                            let material_name = match cur.rsplit_once('/') {
+                                Some((mat_section, _)) if mat_section != section => break, // end of run
+                                None => break, // no prefix -> ignore
+                                Some((_, name)) => name,
+                            };
+                            if let Some(preview_image) = material_browser.get_preview(material) {
+                                if ui
+                                    .add(egui::ImageButton::new(
+                                        preview_image,
+                                        egui::Vec2::splat(64.0),
+                                    ))
+                                    .on_hover_text(material_name)
+                                    .clicked()
+                                {
+                                    material_clicked = Some((*cur).clone());
+                                }
+                            }
+                            let _ = iter.next();
+                        }
+                    });
+                });
+            if !used {
+                // if the run was not consumed (i.e. the header was collapsed) skip over them in iterator.
+                while let Some((cur, _material)) = iter.peek() {
+                    match cur.rsplit_once('/') {
+                        Some((mat_section, _)) if mat_section != section => break,
+                        None => break,
+                        _ => {
+                            let _ = iter.next();
+                        }
+                    };
+                }
+            }
+        } else {
+            info!("no section in material name: {}", first);
+            iter.next();
+            continue;
+        }
+    }
+    (appearance_clicked, material_clicked)
 }

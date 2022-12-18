@@ -13,6 +13,7 @@ use wgpu::Extent3d;
 use crate::{editor::util::WmMouseButton, player_controller::PlayerCamera, render_layers};
 
 use super::{
+    gui_systems,
     resources::{self, WmSlot},
     util::{WmEvent, WmEventPointerState},
 };
@@ -32,48 +33,81 @@ pub fn wm_test_system(
     mut wm_state: ResMut<resources::WmState>,
     mut image_assets: ResMut<Assets<Image>>,
     mut event_writer: EventWriter<WmEvent>,
+    mut materials_res: ResMut<resources::Materials>,
+    mut material_browser: ResMut<resources::MaterialBrowser>,
 ) {
     let wm_state = &mut *wm_state;
 
-    egui::Window::new("main 3d").show(egui_context.ctx_mut(), |ui| {
-        ui.image(
-            wm_state.slot_main3d.offscreen_egui_texture,
-            egui::Vec2::new(512.0, 512.0),
-        );
-    });
+    egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
+        // egui::Window::new("edit").show(egui_context.ctx_mut(), |ui| {
+        // egui::Resize::default().show(ui, |ui| {
+        ui.horizontal_centered(|ui| {
+            ui.vertical(|ui| {
+                ui.image(
+                    wm_state.slot_main3d.offscreen_egui_texture,
+                    egui::Vec2::new(512.0, 512.0),
+                );
 
-    egui::Window::new("2d").show(egui_context.ctx_mut(), |ui| {
-        let size_upper = egui::Vec2::new(
-            ui.available_width(),
-            ui.available_height() / 2.0 - 32.0 + wm_state.separator_bias,
-        );
-        let size_lower = egui::Vec2::new(
-            ui.available_width(),
-            ui.available_height() / 2.0 - 32.0 - wm_state.separator_bias,
-        );
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    let (appearance_clicked, material_clicked) = gui_systems::material_browser_ui(
+                        &mut materials_res,
+                        ui,
+                        &mut material_browser,
+                        Some(512.0),
+                    );
 
-        show_2d_view(
-            ui,
-            &mut wm_state.slot_upper2d,
-            &mut event_writer,
-            resources::UPPER_WINDOW,
-            size_upper,
-        );
+                    if let Some(clicked) = appearance_clicked {
+                        material_browser.selected_appearance = clicked.clone();
+                    }
+                    if let Some(clicked) = material_clicked {
+                        info!("clicked: {}", clicked);
+                        materials_res.update_symlink(
+                            material_browser.selected_appearance.clone(),
+                            clicked.clone(),
+                        );
+                    }
+                });
+                // ui.allocate_space(ui.available_size());
+            });
 
-        // TODO: somehow make the separator draggable
+            ui.vertical(|ui| {
+                let size_upper = egui::Vec2::new(
+                    ui.available_width().max(32.0),
+                    ui.available_height() / 2.0 - 4.0 + wm_state.separator_bias,
+                );
+                let size_lower = egui::Vec2::new(
+                    ui.available_width().max(32.0),
+                    ui.available_height() / 2.0 - 4.0 - wm_state.separator_bias,
+                );
 
-        show_2d_view(
-            ui,
-            &mut wm_state.slot_lower2d,
-            &mut event_writer,
-            resources::LOWER_WINDOW,
-            size_lower,
-        );
+                // let size_upper = egui::Vec2::new(512.0, 512.0);
+                // let size_lower = egui::Vec2::new(512.0, 512.0);
 
-        let zoom_delta = ui.input().zoom_delta();
-        if zoom_delta != 1.0 {
-            event_writer.send(WmEvent::ZoomDelta(zoom_delta)); // uhm yeah, why not...
-        }
+                show_2d_view(
+                    ui,
+                    &mut wm_state.slot_upper2d,
+                    &mut event_writer,
+                    resources::UPPER_WINDOW,
+                    size_upper,
+                );
+
+                // TODO: somehow make the separator draggable
+
+                show_2d_view(
+                    ui,
+                    &mut wm_state.slot_lower2d,
+                    &mut event_writer,
+                    resources::LOWER_WINDOW,
+                    size_lower,
+                );
+
+                let zoom_delta = ui.input().zoom_delta();
+                if zoom_delta != 1.0 {
+                    event_writer.send(WmEvent::ZoomDelta(zoom_delta)); // uhm yeah, why not...
+                }
+            });
+            // })
+        });
 
         // wm_state.separator_bias += response.drag_delta().y;
     });
