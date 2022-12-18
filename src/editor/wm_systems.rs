@@ -119,6 +119,7 @@ fn show_2d_view(
         };
 
         let drag_allowed = button == WmMouseButton::Middle
+            || button == WmMouseButton::Right
             || response.ctx.input().modifiers.ctrl
             || slot.drag_active;
 

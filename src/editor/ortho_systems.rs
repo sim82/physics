@@ -327,7 +327,7 @@ pub fn control_input_wm_system(
         match *event {
             util::WmEvent::DragStart {
                 window: focused_name,
-                button: WmMouseButton::Middle,
+                button: WmMouseButton::Right,
                 pointer_state,
             } => {
                 let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
@@ -335,7 +335,7 @@ pub fn control_input_wm_system(
                     warn!("2d window camera not found: {:?}", window.camera); 
                     continue;
                 };
-                info!("middle down");
+                info!("Right down");
                 let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
                     warn!("viewport_to_world failed in {}", focused_name); 
                     continue;
@@ -356,7 +356,7 @@ pub fn control_input_wm_system(
             }
             util::WmEvent::DragUpdate {
                 window: focused_name,
-                button: WmMouseButton::Middle,
+                button: WmMouseButton::Right,
                 pointer_state,
             } => {
                 let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
@@ -395,7 +395,7 @@ pub fn control_input_wm_system(
             }
             util::WmEvent::DragEnd {
                 window: _,
-                button: WmMouseButton::Middle,
+                button: WmMouseButton::Right,
                 pointer_state: _,
             } => {
                 info!("translate drag end");
