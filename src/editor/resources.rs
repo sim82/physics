@@ -31,7 +31,7 @@ pub struct EditorWindowSettings {
 
 pub struct EditorWindow2d {
     pub camera: Entity,
-    pub window_id: WindowId,
+    pub offscreen_image: Handle<Image>,
     pub settings: EditorWindowSettings,
 }
 
@@ -191,8 +191,8 @@ pub struct WmSlot {
 impl WmSlot {
     pub fn new(image_assets: &mut Assets<Image>, egui_context: &mut EguiContext) -> Self {
         let size = wgpu::Extent3d {
-            width: 512,
-            height: 512,
+            width: 32,
+            height: 32,
             ..default()
         };
 

@@ -29,79 +29,7 @@ use crate::{
 };
 // systems related to 2d windows
 
-pub fn setup_editor_system(
-    wm_state: Res<resources::WmState>,
-    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
-    mut commands: Commands,
-    mut create_window_events: EventWriter<CreateWindow>,
-) {
-    // FIXME: this whole function looks a bit goofy...
-
-    // let settings_map = if let Ok(file) = std::fs::File::open("windows.yaml") {
-    //     serde_yaml::from_reader(file).unwrap_or_default()
-    // } else {
-    //     HashMap::<String, EditorWindowSettings>::new()
-    // };
-
-    // let mut transforms = vec![
-    //     (
-    //         UPPER_WINDOW,
-    //         None,
-    //         Orientation2d::DownFront,
-    //         RenderLayers::layer(render_layers::TOP_2D),
-    //         wm_state.slot_upper2d.offscreen_image.clone(),
-    //         // Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::X),
-    //     ),
-    //     (
-    //         LOWER_WINDOW,
-    //         None,
-    //         Orientation2d::Front,
-    //         RenderLayers::layer(render_layers::SIDE_2D),
-    //         wm_state.slot_lower2d.offscreen_image.clone(),
-    //         // Transform::from_xyz(-6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-    //     ),
-    // ];
-    // for (i, (name, window2d, t, render_layer, offscreen_image)) in transforms.iter_mut().enumerate()
-    // {
-    //     let settings = settings_map
-    //         .get(*name)
-    //         .cloned()
-    //         .unwrap_or(EditorWindowSettings {
-    //             pos_x: 0,
-    //             pos_y: 0,
-    //             width: 800,
-    //             height: 600,
-    //             orientation: *t,
-    //         });
-
-    //     let window_id = WindowId::new();
-
-    //     // second window camera
-    //     let entity = commands
-    //         .spawn(Camera3dBundle {
-    //             transform: settings.orientation.get_transform(),
-    //             camera: Camera {
-    //                 // target: RenderTarget::Window(window_id),
-    //                 target: RenderTarget::Image(offscreen_image.clone()),
-    //                 priority: -1,
-    //                 ..default()
-    //             },
-    //             projection: Projection::Orthographic(OrthographicProjection {
-    //                 scaling_mode: ScalingMode::FixedHorizontal(10.0),
-    //                 ..default()
-    //             }),
-    //             ..default()
-    //         })
-    //         .insert(*render_layer)
-    //         .id();
-
-    //     *window2d = Some(resources::EditorWindow2d {
-    //         camera: entity,
-    //         window_id,
-    //         settings,
-    //     });
-    // }
-
+pub fn setup_editor_system(mut editor_windows_2d: ResMut<resources::EditorWindows2d>) {
     editor_windows_2d.view_max = Vec3::splat(f32::INFINITY);
     editor_windows_2d.view_min = Vec3::splat(f32::NEG_INFINITY);
 }
@@ -110,7 +38,6 @@ pub fn enter_editor_state(
     wm_state: Res<resources::WmState>,
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut commands: Commands,
-    mut create_window_events: EventWriter<CreateWindow>,
 ) {
     let settings_map = if let Ok(file) = std::fs::File::open("windows.yaml") {
         serde_yaml::from_reader(file).unwrap_or_default()
@@ -118,112 +45,77 @@ pub fn enter_editor_state(
         HashMap::<String, EditorWindowSettings>::new()
     };
 
-    let mut transforms = vec![
+    let view_configs = vec![
         (
             UPPER_WINDOW,
-            None,
             Orientation2d::DownFront,
             RenderLayers::layer(render_layers::TOP_2D),
             wm_state.slot_upper2d.offscreen_image.clone(),
-            // Transform::from_xyz(0.0, 6.0, 0.0).looking_at(Vec3::ZERO, Vec3::X),
         ),
         (
             LOWER_WINDOW,
-            None,
             Orientation2d::Front,
             RenderLayers::layer(render_layers::SIDE_2D),
             wm_state.slot_lower2d.offscreen_image.clone(),
-            // Transform::from_xyz(-6.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
         ),
     ];
-    for (i, (name, window2d, t, render_layer, offscreen_image)) in transforms.iter_mut().enumerate()
-    {
-        let settings = settings_map
-            .get(*name)
-            .cloned()
-            .unwrap_or(EditorWindowSettings {
-                pos_x: 0,
-                pos_y: 0,
-                width: 800,
-                height: 600,
-                orientation: *t,
-            });
+    for (name, t, render_layer, offscreen_image) in view_configs {
+        let camera = Camera {
+            // target: RenderTarget::Window(window_id),
+            target: RenderTarget::Image(offscreen_image.clone()),
+            priority: -1,
+            ..default()
+        };
+        // lazy create camera entities
+        match editor_windows_2d.windows.entry(name.to_string()) {
+            bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
+                let settings = settings_map
+                    .get(name)
+                    .cloned()
+                    .unwrap_or(EditorWindowSettings {
+                        pos_x: 0,
+                        pos_y: 0,
+                        width: 800,
+                        height: 600,
+                        orientation: t,
+                    });
 
-        let window_id = WindowId::new();
+                let entity = commands
+                    .spawn(Camera3dBundle {
+                        transform: settings.orientation.get_transform(),
+                        camera,
+                        projection: Projection::Orthographic(OrthographicProjection {
+                            scaling_mode: ScalingMode::FixedHorizontal(10.0),
+                            ..default()
+                        }),
+                        ..default()
+                    })
+                    .insert(render_layer)
+                    .insert(components::Ortho2dCamera)
+                    .id();
 
-        // second window camera
-        let entity = commands
-            .spawn(Camera3dBundle {
-                transform: settings.orientation.get_transform(),
-                camera: Camera {
-                    // target: RenderTarget::Window(window_id),
-                    target: RenderTarget::Image(offscreen_image.clone()),
-                    priority: -1,
-                    ..default()
-                },
-                projection: Projection::Orthographic(OrthographicProjection {
-                    scaling_mode: ScalingMode::FixedHorizontal(10.0),
-                    ..default()
-                }),
-                ..default()
-            })
-            .insert(*render_layer)
-            .insert(components::Ortho2dCamera)
-            .id();
+                e.insert(resources::EditorWindow2d {
+                    camera: entity,
+                    offscreen_image,
+                    settings,
+                });
+            }
 
-        *window2d = Some(resources::EditorWindow2d {
-            camera: entity,
-            window_id,
-            settings,
-        });
+            bevy::utils::hashbrown::hash_map::Entry::Occupied(e) => {
+                // entity already exists, just re-attach camera component
+                commands.entity(e.get().camera).insert(camera);
+            }
+        }
     }
-
-    // extract name and Some(Window2d) values into name -> Window2d map
-    editor_windows_2d.windows = transforms
-        .drain(..)
-        .filter_map(|(name, window2d, _, _, _)| {
-            window2d.map(|window2d| (name.to_owned(), window2d))
-        })
-        .collect();
 }
 
 pub fn leave_editor_state(
     mut commands: Commands,
-    wm_state: Res<resources::WmState>,
-    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
-    mut create_window_events: EventWriter<CreateWindow>,
 
     query: Query<Entity, With<components::Ortho2dCamera>>,
 ) {
     for entity in &query {
-        commands.entity(entity).despawn();
-    }
-    editor_windows_2d.windows.clear();
-}
-
-pub fn track_window_props(
-    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
-
-    mut resize_events: EventReader<WindowResized>,
-    mut move_events: EventReader<WindowMoved>,
-) {
-    for event in resize_events.iter() {
-        for (name, window2d) in &mut editor_windows_2d.windows {
-            if event.id == window2d.window_id {
-                info!("{} resize: {} {}", name, event.width, event.height);
-                window2d.settings.width = event.width as i32;
-                window2d.settings.height = event.height as i32;
-            }
-        }
-    }
-    for event in move_events.iter() {
-        for (name, window2d) in &mut editor_windows_2d.windows {
-            if event.id == window2d.window_id {
-                info!("{} move: {} {}", name, event.position.x, event.position.y);
-                window2d.settings.pos_x = event.position.x;
-                window2d.settings.pos_y = event.position.y;
-            }
-        }
+        commands.entity(entity).remove::<Camera>();
     }
 }
 
@@ -242,39 +134,6 @@ pub fn write_window_settings(
             let _ = serde_yaml::to_writer(file, &settings);
             *last_written_settings = settings;
             info!("window settings written");
-        }
-    }
-}
-
-pub fn track_focused_window(
-    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
-    mut focus_events: EventReader<WindowFocused>,
-    mut cursor_moved: EventReader<CursorMoved>,
-) {
-    let mut editor_windows_2d = &mut *editor_windows_2d;
-    let mut new_focus = None;
-    let mut focus_lost = false;
-    for event in focus_events.iter() {
-        for (name, window) in &editor_windows_2d.windows {
-            if event.focused && window.window_id == event.id {
-                new_focus = Some((name.clone(), event.id));
-            } else if !event.focused && window.window_id == event.id {
-                focus_lost = true
-            }
-        }
-    }
-
-    if new_focus.is_some() {
-        editor_windows_2d.focused = new_focus;
-        info!("focus changed: {:?}", editor_windows_2d.focused);
-    } else if focus_lost {
-        editor_windows_2d.focused = None;
-        info!("focus lost");
-    }
-
-    if editor_windows_2d.focused.is_some() {
-        for event in cursor_moved.iter() {
-            editor_windows_2d.cursor_pos = event.position;
         }
     }
 }
@@ -490,7 +349,7 @@ pub fn adjust_clip_planes_system(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn edit_input_wm_system(
+pub fn edit_input_system(
     mut commands: Commands,
     mut event_reader: EventReader<util::WmEvent>,
     selection: Res<Selection>,
@@ -682,11 +541,8 @@ pub fn edit_input_wm_system(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn select_input_wm_system(
-    time: Res<Time>,
+pub fn select_input_system(
     mut event_reader: EventReader<util::WmEvent>,
-    mouse_buttons: Res<Input<MouseButton>>,
-    keycodes: Res<Input<KeyCode>>,
     mut selection: ResMut<Selection>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
     camera_query: Query<(&GlobalTransform, &Camera)>,

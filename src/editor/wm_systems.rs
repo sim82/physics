@@ -36,7 +36,7 @@ pub fn wm_test_system(
     mut event_writer: EventWriter<WmEvent>,
     mut materials_res: ResMut<resources::Materials>,
     mut material_browser: ResMut<resources::MaterialBrowser>,
-    mut rapier_debug_context: Option<ResMut<DebugRenderContext>>,
+    rapier_debug_context: Option<ResMut<DebugRenderContext>>,
 ) {
     let wm_state = &mut *wm_state;
 
