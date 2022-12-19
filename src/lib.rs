@@ -435,7 +435,7 @@ impl PluginGroup for ExternalPluginGroup {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(RapierPhysicsPlugin::<NoUserData>::default())
-            .add(RapierDebugRenderPlugin::default())
+            // .add(RapierDebugRenderPlugin::default())
             .add(bevy_prototype_debug_lines::DebugLinesPlugin::default())
             .add(FrameTimeDiagnosticsPlugin)
             .add(sky::SkyPlugin)

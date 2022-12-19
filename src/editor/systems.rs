@@ -203,65 +203,6 @@ pub fn cleanup_brush_csg_system(
     }
 }
 
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn create_brush_csg_system(
-    mut commands: Commands,
-
-    mut meshes: ResMut<Assets<Mesh>>,
-    materials_res: ResMut<resources::Materials>,
-
-    query: Query<&components::CsgRepresentation>,
-    query_changed: Query<Entity, Changed<components::CsgRepresentation>>,
-) {
-    if query_changed.is_empty() {
-        return;
-    }
-
-    for entity in query_changed.iter() {
-        debug!("changed: {:?}", entity);
-    }
-
-    let start = Instant::now();
-
-    // let mut csgs = query
-    //     .iter()
-    //     .filter_map(|brush| match brush {
-    //         EditorObject::Csg(csg) => Some(csg.clone()),
-    //         EditorObject::Brush(brush) => brush.clone().try_into().ok(),
-    //         _ => None,
-    //     })
-    //     .collect::<Vec<_>>();
-
-    let mut csgs = query.iter().map(|x| &x.csg).collect::<Vec<_>>();
-
-    let Some(mut u) = csgs.pop().cloned() else {
-        info!( "no Csg brushes");
-        return;
-    };
-
-    for csg in csgs {
-        u = csg::union(&u, csg).unwrap();
-    }
-
-    u.invert();
-
-    spawn_csg_split(&mut commands, &materials_res, &mut meshes, &u);
-
-    if false {
-        for (collider, origin) in u.get_collision_polygons() {
-            println!("collider: {:?}", collider);
-            commands
-                .spawn(collider)
-                .insert(SpatialBundle::from_transform(Transform::from_translation(
-                    origin,
-                )))
-                .insert(CsgCollisionOutput);
-        }
-    }
-    debug!("csg update: {:?}", start.elapsed());
-    // asset_server.free_unused_assets();
-}
-
 pub fn create_brush_csg_system_inc(
     mut commands: Commands,
     spatial_index: Res<SpatialIndex>,

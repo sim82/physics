@@ -756,13 +756,19 @@ impl<'a> From<TriangleSlice<'a>> for Mesh {
     }
 }
 
-pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Mesh)> {
+pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
     let triangles = csg.get_triangles();
 
     let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
 
+    let mut center = Vec3::ZERO;
+    let mut num_points = 0;
     // separate triangles per appearance id
     for (tri, normal, id) in triangles {
+        center += tri[0];
+        center += tri[1];
+        center += tri[2];
+        num_points += 3;
         match id_to_triangles.entry(id) {
             bevy::utils::hashbrown::hash_map::Entry::Occupied(mut e) => {
                 e.get_mut().push((tri, normal));
@@ -773,9 +779,19 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Mesh)> {
         }
     }
 
+    center /= num_points as f32;
+    center = center.floor();
+
     id_to_triangles
         .drain()
-        .map(|(k, v)| (k, TriangleSlice(&v).into()))
+        .map(|(k, mut v)| {
+            for v in &mut v {
+                v.0[0] -= center;
+                v.0[1] -= center;
+                v.0[2] -= center;
+            }
+            (k, center, TriangleSlice(&v).into())
+        })
         .collect()
 }
 

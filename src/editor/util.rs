@@ -106,11 +106,11 @@ pub fn spawn_csg_split(
     meshes: &mut Assets<Mesh>,
     csg: &Csg,
 ) -> Vec<Entity> {
-    let center = Vec3::ZERO;
+    // let center = Vec3::ZERO;
 
     let split_meshes = csg::csg_to_split_meshes(csg);
     let mut entities = Vec::new();
-    for (id, mesh) in split_meshes {
+    for (id, center, mesh) in split_meshes {
         let mesh = meshes.add(mesh);
         // todo some fallback if map lookups fail
 
