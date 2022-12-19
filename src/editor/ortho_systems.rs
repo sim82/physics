@@ -1,17 +1,12 @@
 use std::collections::BTreeMap;
 
 use bevy::{
-    input::{
-        mouse::{MouseButtonInput, MouseWheel},
-        ButtonState,
-    },
     prelude::*,
     render::{
         camera::{Projection, RenderTarget, ScalingMode},
         view::RenderLayers,
     },
     utils::HashMap,
-    window::{CreateWindow, WindowFocused, WindowId, WindowResized},
 };
 
 use super::{
@@ -207,7 +202,7 @@ pub fn control_input_wm_system(
                         warn!("viewport_to_world failed in {}", focused_name); 
                         continue;
                     };
-                    let mut d = start_ray.origin - ray.origin;
+                    let d = start_ray.origin - ray.origin;
                     info!(
                         "translate drag update: {:?} {:?}",
                         start_ray.origin, ray.origin
@@ -526,9 +521,9 @@ pub fn edit_input_system(
             }
 
             util::WmEvent::DragEnd {
-                window,
+                window: _,
                 button: util::WmMouseButton::Left,
-                pointer_state,
+                pointer_state: _,
             } => {
                 for (entity, _, _) in &active_drag_query {
                     commands.entity(entity).remove::<DragAction>();

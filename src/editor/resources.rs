@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{material, sstree::SsTree};
 
-use super::util::{self, Orientation2d};
+use super::util::Orientation2d;
 
 #[derive(Default, Resource)]
 pub struct Selection {

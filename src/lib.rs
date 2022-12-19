@@ -6,7 +6,7 @@ use bevy::{
 #[cfg(feature = "inspector")]
 use bevy_inspector_egui::WorldInspectorParams;
 
-use bevy_rapier3d::{prelude::*, render::RapierDebugRenderPlugin};
+use bevy_rapier3d::prelude::*;
 
 pub mod contact_debug;
 // pub mod debug_lines;
@@ -157,7 +157,6 @@ mod systems {
         render::{camera::RenderTarget, view::RenderLayers},
     };
     use bevy_atmosphere::prelude::AtmosphereCamera;
-    use bevy_inspector_egui::WorldInspectorParams;
     use bevy_rapier3d::prelude::*;
     use parry3d::shape::{ConvexPolyhedron, SharedShape};
 
@@ -243,28 +242,6 @@ mod systems {
         }
     }
 
-    pub fn open_debug_windows(
-        mut inspector_params: ResMut<WorldInspectorParams>,
-        mut material_browser: ResMut<editor::resources::MaterialBrowser>,
-    ) {
-        #[cfg(feature = "inspector")]
-        {
-            inspector_params.enabled = true;
-        }
-        material_browser.window_open = true;
-    }
-
-    pub fn close_debug_windows(
-        mut inspector_params: ResMut<WorldInspectorParams>,
-        mut material_browser: ResMut<editor::resources::MaterialBrowser>,
-    ) {
-        #[cfg(feature = "inspector")]
-        {
-            inspector_params.enabled = false;
-        }
-        material_browser.window_open = false;
-    }
-
     pub fn toggle_debug_menu_system(
         key_codes: Res<Input<KeyCode>>,
         mut app_state: ResMut<State<AppState>>,
@@ -273,16 +250,11 @@ mod systems {
             match app_state.current() {
                 AppState::Editor => app_state.set(AppState::InGame).unwrap(),
                 AppState::InGame => app_state.set(AppState::Editor).unwrap(),
-                _ => panic!("unsipported state {:?}", app_state.current()),
             }
         }
     }
 
-    pub fn setup_player_system(
-        mut commands: Commands,
-        mut wm_state: Res<editor::resources::WmState>,
-        mut _debug_lines: ResMut<bevy_prototype_debug_lines::DebugLines>,
-    ) {
+    pub fn setup_player_system(mut commands: Commands) {
         commands
             .spawn(SpatialBundle::from_transform(Transform::from_xyz(
                 5.0, 2.01, 5.0,
@@ -322,11 +294,9 @@ mod systems {
         }
     }
 
-    pub fn enter_ingame_system(mut commands: Commands, wm_state: Res<resources::WmState>) {
+    pub fn enter_ingame_system(mut commands: Commands) {
         commands
             .spawn(Camera3dBundle { ..default() })
-            // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
-            // .insert(RenderPlayer(0))
             .insert(PlayerCamera)
             .insert(AtmosphereCamera::default())
             .insert(Fxaa::default())

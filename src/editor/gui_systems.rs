@@ -30,14 +30,11 @@ pub fn materials_egui_system(
     debug!("dt: {:?}", start.elapsed());
 
     if let Some(clicked) = appearance_clicked {
-        material_browser.selected_appearance = clicked.clone();
+        material_browser.selected_appearance = clicked;
     }
     if let Some(clicked) = material_clicked {
         info!("clicked: {}", clicked);
-        materials_res.update_symlink(
-            material_browser.selected_appearance.clone(),
-            clicked.clone(),
-        );
+        materials_res.update_symlink(material_browser.selected_appearance.clone(), clicked);
     }
     material_browser.window_open = window_open;
 }
