@@ -352,7 +352,7 @@ pub fn track_primary_selection(
     mut meshes: ResMut<Assets<Mesh>>,
     brush_query: Query<(Entity, &EditorObject)>,
     brush_changed: Query<(), Changed<EditorObject>>,
-    mut query: Query<(&Handle<Mesh>, &mut Aabb), With<SelectionVis>>,
+    mut query: Query<(&Handle<Mesh>, &mut Aabb, &mut Transform), With<SelectionVis>>,
 ) {
     if brush_changed.is_empty() && selection.primary == tracking.primary {
         return;
@@ -360,14 +360,15 @@ pub fn track_primary_selection(
 
     let Some(ref primary) = selection.primary else { return };
     let Ok((entity, EditorObject::Brush(brush))) = brush_query.get(*primary) else { return };
-    let Ok((vis,mut aabb)) = query.get_single_mut() else { return };
+    let Ok((vis, mut aabb, mut transform)) = query.get_single_mut() else { return };
     let Some(mesh) = meshes.get_mut(vis) else { return };
     let Ok(csg): Result<csg::Csg, _> = brush.clone().try_into() else {return};
 
     debug!("selection vis changed: {:?}", entity);
     tracking.primary = selection.primary;
     *aabb = csg.get_aabb();
-    *mesh = (&csg).into();
+    // let mut origin = Vec3::ZERO;
+    (*mesh, transform.translation) = (&csg).into();
 }
 
 pub fn setup_selection_vis_system(
@@ -400,18 +401,22 @@ pub fn track_2d_vis_system(
         (Entity, &CsgRepresentation),
         (Changed<CsgRepresentation>, Without<Handle<Mesh>>),
     >,
-    changed_query: Query<(Entity, &CsgRepresentation, &Handle<Mesh>), Changed<CsgRepresentation>>,
+    mut changed_query: Query<
+        (Entity, &CsgRepresentation, &Handle<Mesh>, &mut Transform),
+        Changed<CsgRepresentation>,
+    >,
 ) {
     for (entity, csg_rep) in &new_query {
         info!("new");
 
-        let mesh: Mesh = (&csg_rep.csg).into();
+        let (mesh, origin) = (&csg_rep.csg).into();
 
         command
             .entity(entity)
             .insert(PbrBundle {
                 mesh: meshes.add(mesh),
                 material: materials_res.get_brush_2d_material(),
+                transform: Transform::from_translation(origin),
                 ..default()
             })
             // .insert(Wireframe)
@@ -423,14 +428,15 @@ pub fn track_2d_vis_system(
             .insert(NotShadowReceiver);
     }
 
-    for (_entity, csg_rep, mesh_handle) in &changed_query {
-        let mesh: Mesh = (&csg_rep.csg).into();
+    for (_entity, csg_rep, mesh_handle, mut transform) in &mut changed_query {
+        let (mesh, origin) = (&csg_rep.csg).into();
 
         let Some(old_mesh) = meshes.get_mut(mesh_handle) else {
                     error!( "could not lookup existing mesh");
                     continue;
                 };
         *old_mesh = mesh;
+        transform.translation = origin;
     }
 }
 

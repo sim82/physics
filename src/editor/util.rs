@@ -86,14 +86,13 @@ pub fn add_csg(
     meshes: &mut Assets<Mesh>,
     csg: &Csg,
 ) {
-    let center = Vec3::ZERO;
-
+    let (mesh, origin) = csg.into();
     commands
         .entity(entity)
         .insert(PbrBundle {
-            mesh: meshes.add(csg.into()),
+            mesh: meshes.add(mesh),
             material,
-            transform: Transform::from_translation(center),
+            transform: Transform::from_translation(origin),
             ..Default::default()
         })
         // .insert(Collider::cuboid(hs.x, hs.y, hs.z))

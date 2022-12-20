@@ -710,7 +710,7 @@ pub fn do_intersect(mut a: Node, mut b: Node) -> bool {
     !a.polygons.is_empty() || !b.polygons.is_empty()
 }
 
-impl From<&Csg> for Mesh {
+impl From<&Csg> for (Mesh, Vec3) {
     fn from(csg: &Csg) -> Self {
         TriangleSlice(&csg.get_triangles_no_appearance()).into()
     }
@@ -718,8 +718,15 @@ impl From<&Csg> for Mesh {
 
 struct TriangleSlice<'a>(&'a [([Vec3; 3], Vec3)]);
 
-impl<'a> From<TriangleSlice<'a>> for Mesh {
+impl<'a> From<TriangleSlice<'a>> for (Mesh, Vec3) {
     fn from(ts: TriangleSlice<'a>) -> Self {
+        let mut origin = Vec3::ZERO;
+        let mut num = 0;
+        for tri in ts.0 {
+            origin += tri.0.iter().sum::<Vec3>();
+            num += 3;
+        }
+        origin /= num as f32;
         let mut positions = Vec::new();
         let mut normals = Vec::new();
         let mut uvs = Vec::new();
@@ -735,7 +742,7 @@ impl<'a> From<TriangleSlice<'a>> for Mesh {
             fn to_slice2(v: Vec2) -> [f32; 2] {
                 [v.x, v.y]
             }
-            positions.extend(tri.0.map(to_slice));
+            positions.extend(tri.0.map(|v| v - origin).map(to_slice));
             let normal = tri.1.normalize();
             normals.extend(std::iter::repeat(to_slice(normal)).take(3));
             uvs.extend(
@@ -752,7 +759,7 @@ impl<'a> From<TriangleSlice<'a>> for Mesh {
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
         mesh.set_indices(Some(Indices::U32(indices)));
         mesh.generate_tangents().expect("generate tangents failed");
-        mesh
+        (mesh, origin)
     }
 }
 
@@ -761,14 +768,9 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
 
     let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
 
-    let mut center = Vec3::ZERO;
     let mut num_points = 0;
     // separate triangles per appearance id
     for (tri, normal, id) in triangles {
-        center += tri[0];
-        center += tri[1];
-        center += tri[2];
-        num_points += 3;
         match id_to_triangles.entry(id) {
             bevy::utils::hashbrown::hash_map::Entry::Occupied(mut e) => {
                 e.get_mut().push((tri, normal));
@@ -779,18 +781,11 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
         }
     }
 
-    center /= num_points as f32;
-    center = center.floor();
-
     id_to_triangles
         .drain()
         .map(|(k, mut v)| {
-            for v in &mut v {
-                v.0[0] -= center;
-                v.0[1] -= center;
-                v.0[2] -= center;
-            }
-            (k, center, TriangleSlice(&v).into())
+            let (mesh, origin) = TriangleSlice(&v).into();
+            (k, origin, mesh)
         })
         .collect()
 }
