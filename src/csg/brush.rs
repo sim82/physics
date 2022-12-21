@@ -4,7 +4,7 @@ use super::{Csg, Location, Plane, Polygon, Vertex};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Component)]
 pub struct Brush {
     pub planes: Vec<Plane>,
     pub appearances: Vec<i32>,

@@ -1,8 +1,7 @@
 use super::{
     components::{
-        self, CsgOutput, CsgRepresentation, EditorObject, EditorObjectBundle,
-        EditorObjectLinkedBevyTransform, EditorObjectOutputLink, PointLightProperties,
-        SelectionVis,
+        self, CsgOutput, CsgRepresentation, EditorObjectBundle, EditorObjectLinkedBevyTransform,
+        EditorObjectOutputLink, PointLightProperties, SelectionVis,
     },
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
@@ -69,7 +68,7 @@ pub fn editor_input_system(
 
     keycodes: Res<Input<KeyCode>>,
     mut selection: ResMut<Selection>,
-    query: Query<&EditorObject>,
+    query: Query<&csg::Brush>,
 ) {
     if keycodes.just_pressed(KeyCode::B) {
         let entity = commands
@@ -83,7 +82,7 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::D) {
         if let Some(primary) = selection.primary {
-            if let Ok(EditorObject::Brush(brush)) = query.get(primary) {
+            if let Ok(brush) = query.get(primary) {
                 let entity = commands
                     .spawn(EditorObjectBrushBundle::from_brush(brush.clone()))
                     .id();
@@ -98,10 +97,14 @@ pub fn editor_input_system(
             .spawn((
                 SpatialBundle::default(),
                 EditorObjectBundle {
-                    editor_object: EditorObject::PointLight(components::PointLightProperties {
-                        shadows_enabled: true,
-                        ..default()
-                    }),
+                    // editor_object: EditorObject::PointLight(components::PointLightProperties {
+                    //     shadows_enabled: true,
+                    //     ..default()
+                    // }),
+                    ..default()
+                },
+                components::PointLightProperties {
+                    shadows_enabled: true,
                     ..default()
                 },
             ))
@@ -182,7 +185,7 @@ pub fn cleanup_brush_csg_system(
     mut commands: Commands,
     mut event_reader: EventReader<CleanupCsgOutputEvent>,
     mut meshes: ResMut<Assets<Mesh>>,
-    query_changed: Query<(Entity, &EditorObject), Changed<EditorObject>>,
+    query_changed: Query<(Entity, &csg::Brush), Changed<csg::Brush>>,
     query_cleanup: Query<(Entity, &Handle<Mesh>, &Handle<StandardMaterial>), With<CsgOutput>>,
     query_collision_cleanup: Query<Entity, With<components::CsgCollisionOutput>>,
 ) {
@@ -448,17 +451,19 @@ pub fn track_lights_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     materials_res: Res<resources::Materials>,
-    query: Query<(Entity, &EditorObject, &Transform), (With<EditorObject>, Without<Handle<Mesh>>)>,
+    query: Query<
+        (Entity, &components::PointLightProperties, &Transform),
+        (
+            With<components::PointLightProperties>,
+            Without<Handle<Mesh>>,
+        ),
+    >,
     // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
 ) {
-    for (entity, editor_object, transform) in &query {
+    for (entity, light_props, transform) in &query {
         // if !matches!(editor_object, EditorObject::PointLight(_)) {
         //     continue;
         // }
-
-        let components::EditorObject::PointLight(light_props) = editor_object else {
-            continue;
-        };
 
         let light_entity = commands
             .spawn((
@@ -546,40 +551,43 @@ pub fn load_save_editor_objects(
     mut event_writer: EventWriter<CleanupCsgOutputEvent>,
 
     keycodes: Res<Input<KeyCode>>,
-    existing_objects: Query<(Entity, &EditorObject), With<EditorObject>>,
+    // existing_objects: Query<(Entity, &csg::Brush), With<csg::Brush>>,
+    delete_query: Query<Entity, Or<(With<csg::Brush>, With<components::PointLightProperties>)>>,
     mut materials: ResMut<resources::Materials>,
 ) {
     if keycodes.just_pressed(KeyCode::F5) {
-        let objects = existing_objects
-            .iter()
-            .map(|(_, obj)| obj)
-            .collect::<Vec<_>>();
-        if let Ok(file) = std::fs::File::create("scene.ron") {
-            let _ = ron::ser::to_writer_pretty(file, &objects, default());
-        }
+        // let objects = existing_objects
+        //     .iter()
+        //     .map(|(_, obj)| obj)
+        //     .collect::<Vec<_>>();
+        // if let Ok(file) = std::fs::File::create("scene.ron") {
+        //     let _ = ron::ser::to_writer_pretty(file, &objects, default());
+        // }
+        todo!()
     }
 
     if keycodes.just_pressed(KeyCode::F6) {
-        // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
-        if let Ok(file) = std::fs::File::open("scene.ron") {
-            let objects: Vec<EditorObject> = ron::de::from_reader(file).unwrap_or_default();
+        // // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
+        // if let Ok(file) = std::fs::File::open("scene.ron") {
+        //     let objects: Vec<EditorObject> = ron::de::from_reader(file).unwrap_or_default();
 
-            for (entity, _) in existing_objects.iter() {
-                commands.entity(entity).despawn();
-            }
-            for editor_object in objects {
-                match editor_object {
-                    EditorObject::None => todo!(),
-                    EditorObject::Brush(brush) => {
-                        commands.spawn(EditorObjectBrushBundle::from_brush(brush))
-                    }
-                    EditorObject::PointLight(_) => commands.spawn(EditorObjectBundle {
-                        editor_object,
-                        ..default()
-                    }),
-                };
-            }
-        }
+        //     for (entity, _) in existing_objects.iter() {
+        //         commands.entity(entity).despawn();
+        //     }
+        //     for editor_object in objects {
+        //         match editor_object {
+        //             EditorObject::None => todo!(),
+        //             EditorObject::Brush(brush) => {
+        //                 commands.spawn(EditorObjectBrushBundle::from_brush(brush))
+        //             }
+        //             EditorObject::PointLight(_) => commands.spawn(EditorObjectBundle {
+        //                 editor_object,
+        //                 ..default()
+        //             }),
+        //         };
+        //     }
+        // }
+        todo!();
     }
 
     if keycodes.just_pressed(KeyCode::F7) {
@@ -591,7 +599,7 @@ pub fn load_save_editor_objects(
         let filename = &"nav3.wsx";
         let (brushes, appearance_map) = wsx::load_brushes(filename);
         materials.id_to_name_map = appearance_map;
-        for (entity, _) in existing_objects.iter() {
+        for entity in delete_query.iter() {
             commands.entity(entity).despawn();
         }
         for brush in brushes {
@@ -637,16 +645,14 @@ pub fn load_save_editor_objects(
         for (pos, _range) in pointlights {
             commands.spawn((
                 SpatialBundle::from_transform(Transform::from_translation(pos)),
-                EditorObjectBundle {
-                    editor_object: EditorObject::PointLight(PointLightProperties { ..default() }),
-                    ..default()
-                },
+                EditorObjectBundle { ..default() },
+                PointLightProperties { ..default() },
             ));
         }
     }
 
     if keycodes.just_pressed(KeyCode::F8) {
-        for (entity, _) in existing_objects.iter() {
+        for entity in delete_query.iter() {
             commands.entity(entity).despawn();
         }
         event_writer.send(CleanupCsgOutputEvent);

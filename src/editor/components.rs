@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Component)]
 pub struct PointLightProperties {
     pub shadows_enabled: bool,
     pub range: f32,
@@ -21,17 +21,17 @@ impl Default for PointLightProperties {
     }
 }
 
-#[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
-pub enum EditorObject {
-    #[default]
-    None,
-    Brush(Brush),
-    PointLight(PointLightProperties),
-}
+// #[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
+// pub enum EditorObject {
+//     #[default]
+//     None,
+//     Brush(Brush),
+//     PointLight(PointLightProperties),
+// }
 
 #[derive(Bundle)]
 pub struct EditorObjectBrushBundle {
-    pub editor_object: EditorObject,
+    pub brush: csg::Brush,
     pub csg_representation: CsgRepresentation,
     pub csg_output_link: EditorObjectOutputLink,
     pub render_layers: bevy::render::view::RenderLayers,
@@ -48,7 +48,7 @@ impl EditorObjectBrushBundle {
             csg,
         };
         EditorObjectBrushBundle {
-            editor_object: EditorObject::Brush(brush),
+            brush,
             csg_representation,
             csg_output_link: default(),
             render_layers: bevy::render::view::RenderLayers::from_layers(&[
@@ -61,7 +61,7 @@ impl EditorObjectBrushBundle {
 
 #[derive(Bundle)]
 pub struct EditorObjectBundle {
-    pub editor_object: EditorObject,
+    // pub editor_object: EditorObject,
     pub output_links: EditorObjectOutputLink,
     pub render_layers: bevy::render::view::RenderLayers,
     pub editable_point: EditablePoint,
@@ -70,7 +70,7 @@ pub struct EditorObjectBundle {
 impl Default for EditorObjectBundle {
     fn default() -> Self {
         Self {
-            editor_object: Default::default(),
+            // editor_object: Default::default(),
             output_links: Default::default(),
             render_layers: bevy::render::view::RenderLayers::from_layers(&[
                 render_layers::SIDE_2D,
