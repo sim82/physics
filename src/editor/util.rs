@@ -252,3 +252,10 @@ pub enum WmEvent {
     },
     ZoomDelta(f32),
 }
+
+// https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+fn ray_point_distance(ray: Ray, x0: Vec3) -> f32 {
+    let x1 = ray.origin;
+    let x2 = ray.origin + ray.direction;
+    (x0 - x1).cross(x0 - x2).length() / ray.direction.length()
+}

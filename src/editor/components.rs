@@ -64,6 +64,7 @@ pub struct EditorObjectBundle {
     pub editor_object: EditorObject,
     pub output_links: EditorObjectOutputLink,
     pub render_layers: bevy::render::view::RenderLayers,
+    pub editable_point: EditablePoint,
 }
 
 impl Default for EditorObjectBundle {
@@ -75,9 +76,13 @@ impl Default for EditorObjectBundle {
                 render_layers::SIDE_2D,
                 render_layers::TOP_2D,
             ]),
+            editable_point: EditablePoint,
         }
     }
 }
+
+#[derive(Component)]
+pub struct EditablePoint;
 
 #[derive(Component)]
 pub struct CsgOutput;

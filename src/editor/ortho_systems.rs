@@ -542,6 +542,7 @@ pub fn select_input_system(
     editor_windows_2d: Res<resources::EditorWindows2d>,
     camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<(Entity, &EditorObject, &CsgRepresentation)>,
+    point_query: Query<(Entity, &Transform), With<components::EditablePoint>>,
 ) {
     for event in event_reader.iter() {
         if let util::WmEvent::Clicked {
@@ -562,7 +563,7 @@ pub fn select_input_system(
             };
 
             // editor_windows_2d.
-            let selection_set = brush_query
+            let brush_selection = brush_query
                 .iter()
                 .filter_map(|(entity, obj, csg)| match obj {
                     EditorObject::Brush(brush) => {
@@ -587,8 +588,27 @@ pub fn select_input_system(
                         }
                     }
                     _ => None,
-                })
-                .collect::<Vec<_>>();
+                });
+            // .collect::<Vec<_>>();
+
+            let point_selection = point_query.iter().filter_map(|(entity, transform)| {
+                let pos = transform.translation;
+                if pos.x >= editor_windows_2d.view_min.x
+                    && pos.y >= editor_windows_2d.view_min.y
+                    && pos.z >= editor_windows_2d.view_min.z
+                    && pos.x <= editor_windows_2d.view_max.x
+                    && pos.y <= editor_windows_2d.view_max.y
+                    && pos.z <= editor_windows_2d.view_max.z
+                    && distance(ray, pos) < 0.1
+                {
+                    Some(entity)
+                } else {
+                    None
+                }
+            });
+
+            let selection_set = brush_selection.chain(point_selection).collect::<Vec<_>>();
+
             info!("selection set: {:?}", selection_set);
 
             if selection_set != selection.last_set {
@@ -604,4 +624,11 @@ pub fn select_input_system(
             }
         }
     }
+}
+
+// https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+fn distance(ray: Ray, x0: Vec3) -> f32 {
+    let x1 = ray.origin;
+    let x2 = ray.origin + ray.direction;
+    (x0 - x1).cross(x0 - x2).length() / ray.direction.length()
 }

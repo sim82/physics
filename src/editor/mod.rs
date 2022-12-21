@@ -35,7 +35,8 @@ impl Plugin for EditorPlugin {
             SystemSet::on_exit(AppState::Editor).with_system(ortho_systems::leave_editor_state),
         );
 
-        app.add_startup_system(systems::setup_selection_vis_system.after(systems::setup))
+        app
+            // .add_startup_system(systems::setup_selection_vis_system.after(systems::setup))
             .add_system(systems::track_primary_selection)
             .add_startup_system(ortho_systems::setup_editor_system)
             .init_resource::<resources::Selection>()

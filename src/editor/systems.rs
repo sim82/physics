@@ -348,27 +348,30 @@ pub struct SelectionChangeTracking {
 
 pub fn track_primary_selection(
     selection: Res<Selection>,
+    materials_res: Res<resources::Materials>,
     mut tracking: Local<SelectionChangeTracking>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    brush_query: Query<(Entity, &EditorObject)>,
-    brush_changed: Query<(), Changed<EditorObject>>,
-    mut query: Query<(&Handle<Mesh>, &mut Aabb, &mut Transform), With<SelectionVis>>,
+    mut material_query: Query<&mut Handle<StandardMaterial>>,
 ) {
-    if brush_changed.is_empty() && selection.primary == tracking.primary {
+    if selection.primary == tracking.primary {
         return;
     }
 
-    let Some(ref primary) = selection.primary else { return };
-    let Ok((entity, EditorObject::Brush(brush))) = brush_query.get(*primary) else { return };
-    let Ok((vis, mut aabb, mut transform)) = query.get_single_mut() else { return };
-    let Some(mesh) = meshes.get_mut(vis) else { return };
-    let Ok(csg): Result<csg::Csg, _> = brush.clone().try_into() else {return};
+    // reset material for old selecton
+    if let Some(mut material) = tracking
+        .primary
+        .and_then(|old_selection| material_query.get_mut(old_selection).ok())
+    {
+        *material = materials_res.get_brush_2d_material();
+    }
 
-    debug!("selection vis changed: {:?}", entity);
+    if let Some(mut material) = selection
+        .primary
+        .and_then(|new_selection| material_query.get_mut(new_selection).ok())
+    {
+        *material = materials_res.get_brush_2d_selected_material();
+    }
+
     tracking.primary = selection.primary;
-    *aabb = csg.get_aabb();
-    // let mut origin = Vec3::ZERO;
-    (*mesh, transform.translation) = (&csg).into();
 }
 
 pub fn setup_selection_vis_system(
