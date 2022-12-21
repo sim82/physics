@@ -10,16 +10,12 @@ use bevy::{
 };
 
 use super::{
-    components::{self, EditablePoint},
-    resources::{self, EditorWindowSettings, Selection, TranslateDrag, LOWER_WINDOW, UPPER_WINDOW},
-    util::{self, Orientation2d},
+    components,
+    resources::{self, LOWER_WINDOW, UPPER_WINDOW},
+    util::{self, Orientation2d, SnapToGrid, WmMouseButton},
 };
 use crate::{
     csg::{self, PLANE_EPSILON},
-    editor::{
-        components::{CsgRepresentation, DragAction, DragActionType},
-        util::{SnapToGrid, WmMouseButton},
-    },
     render_layers,
 };
 // systems related to 2d windows
@@ -37,7 +33,7 @@ pub fn enter_editor_state(
     let settings_map = if let Ok(file) = std::fs::File::open("windows.yaml") {
         serde_yaml::from_reader(file).unwrap_or_default()
     } else {
-        HashMap::<String, EditorWindowSettings>::new()
+        HashMap::<String, resources::EditorWindowSettings>::new()
     };
 
     let view_configs = vec![
@@ -64,16 +60,17 @@ pub fn enter_editor_state(
         // lazy create camera entities
         match editor_windows_2d.windows.entry(name.to_string()) {
             bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
-                let settings = settings_map
-                    .get(name)
-                    .cloned()
-                    .unwrap_or(EditorWindowSettings {
-                        pos_x: 0,
-                        pos_y: 0,
-                        width: 800,
-                        height: 600,
-                        orientation: t,
-                    });
+                let settings =
+                    settings_map
+                        .get(name)
+                        .cloned()
+                        .unwrap_or(resources::EditorWindowSettings {
+                            pos_x: 0,
+                            pos_y: 0,
+                            width: 800,
+                            height: 600,
+                            orientation: t,
+                        });
 
                 let entity = commands
                     .spawn(Camera3dBundle {
@@ -115,7 +112,7 @@ pub fn leave_editor_state(
 }
 
 pub fn write_window_settings(
-    mut last_written_settings: Local<BTreeMap<String, EditorWindowSettings>>,
+    mut last_written_settings: Local<BTreeMap<String, resources::EditorWindowSettings>>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
 ) {
     let settings = editor_windows_2d
@@ -168,7 +165,7 @@ pub fn control_input_wm_system(
                     }
                 }
 
-                editor_windows_2d.translate_drag = Some(TranslateDrag {
+                editor_windows_2d.translate_drag = Some(resources::TranslateDrag {
                     start_ray: ray,
                     start_focus: focused_name.to_string(),
                     start_global_transform: *global_transform,
@@ -191,7 +188,7 @@ pub fn control_input_wm_system(
                         transforms.push((window.camera, *transform));
                     }
                 }
-                if let Some(TranslateDrag {
+                if let Some(resources::TranslateDrag {
                     start_ray,
                     start_focus: _,
                     start_global_transform,
@@ -347,23 +344,32 @@ pub fn adjust_clip_planes_system(
 pub fn edit_input_system(
     mut commands: Commands,
     mut event_reader: EventReader<util::WmEvent>,
-    selection: Res<Selection>,
+    selection: Res<resources::Selection>,
     keycodes: Res<Input<KeyCode>>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
 
     camera_query: Query<(&GlobalTransform, &Camera)>,
-    brush_query: Query<&csg::Brush, Without<DragAction>>,
-    point_query: Query<&Transform, (With<components::EditablePoint>, Without<DragAction>)>,
+    brush_query: Query<&csg::Brush, Without<components::DragAction>>,
+    point_query: Query<
+        &Transform,
+        (
+            With<components::EditablePoint>,
+            Without<components::DragAction>,
+        ),
+    >,
     mut brush_drag_query: Query<
         (
             Entity,
-            &DragAction,
+            &components::DragAction,
             &mut csg::Brush,
             &mut components::CsgRepresentation,
         ),
-        Without<EditablePoint>,
+        Without<components::EditablePoint>,
     >,
-    mut point_drag_query: Query<(Entity, &DragAction, &mut Transform), (With<EditablePoint>)>,
+    mut point_drag_query: Query<
+        (Entity, &components::DragAction, &mut Transform),
+        (With<components::EditablePoint>),
+    >,
     // mut transform_query: Query<&mut Transform>,
 ) {
     for event in event_reader.iter() {
@@ -393,9 +399,9 @@ pub fn edit_input_system(
                         let affected_faces = brush.get_planes_behind_ray(ray);
 
                         if !affected_faces.is_empty() {
-                            commands.entity(primary).insert(DragAction {
+                            commands.entity(primary).insert(components::DragAction {
                                 start_ray: ray,
-                                action: DragActionType::Face { affected_faces },
+                                action: components::DragActionType::Face { affected_faces },
                             });
                             info!("start face drag for {:?}", primary); // the crowd put on their affected_faces as The Iron Sheik did his signature face-drag on el Pollo Loco
                         } else {
@@ -405,18 +411,18 @@ pub fn edit_input_system(
                                 .enumerate()
                                 .map(|(i, face)| (i, face.w))
                                 .collect();
-                            commands.entity(primary).insert(DragAction {
+                            commands.entity(primary).insert(components::DragAction {
                                 start_ray: ray,
-                                action: DragActionType::WholeBrush { affected_faces },
+                                action: components::DragActionType::WholeBrush { affected_faces },
                             });
                             info!("start whole-brush drag for {:?}", primary);
                         }
                     } else if let Ok(transform) = point_query.get(primary) {
                         info!("light drag start");
 
-                        commands.entity(primary).insert(DragAction {
+                        commands.entity(primary).insert(components::DragAction {
                             start_ray: ray,
-                            action: DragActionType::NonBrush {
+                            action: components::DragActionType::NonBrush {
                                 start_translation: transform.translation,
                             },
                         });
@@ -449,8 +455,8 @@ pub fn edit_input_system(
                     debug!("drag: {:?} on brush {:?}", drag_delta, entity);
 
                     match &drag_action.action {
-                        DragActionType::Face { affected_faces }
-                        | DragActionType::WholeBrush { affected_faces } /* yay, free implementation */ => {
+                        components::DragActionType::Face { affected_faces }
+                        | components::DragActionType::WholeBrush { affected_faces } /* yay, free implementation */ => {
                             let mut new_brush = brush.clone();
                             let mut relevant_change = false;
                             for (face, start_w) in affected_faces {
@@ -484,7 +490,7 @@ pub fn edit_input_system(
                                             entity,
                                             (
                                                 new_brush,
-                                                CsgRepresentation {
+                                                components::CsgRepresentation {
                                                     center,
                                                     radius,
                                                     csg,
@@ -508,7 +514,7 @@ pub fn edit_input_system(
                     debug!("drag: {:?} on point {:?}", drag_delta, entity);
 
                     match &drag_action.action {
-                        DragActionType::NonBrush { start_translation } => {
+                        components::DragActionType::NonBrush { start_translation } => {
                             transform_updates.push((entity, *start_translation + drag_delta));
                         }
                         _ => warn!("invalid drag action in editable point."),
@@ -544,7 +550,7 @@ pub fn edit_input_system(
                     .map(|(e, _, _, _)| e)
                     .chain(point_drag_query.iter().map(|(e, _, _)| e))
                 {
-                    commands.entity(entity).remove::<DragAction>();
+                    commands.entity(entity).remove::<components::DragAction>();
                     info!("stop drag for {:?}", entity);
                 }
             }
@@ -556,10 +562,10 @@ pub fn edit_input_system(
 #[allow(clippy::too_many_arguments)]
 pub fn select_input_system(
     mut event_reader: EventReader<util::WmEvent>,
-    mut selection: ResMut<Selection>,
+    mut selection: ResMut<resources::Selection>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
     camera_query: Query<(&GlobalTransform, &Camera)>,
-    brush_query: Query<(Entity, &csg::Brush, &CsgRepresentation)>,
+    brush_query: Query<(Entity, &csg::Brush, &components::CsgRepresentation)>,
     point_query: Query<(Entity, &Transform), With<components::EditablePoint>>,
 ) {
     for event in event_reader.iter() {
