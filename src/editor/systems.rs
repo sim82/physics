@@ -1,7 +1,7 @@
 use super::{
     components::{
-        self, CsgOutput, CsgRepresentation, EditorObjectBundle, EditorObjectLinkedBevyTransform,
-        EditorObjectOutputLink, PointLightProperties, SelectionVis,
+        self, CsgOutput, CsgRepresentation, EditorObjectBundle, EditorObjectOutputLink,
+        PointLightProperties, SelectionVis,
     },
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
@@ -468,7 +468,6 @@ pub fn track_lights_system(
         let light_entity = commands
             .spawn((
                 PointLightBundle {
-                    transform: *transform,
                     point_light: PointLight {
                         shadows_enabled: light_props.shadows_enabled,
                         range: light_props.range,
@@ -495,20 +494,21 @@ pub fn track_lights_system(
             ))
             .insert(NotShadowCaster)
             .insert(NotShadowReceiver)
-            .insert(EditorObjectLinkedBevyTransform(light_entity));
+            // .insert(EditorObjectLinkedBevyTransform(light_entity))
+            .add_child(light_entity);
     }
 }
 
-pub fn track_linked_transforms_system(
-    query: Query<(&Transform, &EditorObjectLinkedBevyTransform)>,
-    mut transform_query: Query<&mut Transform, Without<EditorObjectLinkedBevyTransform>>,
-) {
-    for (src_transform, linked) in &query {
-        if let Ok(mut dest_transform) = transform_query.get_mut(linked.0) {
-            *dest_transform = *src_transform;
-        }
-    }
-}
+// pub fn track_linked_transforms_system(
+//     query: Query<(&Transform, &EditorObjectLinkedBevyTransform)>,
+//     mut transform_query: Query<&mut Transform, Without<EditorObjectLinkedBevyTransform>>,
+// ) {
+//     for (src_transform, linked) in &query {
+//         if let Ok(mut dest_transform) = transform_query.get_mut(linked.0) {
+//             *dest_transform = *src_transform;
+//         }
+//     }
+// }
 
 pub fn track_spatial_index_system(
     mut spatial_index: ResMut<resources::SpatialIndex>,

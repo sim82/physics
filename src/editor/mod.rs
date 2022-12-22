@@ -75,10 +75,10 @@ impl Plugin for EditorPlugin {
         );
         app.add_system_to_stage(CoreStage::PostUpdate, systems::track_lights_system);
         app.add_system_to_stage(CoreStage::PostUpdate, systems::track_spatial_index_system);
-        app.add_system_to_stage(
-            CoreStage::PostUpdate,
-            systems::track_linked_transforms_system,
-        );
+        // app.add_system_to_stage(
+        //     CoreStage::PostUpdate,
+        //     systems::track_linked_transforms_system,
+        // );
 
         app.register_inspectable::<components::CsgRepresentation>();
 

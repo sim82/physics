@@ -123,8 +123,8 @@ pub struct EditorObjectOutputLink {
     pub entities: Vec<Entity>,
 }
 
-#[derive(Component)]
-pub struct EditorObjectLinkedBevyTransform(pub Entity);
+// #[derive(Component)]
+// pub struct EditorObjectLinkedBevyTransform(pub Entity);
 
 #[derive(Component)]
 pub struct Ortho2dCamera;
