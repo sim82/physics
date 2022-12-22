@@ -368,7 +368,7 @@ pub fn edit_input_system(
     >,
     mut point_drag_query: Query<
         (Entity, &components::DragAction, &mut Transform),
-        (With<components::EditablePoint>),
+        With<components::EditablePoint>,
     >,
     // mut transform_query: Query<&mut Transform>,
 ) {
@@ -508,7 +508,7 @@ pub fn edit_input_system(
                     }
                 }
 
-                for (entity, drag_action, transform) in &point_drag_query {
+                for (entity, drag_action, _) in &point_drag_query {
                     let drag_delta = ray.origin - drag_action.start_ray.origin;
 
                     debug!("drag: {:?} on point {:?}", drag_delta, entity);
