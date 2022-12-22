@@ -347,35 +347,69 @@ pub fn create_brush_csg_system_inc(
 
 #[derive(Resource, Default)]
 pub struct SelectionChangeTracking {
-    primary: Option<Entity>,
+    selection: HashSet<Entity>,
 }
 
+// pub fn track_primary_selection(
+//     selection: Res<Selection>,
+//     materials_res: Res<resources::Materials>,
+//     mut tracking: Local<SelectionChangeTracking>,
+//     mut material_query: Query<&mut Handle<StandardMaterial>>,
+// ) {
+//     if selection.primary == tracking.primary {
+//         return;
+//     }
+
+//     // reset material for old selecton
+//     if let Some(mut material) = tracking
+//         .primary
+//         .and_then(|old_selection| material_query.get_mut(old_selection).ok())
+//     {
+//         *material = materials_res.get_brush_2d_material();
+//     }
+
+//     if let Some(mut material) = selection
+//         .primary
+//         .and_then(|new_selection| material_query.get_mut(new_selection).ok())
+//     {
+//         *material = materials_res.get_brush_2d_selected_material();
+//     }
+
+//     tracking.primary = selection.primary;
+// }
+
 pub fn track_primary_selection(
-    selection: Res<Selection>,
+    // selection: Res<Selection>,
     materials_res: Res<resources::Materials>,
     mut tracking: Local<SelectionChangeTracking>,
-    mut material_query: Query<&mut Handle<StandardMaterial>>,
+    mut material_query: Query<(&mut Handle<StandardMaterial>, &Parent)>,
+    selection_query: Query<Entity, With<components::Selected>>,
 ) {
-    if selection.primary == tracking.primary {
+    // TODO: this is a brute force PoC with some major inefficiencies.
+    // use change detection on Selected component and look up children via parent, not the other way round.
+    let new_selection = selection_query.iter().collect::<HashSet<_>>();
+
+    if new_selection == tracking.selection {
         return;
     }
-
-    // reset material for old selecton
-    if let Some(mut material) = tracking
-        .primary
-        .and_then(|old_selection| material_query.get_mut(old_selection).ok())
     {
-        *material = materials_res.get_brush_2d_material();
-    }
+        let to_default_material = tracking
+            .selection
+            .difference(&new_selection)
+            .collect::<HashSet<_>>();
+        let to_selected_material = new_selection
+            .difference(&tracking.selection)
+            .collect::<HashSet<_>>();
 
-    if let Some(mut material) = selection
-        .primary
-        .and_then(|new_selection| material_query.get_mut(new_selection).ok())
-    {
-        *material = materials_res.get_brush_2d_selected_material();
+        for (mut material, parent) in &mut material_query {
+            if to_default_material.contains(&parent.get()) {
+                *material = materials_res.get_brush_2d_material();
+            } else if to_selected_material.contains(&parent.get()) {
+                *material = materials_res.get_brush_2d_selected_material();
+            }
+        }
     }
-
-    tracking.primary = selection.primary;
+    tracking.selection = new_selection;
 }
 
 pub fn setup_selection_vis_system(

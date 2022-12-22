@@ -6,7 +6,7 @@ use bevy::{
         camera::{Projection, RenderTarget, ScalingMode},
         view::RenderLayers,
     },
-    utils::HashMap,
+    utils::{HashMap, HashSet},
 };
 
 use super::{
@@ -561,12 +561,14 @@ pub fn edit_input_system(
 
 #[allow(clippy::too_many_arguments)]
 pub fn select_input_system(
+    mut commands: Commands,
     mut event_reader: EventReader<util::WmEvent>,
     mut selection: ResMut<resources::Selection>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
     camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<(Entity, &csg::Brush, &components::CsgRepresentation)>,
     point_query: Query<(Entity, &Transform), With<components::EditablePoint>>,
+    selected_query: Query<Entity, With<components::Selected>>,
 ) {
     for event in event_reader.iter() {
         if let util::WmEvent::Clicked {
@@ -640,6 +642,17 @@ pub fn select_input_system(
             if !selection.last_set.is_empty() {
                 selection.primary =
                     Some(selection.last_set[selection.last_set_index % selection.last_set.len()]);
+            }
+
+            let old_selection = selected_query.iter().collect::<HashSet<_>>();
+
+            for entity in &old_selection {
+                if Some(*entity) != selection.primary {
+                    commands.entity(*entity).remove::<components::Selected>();
+                }
+            }
+            if let Some(entity) = &selection.primary {
+                commands.entity(*entity).insert(components::Selected);
             }
         }
     }
