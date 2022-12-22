@@ -327,7 +327,7 @@ pub fn create_brush_csg_system_inc(
         const GENERATE_COLLISION_GEOMETRY: bool = true;
         if GENERATE_COLLISION_GEOMETRY {
             for (collider, origin) in output_shape.get_collision_polygons() {
-                println!("collider: {:?}", collider);
+                // println!("collider: {:?}", collider);
                 let entity = commands
                     .spawn(collider)
                     .insert(SpatialBundle::from_transform(Transform::from_translation(
@@ -434,50 +434,49 @@ pub fn setup_selection_vis_system(
 
 #[allow(clippy::type_complexity)]
 pub fn track_2d_vis_system(
-    mut command: Commands,
+    mut commands: Commands,
     materials_res: Res<resources::Materials>,
     mut meshes: ResMut<Assets<Mesh>>,
 
-    new_query: Query<
-        (Entity, &CsgRepresentation),
-        (Changed<CsgRepresentation>, Without<Handle<Mesh>>),
-    >,
     mut changed_query: Query<
-        (Entity, &CsgRepresentation, &Handle<Mesh>, &mut Transform),
+        (Entity, &CsgRepresentation, &mut Transform),
         Changed<CsgRepresentation>,
     >,
+    children_query: Query<&Children>,
+    mut mesh_query: Query<&mut Handle<Mesh>>,
 ) {
-    for (entity, csg_rep) in &new_query {
-        info!("new");
+    // info!("track");
+    for (entity, csg_rep, mut transform) in &mut changed_query {
+        if let Ok(children) = children_query.get(entity) {
+            // 2d vis mesh already exists. just update.
+            info!("brush update");
 
-        let (mesh, origin) = (&csg_rep.csg).into();
+            for child in children {
+                if let Ok(mut old_mesh) = mesh_query.get_mut(*child) {
+                    meshes.remove(old_mesh.clone());
+                    let (mesh, origin) = (&csg_rep.csg).into();
+                    transform.translation = origin;
 
-        command
-            .entity(entity)
-            .insert(PbrBundle {
-                mesh: meshes.add(mesh),
-                material: materials_res.get_brush_2d_material(),
-                transform: Transform::from_translation(origin),
-                ..default()
-            })
-            // .insert(Wireframe)
-            // .insert(RenderLayers::from_layers(&[
-            //     render_layers::TOP_2D,
-            //     render_layers::SIDE_2D,
-            // ]))
-            .insert(NotShadowCaster)
-            .insert(NotShadowReceiver);
-    }
+                    *old_mesh = meshes.add(mesh);
+                }
+            }
+        } else {
+            let (mesh, origin) = (&csg_rep.csg).into();
+            transform.translation = origin;
+            info!("brush new");
 
-    for (_entity, csg_rep, mesh_handle, mut transform) in &mut changed_query {
-        let (mesh, origin) = (&csg_rep.csg).into();
-
-        let Some(old_mesh) = meshes.get_mut(mesh_handle) else {
-                    error!( "could not lookup existing mesh");
-                    continue;
-                };
-        *old_mesh = mesh;
-        transform.translation = origin;
+            let mesh_entity = commands
+                .spawn((
+                    PbrBundle {
+                        mesh: meshes.add(mesh),
+                        material: materials_res.get_brush_2d_material(),
+                        ..default()
+                    },
+                    render_layers::ortho_views(),
+                ))
+                .id();
+            commands.entity(entity).add_child(mesh_entity);
+        }
     }
 }
 
@@ -525,7 +524,7 @@ pub fn track_lights_system(
                     material: materials_res.get_brush_2d_material(),
                     ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
                 },
-                RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                render_layers::ortho_views(),
                 Name::new("2dvis Mesh"),
             ))
             .id();

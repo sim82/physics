@@ -31,10 +31,12 @@ impl Default for PointLightProperties {
 
 #[derive(Bundle)]
 pub struct EditorObjectBrushBundle {
+    pub spatial_bundle: SpatialBundle,
     pub brush: csg::Brush,
     pub csg_representation: CsgRepresentation,
     pub csg_output_link: EditorObjectOutputLink,
-    pub render_layers: bevy::render::view::RenderLayers,
+    // pub render_layers: bevy::render::view::RenderLayers,
+    pub name: Name,
 }
 
 impl EditorObjectBrushBundle {
@@ -48,13 +50,15 @@ impl EditorObjectBrushBundle {
             csg,
         };
         EditorObjectBrushBundle {
+            spatial_bundle: default(),
             brush,
             csg_representation,
             csg_output_link: default(),
-            render_layers: bevy::render::view::RenderLayers::from_layers(&[
-                render_layers::SIDE_2D,
-                render_layers::TOP_2D,
-            ]),
+            // render_layers: bevy::render::view::RenderLayers::from_layers(&[
+            //     render_layers::SIDE_2D,
+            //     render_layers::TOP_2D,
+            // ]),
+            name: Name::new("Brush"),
         }
     }
 }
