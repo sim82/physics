@@ -107,6 +107,7 @@ pub fn editor_input_system(
                     shadows_enabled: true,
                     ..default()
                 },
+                Name::new("PointLight"),
             ))
             .id();
 
@@ -453,10 +454,7 @@ pub fn track_lights_system(
     materials_res: Res<resources::Materials>,
     query: Query<
         (Entity, &components::PointLightProperties, &Transform),
-        (
-            With<components::PointLightProperties>,
-            Without<Handle<Mesh>>,
-        ),
+        (With<components::PointLightProperties>, Without<Children>),
     >,
     // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
 ) {
@@ -476,26 +474,36 @@ pub fn track_lights_system(
                     ..default()
                 },
                 RenderLayers::layer(render_layers::MAIN_3D),
+                Name::new("bevy 3d PointLight"),
+            ))
+            .id();
+
+        let vis2d_entity = commands
+            .spawn((
+                PbrBundle {
+                    mesh: meshes.add(
+                        mesh::shape::Icosphere {
+                            radius: 0.1,
+                            subdivisions: 2,
+                        }
+                        .into(),
+                    ),
+                    material: materials_res.get_brush_2d_material(),
+                    ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                },
+                RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                Name::new("2dvis Mesh"),
             ))
             .id();
 
         commands
             .entity(entity)
-            .insert((
-                meshes.add(
-                    mesh::shape::Icosphere {
-                        radius: 0.1,
-                        subdivisions: 2,
-                    }
-                    .into(),
-                ),
-                materials_res.get_brush_2d_material(),
-                // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
-            ))
-            .insert(NotShadowCaster)
-            .insert(NotShadowReceiver)
-            // .insert(EditorObjectLinkedBevyTransform(light_entity))
-            .add_child(light_entity);
+            .add_child(light_entity)
+            .add_child(vis2d_entity);
+        // .insert(NotShadowCaster)
+        // .insert(NotShadowReceiver)
+        // .insert(EditorObjectLinkedBevyTransform(light_entity))
+        // .add_child(light_entity);
     }
 }
 

@@ -63,7 +63,7 @@ impl EditorObjectBrushBundle {
 pub struct EditorObjectBundle {
     // pub editor_object: EditorObject,
     pub output_links: EditorObjectOutputLink,
-    pub render_layers: bevy::render::view::RenderLayers,
+    // pub render_layers: bevy::render::view::RenderLayers,
     pub editable_point: EditablePoint,
 }
 
@@ -72,10 +72,10 @@ impl Default for EditorObjectBundle {
         Self {
             // editor_object: Default::default(),
             output_links: Default::default(),
-            render_layers: bevy::render::view::RenderLayers::from_layers(&[
-                render_layers::SIDE_2D,
-                render_layers::TOP_2D,
-            ]),
+            // render_layers: bevy::render::view::RenderLayers::from_layers(&[
+            //     render_layers::SIDE_2D,
+            //     render_layers::TOP_2D,
+            // ]),
             editable_point: EditablePoint,
         }
     }
