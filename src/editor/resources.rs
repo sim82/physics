@@ -14,8 +14,8 @@ use super::util::Orientation2d;
 
 #[derive(Default, Resource)]
 pub struct Selection {
-    pub primary: Option<Entity>,
-    pub last_primary: Option<Entity>,
+    // pub primary: Option<Entity>,
+    // pub last_primary: Option<Entity>,
     pub last_set: Vec<Entity>,
     pub last_set_index: usize,
 }

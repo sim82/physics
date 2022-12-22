@@ -370,6 +370,7 @@ pub fn edit_input_system(
         (Entity, &components::DragAction, &mut Transform),
         With<components::EditablePoint>,
     >,
+    selected_query: Query<Entity, With<components::Selected>>,
     // mut transform_query: Query<&mut Transform>,
 ) {
     for event in event_reader.iter() {
@@ -393,7 +394,7 @@ pub fn edit_input_system(
 
                 info!("click ray {}: {:?}", focused_name, ray);
 
-                if let Some(primary) = selection.primary {
+                if let Ok(primary) = selected_query.get_single() {
                     // match brush_query.get(primary) {
                     if let Ok(brush) = brush_query.get(primary) {
                         let affected_faces = brush.get_planes_behind_ray(ray);
@@ -639,19 +640,20 @@ pub fn select_input_system(
                 selection.last_set_index += 1;
             }
 
+            let mut primary_selection = None;
             if !selection.last_set.is_empty() {
-                selection.primary =
+                primary_selection =
                     Some(selection.last_set[selection.last_set_index % selection.last_set.len()]);
             }
 
             let old_selection = selected_query.iter().collect::<HashSet<_>>();
 
             for entity in &old_selection {
-                if Some(*entity) != selection.primary {
+                if Some(*entity) != primary_selection {
                     commands.entity(*entity).remove::<components::Selected>();
                 }
             }
-            if let Some(entity) = &selection.primary {
+            if let Some(entity) = &primary_selection {
                 commands.entity(*entity).insert(components::Selected);
             }
         }

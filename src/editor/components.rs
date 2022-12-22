@@ -92,9 +92,6 @@ pub struct EditablePoint;
 pub struct CsgOutput;
 
 #[derive(Component)]
-pub struct SelectionVis;
-
-#[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Selected;
 

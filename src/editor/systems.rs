@@ -1,7 +1,7 @@
 use super::{
     components::{
         self, CsgOutput, CsgRepresentation, EditorObjectBundle, EditorObjectOutputLink,
-        PointLightProperties, SelectionVis,
+        PointLightProperties,
     },
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
@@ -69,25 +69,34 @@ pub fn editor_input_system(
     keycodes: Res<Input<KeyCode>>,
     mut selection: ResMut<Selection>,
     query: Query<&csg::Brush>,
+    selection_query: Query<Entity, With<components::Selected>>,
 ) {
+    let mut clear_selection = false;
     if keycodes.just_pressed(KeyCode::B) {
         let entity = commands
-            .spawn(EditorObjectBrushBundle::from_brush(default()))
+            .spawn((
+                EditorObjectBrushBundle::from_brush(default()),
+                components::Selected,
+            ))
             .id();
-
+        clear_selection = true;
         info!("new brush: {:?}", entity);
-        selection.primary = Some(entity);
+        // selection.primary = Some(entity);
         // spatial_index.sstree.insert(entity, center, radius);
     }
 
     if keycodes.just_pressed(KeyCode::D) {
-        if let Some(primary) = selection.primary {
+        if let Ok(primary) = selection_query.get_single() {
             if let Ok(brush) = query.get(primary) {
                 let entity = commands
-                    .spawn(EditorObjectBrushBundle::from_brush(brush.clone()))
+                    .spawn((
+                        EditorObjectBrushBundle::from_brush(brush.clone()),
+                        components::Selected,
+                    ))
                     .id();
                 info!("duplicate brush: {:?} -> {:?}", primary, entity);
-                selection.primary = Some(entity);
+                // selection.primary = Some(entity);
+                clear_selection = true;
             }
         }
     }
@@ -108,10 +117,18 @@ pub fn editor_input_system(
                     ..default()
                 },
                 Name::new("PointLight"),
+                components::Selected,
             ))
             .id();
+        clear_selection = true;
 
-        selection.primary = Some(entity);
+        // selection.primary = Some(entity);
+    }
+
+    if clear_selection {
+        for entity in &selection_query {
+            commands.entity(entity).remove::<components::Selected>();
+        }
     }
 }
 
@@ -410,26 +427,6 @@ pub fn track_primary_selection(
         }
     }
     tracking.selection = new_selection;
-}
-
-pub fn setup_selection_vis_system(
-    mut command: Commands,
-    materials_res: Res<resources::Materials>,
-    mut meshes: ResMut<Assets<Mesh>>,
-) {
-    command
-        .spawn(PbrBundle {
-            mesh: meshes.add(Cube::default().into()),
-            material: materials_res.get_brush_2d_selected_material(),
-            ..default()
-        })
-        .insert(SelectionVis)
-        // .insert(Wireframe)
-        .insert(Name::new("selection"))
-        .insert(RenderLayers::from_layers(&[
-            render_layers::TOP_2D,
-            render_layers::SIDE_2D,
-        ]));
 }
 
 #[allow(clippy::type_complexity)]
