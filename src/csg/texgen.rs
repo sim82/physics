@@ -54,6 +54,7 @@ impl From<Vec3> for MajorAxis {
 }
 
 pub struct Texgen {
+    pub offset: Vec3,
     pub translate: Vec2,
     pub scale: Vec2,
     pub rotate: f32,
@@ -63,6 +64,7 @@ pub struct Texgen {
 impl Default for Texgen {
     fn default() -> Self {
         Self {
+            offset: Vec3::ZERO,
             translate: Vec2::ZERO,
             scale: Vec2::ONE,
             rotate: 0.0,
@@ -73,12 +75,18 @@ impl Default for Texgen {
 }
 
 impl Texgen {
+    pub fn with_offset(offset: Vec3) -> Self {
+        Self {
+            offset,
+            ..Default::default()
+        }
+    }
     pub fn project_tc_for_pos(&self, pos: Vec3, normal: Vec3) -> Vec2 {
         let (s, c) = (-self.rotate).to_radians().sin_cos();
         let c2 = (-self.d_rotate).to_radians().cos();
         let t = (-self.d_rotate).to_radians().tan();
 
-        let tc = MajorAxis::from(normal).project(pos);
+        let tc = MajorAxis::from(normal).project(pos + self.offset);
         let tc_trans = tc - self.translate;
         let tc_rot = Vec2::new(
             tc_trans.x * c - tc_trans.y * s,

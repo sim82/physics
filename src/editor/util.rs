@@ -104,12 +104,13 @@ pub fn spawn_csg_split(
     materials_res: &resources::Materials,
     meshes: &mut Assets<Mesh>,
     csg: &Csg,
+    origin: Vec3,
 ) -> Vec<Entity> {
     // let center = Vec3::ZERO;
 
-    let split_meshes = csg::csg_to_split_meshes(csg);
+    let split_meshes = csg::csg_to_split_meshes_relative_to_origin(csg, origin);
     let mut entities = Vec::new();
-    for (id, center, mesh) in split_meshes {
+    for (id, mesh) in split_meshes {
         let mesh = meshes.add(mesh);
         // todo some fallback if map lookups fail
 
@@ -122,7 +123,7 @@ pub fn spawn_csg_split(
             PbrBundle {
                 mesh,
                 // material,
-                transform: Transform::from_translation(center),
+                // transform: Transform::from_translation(center),
                 ..Default::default()
             },
             CsgOutput,

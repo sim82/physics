@@ -718,6 +718,42 @@ impl From<&Csg> for (Mesh, Vec3) {
 
 struct TriangleSlice<'a>(&'a [([Vec3; 3], Vec3)]);
 
+fn triangles_to_mesh_with_texgen(tris: &[([Vec3; 3], Vec3)], texgen: &Texgen) -> Mesh {
+    let mut num = 0;
+    let mut positions = Vec::new();
+    let mut normals = Vec::new();
+    let mut uvs = Vec::new();
+    let mut indices = Vec::new();
+
+    for tri in tris {
+        let idx0 = positions.len() as u32;
+        // most obnoxiously functional style just for the lulz...
+        fn to_slice(v: Vec3) -> [f32; 3] {
+            [v.x, v.y, v.z]
+        }
+        fn to_slice2(v: Vec2) -> [f32; 2] {
+            [v.x, v.y]
+        }
+        positions.extend(tri.0.map(to_slice));
+        let normal = tri.1.normalize();
+        normals.extend(std::iter::repeat(to_slice(normal)).take(3));
+        uvs.extend(
+            tri.0
+                .map(|pos| texgen.project_tc_for_pos(pos, normal))
+                .map(to_slice2),
+        );
+        indices.extend(idx0..=(idx0 + 2));
+    }
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.set_indices(Some(Indices::U32(indices)));
+    mesh.generate_tangents().expect("generate tangents failed");
+    mesh
+}
+
 impl<'a> From<TriangleSlice<'a>> for (Mesh, Vec3) {
     fn from(ts: TriangleSlice<'a>) -> Self {
         let mut origin = Vec3::ZERO;
@@ -786,6 +822,35 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
         .map(|(k, mut v)| {
             let (mesh, origin) = TriangleSlice(&v).into();
             (k, origin, mesh)
+        })
+        .collect()
+}
+
+pub fn csg_to_split_meshes_relative_to_origin(csg: &Csg, origin: Vec3) -> Vec<(i32, Mesh)> {
+    let triangles = csg.get_triangles();
+
+    let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
+
+    // separate triangles per appearance id
+    for (mut tri, normal, id) in triangles {
+        for v in &mut tri {
+            *v -= origin;
+        }
+        match id_to_triangles.entry(id) {
+            bevy::utils::hashbrown::hash_map::Entry::Occupied(mut e) => {
+                e.get_mut().push((tri, normal));
+            }
+            bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
+                e.insert(vec![(tri, normal)]);
+            }
+        }
+    }
+    let texgen = Texgen::with_offset(origin);
+    id_to_triangles
+        .drain()
+        .map(|(k, mut v)| {
+            let mesh = triangles_to_mesh_with_texgen(&v, &texgen);
+            (k, mesh)
         })
         .collect()
 }

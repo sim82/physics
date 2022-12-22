@@ -1,8 +1,5 @@
 use super::{
-    components::{
-        self, CsgOutput, CsgRepresentation, EditorObjectBundle, EditorObjectOutputLink,
-        PointLightProperties,
-    },
+    components::{self, CsgOutput, CsgRepresentation, EditorObjectBundle, PointLightProperties},
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
 };
@@ -198,32 +195,6 @@ pub fn update_symlinked_materials_system(
     materials_res.dirty_symlinks.clear();
 }
 
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn cleanup_brush_csg_system(
-    mut commands: Commands,
-    mut event_reader: EventReader<CleanupCsgOutputEvent>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    query_changed: Query<(Entity, &csg::Brush), Changed<csg::Brush>>,
-    query_cleanup: Query<(Entity, &Handle<Mesh>, &Handle<StandardMaterial>), With<CsgOutput>>,
-    query_collision_cleanup: Query<Entity, With<components::CsgCollisionOutput>>,
-) {
-    if query_changed.is_empty() && event_reader.is_empty() {
-        return;
-    }
-
-    for _ in event_reader.iter() {} // TODO: is this necessary?
-                                    // if any Brush has changed, first delete all existing CsgOutput entities including mesh and material resources
-    for (entity, mesh, material) in &query_cleanup {
-        info!("cleanup {:?} {:?} {:?}", entity, mesh, material);
-        meshes.remove(mesh);
-        commands.entity(entity).despawn();
-    }
-
-    for entity in &query_collision_cleanup {
-        commands.entity(entity).despawn();
-    }
-}
-
 pub fn create_brush_csg_system_inc(
     mut commands: Commands,
     spatial_index: Res<SpatialIndex>,
@@ -231,9 +202,14 @@ pub fn create_brush_csg_system_inc(
     mut meshes: ResMut<Assets<Mesh>>,
     materials_res: ResMut<resources::Materials>,
 
-    mut query_changed: Query<(Entity, &CsgRepresentation), Changed<components::CsgRepresentation>>,
-    query_csg: Query<&CsgRepresentation>,
-    mut query_csg_out: Query<&mut EditorObjectOutputLink>,
+    mut query_changed: Query<
+        (Entity, &CsgRepresentation, &Transform),
+        Changed<components::CsgRepresentation>,
+    >,
+    query_csg: Query<(&CsgRepresentation, &Transform)>,
+    query_children: Query<&Children>,
+    query_csg_output: Query<(), With<components::CsgOutput>>,
+    // mut query_csg_out: Query<&mut EditorObjectOutputLink>,
 ) {
     let start = Instant::now();
 
@@ -268,8 +244,11 @@ pub fn create_brush_csg_system_inc(
     // 2. brushes overlapping (approximately, according to spatial index) with changed brushes
     // TODO: brushes overlapping the old geometry of changed brushes, otherwise fast moving (teleporting) brushes
     // can leave holes etc.
-    let mut affected = query_changed.iter().map(|(e, _)| e).collect::<HashSet<_>>();
-    for (_entity, csg_repr) in &mut query_changed {
+    let mut affected = query_changed
+        .iter()
+        .map(|(e, _, _)| e)
+        .collect::<HashSet<_>>();
+    for (_entity, csg_repr, &_transform) in &mut query_changed {
         let mut out = Vec::new();
         spatial_index.sstree.find_entries_within_radius(
             &csg_repr.center,
@@ -283,7 +262,7 @@ pub fn create_brush_csg_system_inc(
     // clip them against (potentially) overlapping brushes (according to spatial index)
     let num_affected = affected.len();
     for entity in affected {
-        let Ok(csg_repr) = query_csg.get(entity) else {
+        let Ok((csg_repr, transform)) = query_csg.get(entity) else {
             error!("affected csg not found for {:?}", entity);
             continue;
         };
@@ -305,7 +284,7 @@ pub fn create_brush_csg_system_inc(
                 if entry.payload == entity {
                     return None;
                 }
-                let other_csg = query_csg.get(entry.payload).ok()?;
+                let (other_csg, _) = query_csg.get(entry.payload).ok()?;
                 let other_bsp = csg::Node::from_polygons(&other_csg.csg.polygons)?;
                 if !csg_repr.csg.intersects_or_touches(&other_csg.csg) {
                     return None;
@@ -331,30 +310,49 @@ pub fn create_brush_csg_system_inc(
             bsp.clip_to(other_bsp);
         }
         // TODO: here it probably would help to check if the csg output actually changed before tearing down the meshes...
-        let mut csg_output = query_csg_out.get_mut(entity).expect("missing csg_out"); // should be impossible if CsgOutputLink is always created in bundle with CsgRepresentation
+        // let mut csg_output = query_csg_out.get_mut(entity).expect("missing csg_out"); // should be impossible if CsgOutputLink is always created in bundle with CsgRepresentation
 
-        for entity in csg_output.entities.drain(..) {
-            commands.entity(entity).despawn();
+        // for entity in csg_output.entities.drain(..) {
+        //     commands.entity(entity).despawn();
+        // }
+
+        if let Ok(children) = query_children.get(entity) {
+            let mut entity_commands = commands.entity(entity);
+            let mut remove_children = children
+                .iter()
+                .cloned()
+                .filter(|child| query_csg_output.contains(*child))
+                .collect::<Vec<_>>();
+            commands.entity(entity).remove_children(&remove_children);
+            for child in remove_children {
+                commands.entity(child).despawn();
+            }
         }
 
         let output_shape = csg::Csg::from_polygons(bsp.all_polygons());
-        csg_output.entities =
-            spawn_csg_split(&mut commands, &materials_res, &mut meshes, &output_shape);
+        let new_children = spawn_csg_split(
+            &mut commands,
+            &materials_res,
+            &mut meshes,
+            &output_shape,
+            transform.translation,
+        );
+        commands.entity(entity).push_children(&new_children);
 
-        const GENERATE_COLLISION_GEOMETRY: bool = true;
-        if GENERATE_COLLISION_GEOMETRY {
-            for (collider, origin) in output_shape.get_collision_polygons() {
-                // println!("collider: {:?}", collider);
-                let entity = commands
-                    .spawn(collider)
-                    .insert(SpatialBundle::from_transform(Transform::from_translation(
-                        origin,
-                    )))
-                    .insert(CsgCollisionOutput)
-                    .id();
-                csg_output.entities.push(entity);
-            }
-        }
+        // const GENERATE_COLLISION_GEOMETRY: bool = true;
+        // if GENERATE_COLLISION_GEOMETRY {
+        //     for (collider, origin) in output_shape.get_collision_polygons() {
+        //         // println!("collider: {:?}", collider);
+        //         let entity = commands
+        //             .spawn(collider)
+        //             .insert(SpatialBundle::from_transform(Transform::from_translation(
+        //                 origin,
+        //             )))
+        //             .insert(CsgCollisionOutput)
+        //             .id();
+        //         csg_output.entities.push(entity);
+        //     }
+        // }
     }
 
     if num_affected > 0 {
@@ -399,16 +397,20 @@ pub fn track_primary_selection(
     // selection: Res<Selection>,
     materials_res: Res<resources::Materials>,
     mut tracking: Local<SelectionChangeTracking>,
-    mut material_query: Query<(&mut Handle<StandardMaterial>, &Parent)>,
+    mut material_query: Query<
+        (&mut Handle<StandardMaterial>, &Parent),
+        Without<components::CsgOutput>,
+    >,
     selection_query: Query<Entity, With<components::Selected>>,
 ) {
     // TODO: this is a brute force PoC with some major inefficiencies.
     // use change detection on Selected component and look up children via parent, not the other way round.
     let new_selection = selection_query.iter().collect::<HashSet<_>>();
-
     if new_selection == tracking.selection {
         return;
     }
+    info!("selection: {:?} {:?}", new_selection, tracking.selection);
+
     {
         let to_default_material = tracking
             .selection
@@ -440,7 +442,7 @@ pub fn track_2d_vis_system(
         Changed<CsgRepresentation>,
     >,
     children_query: Query<&Children>,
-    mut mesh_query: Query<&mut Handle<Mesh>>,
+    mut mesh_query: Query<&mut Handle<Mesh>, Without<CsgOutput>>,
 ) {
     // info!("track");
     for (entity, csg_rep, mut transform) in &mut changed_query {

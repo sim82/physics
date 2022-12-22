@@ -34,7 +34,7 @@ pub struct EditorObjectBrushBundle {
     pub spatial_bundle: SpatialBundle,
     pub brush: csg::Brush,
     pub csg_representation: CsgRepresentation,
-    pub csg_output_link: EditorObjectOutputLink,
+    // pub csg_output_link: EditorObjectOutputLink,
     // pub render_layers: bevy::render::view::RenderLayers,
     pub name: Name,
 }
@@ -53,7 +53,7 @@ impl EditorObjectBrushBundle {
             spatial_bundle: default(),
             brush,
             csg_representation,
-            csg_output_link: default(),
+            // csg_output_link: default(),
             // render_layers: bevy::render::view::RenderLayers::from_layers(&[
             //     render_layers::SIDE_2D,
             //     render_layers::TOP_2D,
@@ -66,7 +66,7 @@ impl EditorObjectBrushBundle {
 #[derive(Bundle)]
 pub struct EditorObjectBundle {
     // pub editor_object: EditorObject,
-    pub output_links: EditorObjectOutputLink,
+    // pub output_links: EditorObjectOutputLink,
     // pub render_layers: bevy::render::view::RenderLayers,
     pub editable_point: EditablePoint,
 }
@@ -75,7 +75,7 @@ impl Default for EditorObjectBundle {
     fn default() -> Self {
         Self {
             // editor_object: Default::default(),
-            output_links: Default::default(),
+            // output_links: Default::default(),
             // render_layers: bevy::render::view::RenderLayers::from_layers(&[
             //     render_layers::SIDE_2D,
             //     render_layers::TOP_2D,
@@ -123,10 +123,10 @@ pub struct CsgRepresentation {
     pub csg: csg::Csg,
 }
 
-#[derive(Component, Default)]
-pub struct EditorObjectOutputLink {
-    pub entities: Vec<Entity>,
-}
+// #[derive(Component, Default)]
+// pub struct EditorObjectOutputLink {
+//     pub entities: Vec<Entity>,
+// }
 
 // #[derive(Component)]
 // pub struct EditorObjectLinkedBevyTransform(pub Entity);
