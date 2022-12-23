@@ -21,6 +21,12 @@ impl Default for PointLightProperties {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Component, Inspectable, Default)]
+// #[reflect(Component)]
+pub struct BrushMaterialProperties {
+    pub materials: Vec<String>,
+}
+
 // #[derive(Debug, Clone, Component, Serialize, Deserialize, Default)]
 // pub enum EditorObject {
 //     #[default]
@@ -34,6 +40,7 @@ pub struct EditorObjectBrushBundle {
     pub spatial_bundle: SpatialBundle,
     pub brush: csg::Brush,
     pub csg_representation: CsgRepresentation,
+    pub material_properties: BrushMaterialProperties,
     // pub csg_output_link: EditorObjectOutputLink,
     // pub render_layers: bevy::render::view::RenderLayers,
     pub name: Name,
@@ -51,6 +58,11 @@ impl EditorObjectBrushBundle {
         };
         EditorObjectBrushBundle {
             spatial_bundle: default(),
+            material_properties: BrushMaterialProperties {
+                materials: std::iter::repeat(String::from("material/architecture/woodframe1"))
+                    .take(brush.appearances.len())
+                    .collect(),
+            },
             brush,
             csg_representation,
             // csg_output_link: default(),

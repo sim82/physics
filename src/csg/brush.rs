@@ -13,7 +13,8 @@ pub struct Brush {
 impl Brush {
     pub fn from_planes(planes: Vec<Plane>) -> Self {
         Brush {
-            appearances: std::iter::repeat(0).take(planes.len()).collect(),
+            // appearances: std::iter::repeat(0).take(planes.len()).collect(),
+            appearances: (0..planes.len() as i32).collect(),
             planes,
         }
     }

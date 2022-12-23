@@ -206,9 +206,16 @@ pub fn create_brush_csg_system_inc(
 
     mut query_changed: Query<
         (Entity, &CsgRepresentation, &Transform),
-        Changed<components::CsgRepresentation>,
+        Or<(
+            Changed<components::CsgRepresentation>,
+            Changed<components::BrushMaterialProperties>,
+        )>,
     >,
-    query_csg: Query<(&CsgRepresentation, &Transform)>,
+    query_csg: Query<(
+        &CsgRepresentation,
+        &Transform,
+        &components::BrushMaterialProperties,
+    )>,
     query_children: Query<&Children>,
     query_csg_output: Query<(), With<components::CsgOutput>>,
     mut processed_csg_query: Query<&mut components::ProcessedCsg>,
@@ -265,7 +272,7 @@ pub fn create_brush_csg_system_inc(
     // clip them against (potentially) overlapping brushes (according to spatial index)
     let num_affected = affected.len();
     for entity in affected {
-        let Ok((csg_repr, transform)) = query_csg.get(entity) else {
+        let Ok((csg_repr, transform, material_properties)) = query_csg.get(entity) else {
             error!("affected csg not found for {:?}", entity);
             continue;
         };
@@ -287,7 +294,7 @@ pub fn create_brush_csg_system_inc(
                 if entry.payload == entity {
                     return None;
                 }
-                let (other_csg, _) = query_csg.get(entry.payload).ok()?;
+                let (other_csg, _, _) = query_csg.get(entry.payload).ok()?;
                 let other_bsp = csg::Node::from_polygons(&other_csg.csg.polygons)?;
                 if !csg_repr.csg.intersects_or_touches(&other_csg.csg) {
                     return None;
@@ -339,6 +346,7 @@ pub fn create_brush_csg_system_inc(
             &mut meshes,
             &output_shape,
             transform.translation,
+            &material_properties.materials[..],
         );
         commands.entity(entity).push_children(&new_children);
 

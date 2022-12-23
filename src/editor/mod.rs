@@ -97,6 +97,7 @@ impl Plugin for EditorPlugin {
         );
 
         app.register_inspectable::<components::CsgRepresentation>();
+        app.register_inspectable::<components::BrushMaterialProperties>();
 
         // Wm test
         app.init_resource::<resources::WmState>();

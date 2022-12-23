@@ -143,6 +143,7 @@ impl Materials {
 pub struct MaterialBrowser {
     pub window_open: bool,
     pub selected_appearance: String,
+    pub selected_material: String,
     pub previews: HashMap<String, egui::TextureId>,
     // pub previews: Mutex<Previews>,
 }
@@ -152,6 +153,7 @@ impl Default for MaterialBrowser {
         Self {
             window_open: true,
             selected_appearance: Default::default(),
+            selected_material: Default::default(),
             previews: default(),
         }
     }

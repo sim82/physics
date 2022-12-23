@@ -91,8 +91,9 @@ pub fn wm_test_system(
                                     info!("clicked: {}", clicked);
                                     materials_res.update_symlink(
                                         material_browser.selected_appearance.clone(),
-                                        clicked,
+                                        clicked.clone(),
                                     );
+                                    material_browser.selected_material = clicked;
                                 }
                             });
                     }

@@ -105,6 +105,7 @@ pub fn spawn_csg_split(
     meshes: &mut Assets<Mesh>,
     csg: &Csg,
     origin: Vec3,
+    material_names: &[String],
 ) -> Vec<Entity> {
     // let center = Vec3::ZERO;
 
@@ -129,7 +130,8 @@ pub fn spawn_csg_split(
             CsgOutput,
         ));
 
-        if let Some(material_name) = materials_res.id_to_name_map.get(&id) {
+        // if let Some(material_name) = materials_res.id_to_name_map.get(&id) {
+        if let Some(material_name) = material_names.get(id as usize) {
             entity_commands.insert((
                 components::MaterialRef {
                     material_name: material_name.clone(),

@@ -11,8 +11,13 @@ pub fn select_input_system(
     mut event_reader: EventReader<util::WmEvent>,
     mut selection: ResMut<resources::Selection>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
+    material_browser: Res<resources::MaterialBrowser>,
     camera_query: Query<(&GlobalTransform, &Camera), With<components::Main3dCamera>>,
-    processed_csg_query: Query<(Entity, &csg::Brush, &components::ProcessedCsg)>,
+    mut processed_csg_query: Query<(
+        Entity,
+        &mut components::BrushMaterialProperties,
+        &components::ProcessedCsg,
+    )>,
     point_query: Query<(Entity, &Transform), With<components::EditablePoint>>,
     selected_query: Query<Entity, With<components::Selected>>,
 ) {
@@ -58,13 +63,22 @@ pub fn select_input_system(
             //     .collect::<Vec<_>>();
 
             // find clicked face
-            for (entity, _, processed_csg) in &processed_csg_query {
+            for (entity, mut material_properties, processed_csg) in &mut processed_csg_query {
                 'poly_loop: for polygon in processed_csg.bsp.all_polygons() {
                     let mut res = Vec::new();
                     polygon.get_triangles(&mut res);
                     for (tri, normal, appearance) in res {
                         if util::raycast_moller_trumbore(&ray, &tri, true) {
                             info!("hit {:?} in {:?}", polygon, entity);
+                            if !material_browser.selected_material.is_empty() {
+                                material_properties.materials[appearance as usize] =
+                                    material_browser.selected_material.clone();
+                                info!(
+                                    "assign material: {} {}",
+                                    appearance, material_browser.selected_material
+                                );
+                            }
+
                             break 'poly_loop;
                         }
                     }
