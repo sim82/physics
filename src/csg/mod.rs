@@ -63,7 +63,7 @@ pub use sphere::Sphere;
 mod brush;
 pub use brush::Brush;
 
-mod texgen;
+pub mod texgen;
 use self::texgen::Texgen;
 
 // clean slate, bevy flavoured, port of csg.js
@@ -721,7 +721,7 @@ impl From<&Csg> for (Mesh, Vec3) {
 
 struct TriangleSlice<'a>(&'a [([Vec3; 3], Vec3)]);
 
-fn triangles_to_mesh_with_texgen(tris: &[([Vec3; 3], Vec3)], texgen: &Texgen) -> Mesh {
+pub fn triangles_to_mesh_with_texgen(tris: &[([Vec3; 3], Vec3)], texgen: &Texgen) -> Mesh {
     let mut num = 0;
     let mut positions = Vec::new();
     let mut normals = Vec::new();
@@ -829,33 +829,45 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
         .collect()
 }
 
-pub fn csg_to_split_meshes_relative_to_origin(csg: &Csg, origin: Vec3) -> Vec<(i32, Mesh)> {
+// pub fn csg_to_split_meshes_relative_to_origin(csg: &Csg, origin: Vec3) -> Vec<(i32, Mesh)> {
+//     let triangles = csg.get_triangles();
+
+//     let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
+
+//     // separate triangles per appearance id
+//     for (mut tri, normal, id) in triangles {
+//         for v in &mut tri {
+//             *v -= origin;
+//         }
+//         match id_to_triangles.entry(id) {
+//             bevy::utils::hashbrown::hash_map::Entry::Occupied(mut e) => {
+//                 e.get_mut().push((tri, normal));
+//             }
+//             bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
+//                 e.insert(vec![(tri, normal)]);
+//             }
+//         }
+//     }
+//     let texgen = Texgen::with_offset(origin);
+//     id_to_triangles
+//         .drain()
+//         .map(|(k, mut v)| {
+//             let mesh = triangles_to_mesh_with_texgen(&v, &texgen);
+//             (k, mesh)
+//         })
+//         .collect()
+// }
+
+pub fn csg_to_split_tri_lists(csg: &Csg, output: &[&std::cell::RefCell<Vec<([Vec3; 3], Vec3)>>]) {
     let triangles = csg.get_triangles();
 
-    let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
+    // let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
 
     // separate triangles per appearance id
-    for (mut tri, normal, id) in triangles {
-        for v in &mut tri {
-            *v -= origin;
-        }
-        match id_to_triangles.entry(id) {
-            bevy::utils::hashbrown::hash_map::Entry::Occupied(mut e) => {
-                e.get_mut().push((tri, normal));
-            }
-            bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
-                e.insert(vec![(tri, normal)]);
-            }
-        }
+    for (tri, normal, id) in triangles {
+        let mut output = output[id as usize].borrow_mut();
+        output.push((tri, normal))
     }
-    let texgen = Texgen::with_offset(origin);
-    id_to_triangles
-        .drain()
-        .map(|(k, mut v)| {
-            let mesh = triangles_to_mesh_with_texgen(&v, &texgen);
-            (k, mesh)
-        })
-        .collect()
 }
 
 #[test]

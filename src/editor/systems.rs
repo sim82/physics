@@ -342,7 +342,6 @@ pub fn create_brush_csg_system_inc(
         let output_shape = csg::Csg::from_polygons(bsp.all_polygons());
         let new_children = spawn_csg_split(
             &mut commands,
-            &materials_res,
             &mut meshes,
             &output_shape,
             transform.translation,

@@ -98,56 +98,124 @@ pub fn add_csg(
         // .insert(Collider::cuboid(hs.x, hs.y, hs.z))
         ;
 }
-
 pub fn spawn_csg_split(
     commands: &mut Commands,
-    materials_res: &resources::Materials,
     meshes: &mut Assets<Mesh>,
     csg: &Csg,
     origin: Vec3,
     material_names: &[String],
 ) -> Vec<Entity> {
-    // let center = Vec3::ZERO;
+    // de-duplicate generated meshes by material id:
 
-    let split_meshes = csg::csg_to_split_meshes_relative_to_origin(csg, origin);
+    // generate list of unique material ids (each polyon in the csg can have different appearance ids, but they can all be mapped to the same material name)
+    let mut unique_materials = material_names.iter().collect::<Vec<_>>();
+    unique_materials.sort();
+    unique_materials.dedup();
+
+    // create one vector per material to collect generated triangles, using ref-cell to allow mutliple mutable aliases per vector
+    let mut ref_cells = Vec::new();
+    for _ in &unique_materials {
+        ref_cells.push(std::cell::RefCell::new(Vec::new()));
+    }
+
+    // create a vector with an entry for each *appearance id* pointing to the ouput vector (note: multiple entries can refenrence the same vector!)
+    let mut output = Vec::new();
+    for name in material_names {
+        let unique_index = unique_materials.binary_search(&name).unwrap();
+        output.push(&ref_cells[unique_index]);
+    }
+
+    // generate trianles that get put into the 'per appearance' vectors (which actually are backed by 'per materia' vectors using RefCell)
+    csg::csg_to_split_tri_lists(csg, &output[..]);
     let mut entities = Vec::new();
-    for (id, mesh) in split_meshes {
-        let mesh = meshes.add(mesh);
-        // todo some fallback if map lookups fail
 
-        // let Some(material) = materials_res.get(material_name,materials, asset_server) else {
-        //     warn!( "material resource not found for {}", material_name);
-        //     continue;
-        // };
+    // generate one mesh per material
+    // TODO: maybe do more optimizations like vertex merging and proper t-junctions etc... probably not useful without further merging meshes
+    for (i, tri_list) in ref_cells.drain(..).enumerate() {
+        let mut tri_list = tri_list.into_inner();
+        for tri in &mut tri_list {
+            for v in &mut tri.0 {
+                *v -= origin;
+            }
+        }
+
+        let texgen = csg::texgen::Texgen::with_offset(origin);
+        let mesh = csg::triangles_to_mesh_with_texgen(&tri_list, &texgen);
+        let mesh = meshes.add(mesh);
 
         let mut entity_commands = commands.spawn((
             PbrBundle {
                 mesh,
-                // material,
-                // transform: Transform::from_translation(center),
                 ..Default::default()
             },
             CsgOutput,
         ));
 
         // if let Some(material_name) = materials_res.id_to_name_map.get(&id) {
-        if let Some(material_name) = material_names.get(id as usize) {
-            entity_commands.insert((
-                components::MaterialRef {
-                    material_name: material_name.clone(),
-                },
-                Name::new(format!("csg {:?}", material_name)),
-                RenderLayers::layer(render_layers::MAIN_3D),
-                Wireframe,
-            ));
-        } else {
-            entity_commands.insert(Name::new("csg <no material>"));
-        }
+        let material_name = unique_materials[i];
+        entity_commands.insert((
+            components::MaterialRef {
+                material_name: material_name.clone(),
+            },
+            Name::new(format!("csg {:?}", material_name)),
+            RenderLayers::layer(render_layers::MAIN_3D),
+            Wireframe,
+        ));
         debug!("spawned csg output: {:?}", entity_commands.id());
         entities.push(entity_commands.id());
     }
     entities
 }
+
+// pub fn spawn_csg_split_old(
+//     commands: &mut Commands,
+//     materials_res: &resources::Materials,
+//     meshes: &mut Assets<Mesh>,
+//     csg: &Csg,
+//     origin: Vec3,
+//     material_names: &[String],
+// ) -> Vec<Entity> {
+//     // let center = Vec3::ZERO;
+
+//     let split_meshes = csg::csg_to_split_meshes_relative_to_origin(csg, origin);
+//     let mut entities = Vec::new();
+//     for (id, mesh) in split_meshes {
+//         let mesh = meshes.add(mesh);
+//         // todo some fallback if map lookups fail
+
+//         // let Some(material) = materials_res.get(material_name,materials, asset_server) else {
+//         //     warn!( "material resource not found for {}", material_name);
+//         //     continue;
+//         // };
+
+//         let mut entity_commands = commands.spawn((
+//             PbrBundle {
+//                 mesh,
+//                 // material,
+//                 // transform: Transform::from_translation(center),
+//                 ..Default::default()
+//             },
+//             CsgOutput,
+//         ));
+
+//         // if let Some(material_name) = materials_res.id_to_name_map.get(&id) {
+//         if let Some(material_name) = material_names.get(id as usize) {
+//             entity_commands.insert((
+//                 components::MaterialRef {
+//                     material_name: material_name.clone(),
+//                 },
+//                 Name::new(format!("csg {:?}", material_name)),
+//                 RenderLayers::layer(render_layers::MAIN_3D),
+//                 Wireframe,
+//             ));
+//         } else {
+//             entity_commands.insert(Name::new("csg <no material>"));
+//         }
+//         debug!("spawned csg output: {:?}", entity_commands.id());
+//         entities.push(entity_commands.id());
+//     }
+//     entities
+// }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
 pub enum Orientation2d {
