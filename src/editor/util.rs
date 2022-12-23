@@ -283,14 +283,21 @@ impl TriangleTrait for [Vec3; 3] {
 
 /// Implementation of the Möller-Trumbore ray-triangle intersection test
 /// adapted from https://github.com/aevyrie/bevy_mod_raycast/blob/main/src/raycast.rs
-pub fn raycast_moller_trumbore(ray: &Ray, triangle: &impl TriangleTrait) -> bool {
+pub fn raycast_moller_trumbore(
+    ray: &Ray,
+    triangle: &impl TriangleTrait,
+    cull_backfaces: bool,
+) -> bool {
     // Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
     let vector_v0_to_v1 = triangle.v1() - triangle.v0();
     let vector_v0_to_v2 = triangle.v2() - triangle.v0();
     let p_vec = ray.direction.cross(vector_v0_to_v2);
     let determinant: f32 = vector_v0_to_v1.dot(p_vec);
 
-    if determinant.abs() < std::f32::EPSILON {
+    if (cull_backfaces && determinant < std::f32::EPSILON)
+        || (!cull_backfaces && determinant.abs() < std::f32::EPSILON)
+    {
+        // if determinant.abs() < std::f32::EPSILON {
         return false;
     }
 

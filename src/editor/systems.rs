@@ -196,6 +196,7 @@ pub fn update_symlinked_materials_system(
     materials_res.dirty_symlinks.clear();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_brush_csg_system_inc(
     mut commands: Commands,
     spatial_index: Res<SpatialIndex>,
@@ -210,6 +211,7 @@ pub fn create_brush_csg_system_inc(
     query_csg: Query<(&CsgRepresentation, &Transform)>,
     query_children: Query<&Children>,
     query_csg_output: Query<(), With<components::CsgOutput>>,
+    mut processed_csg_query: Query<&mut components::ProcessedCsg>,
     // mut query_csg_out: Query<&mut EditorObjectOutputLink>,
 ) {
     let start = Instant::now();
@@ -339,6 +341,14 @@ pub fn create_brush_csg_system_inc(
             transform.translation,
         );
         commands.entity(entity).push_children(&new_children);
+
+        if let Ok(mut processed) = processed_csg_query.get_mut(entity) {
+            processed.bsp = bsp;
+        } else {
+            commands
+                .entity(entity)
+                .insert(components::ProcessedCsg { bsp });
+        }
 
         // const GENERATE_COLLISION_GEOMETRY: bool = true;
         // if GENERATE_COLLISION_GEOMETRY {

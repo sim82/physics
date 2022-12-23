@@ -5,6 +5,7 @@ use crate::AppState;
 
 pub mod components;
 pub mod gui_systems;
+pub mod main3d_systems;
 pub mod ortho_systems;
 pub mod resources;
 pub mod systems;
@@ -55,6 +56,8 @@ impl Plugin for EditorPlugin {
             .add_system(ortho_systems::control_input_wm_system)
             .add_system(ortho_systems::select_input_system)
             .add_system(systems::load_save_editor_objects);
+
+        app.add_system(main3d_systems::select_input_system);
 
         // TrackUpdateStage: do 'first order' post processing based on user interaction, e.g.:
         //  - update spacial index of Editor Objects

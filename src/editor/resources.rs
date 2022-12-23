@@ -42,6 +42,7 @@ pub struct TranslateDrag {
     pub start_transforms: Vec<(Entity, Transform)>,
 }
 
+pub const MAIN3D_WINDOW: &str = "main3d";
 pub const UPPER_WINDOW: &str = "upper";
 pub const LOWER_WINDOW: &str = "lower";
 

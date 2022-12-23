@@ -334,6 +334,25 @@ impl Polygon {
         }
         self.plane = Polygon::plane_from_vertices(&self.vertices[0..3]);
     }
+    pub fn get_triangles(&self, res: &mut Vec<([Vec3; 3], Vec3, i32)>) {
+        if self.vertices.len() < 3 {
+            return;
+        }
+        // premature and completely unnecessary optimization
+        res.reserve(self.vertices.len() - 2);
+
+        // crate triangle 'fans':
+        // all triangles share 1st point
+        let v0 = self.vertices[0];
+        // sweep over 2-windows of the remaining vertices to get 2nd and 3rd points
+        for vs in self.vertices[1..].windows(2) {
+            res.push((
+                [v0.position, vs[0].position, vs[1].position],
+                self.plane.normal,
+                self.a,
+            ));
+        }
+    }
 }
 
 // Holds a binary space partition tree representing a 3D solid. Two solids can
@@ -376,23 +395,7 @@ impl Csg {
         let mut res = Vec::new();
 
         for p in &self.polygons {
-            if p.vertices.len() < 3 {
-                continue;
-            }
-            // premature and completely unnecessary optimization
-            res.reserve(p.vertices.len() - 2);
-
-            // crate triangle 'fans':
-            // all triangles share 1st point
-            let v0 = p.vertices[0];
-            // sweep over 2-windows of the remaining vertices to get 2nd and 3rd points
-            for vs in p.vertices[1..].windows(2) {
-                res.push((
-                    [v0.position, vs[0].position, vs[1].position],
-                    p.plane.normal,
-                    p.a,
-                ));
-            }
+            p.get_triangles(&mut res);
         }
         res
     }

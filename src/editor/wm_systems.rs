@@ -4,7 +4,7 @@ use bevy_egui::EguiContext;
 use bevy_inspector_egui::egui;
 use bevy_rapier3d::render::DebugRenderContext;
 
-use crate::editor::util::WmMouseButton;
+use crate::{editor::util::WmMouseButton, render_layers::MAIN_3D};
 
 use super::{
     gui_systems,
@@ -41,7 +41,17 @@ pub fn wm_test_system(
                 // info!("avalable: {:?}", ui.available_width());
                 let width = ui.available_width();
                 let size = egui::Vec2::new(width, width * 0.75);
-                ui.image(wm_state.slot_main3d.offscreen_egui_texture, size);
+
+                let image = egui::Image::new(wm_state.slot_main3d.offscreen_egui_texture, size)
+                    .sense(egui::Sense::click_and_drag());
+                let response = ui.add(image);
+
+                send_wm_events_for_egui_response(
+                    response,
+                    &mut wm_state.slot_main3d,
+                    &mut event_writer,
+                    resources::MAIN3D_WINDOW,
+                );
 
                 if wm_state.slot_main3d.target_size != size {
                     wm_state.slot_main3d.target_size = size;
@@ -101,7 +111,7 @@ pub fn wm_test_system(
             });
         });
     egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
-        egui::TopBottomPanel::top("top 3d view")
+        egui::TopBottomPanel::top("top 2d view")
             .resizable(true)
             .min_height(32.0)
             .default_height(512.0)
@@ -157,6 +167,15 @@ fn show_2d_view(
     let image =
         egui::Image::new(slot.offscreen_egui_texture, size).sense(egui::Sense::click_and_drag());
     let response = ui.add(image);
+    send_wm_events_for_egui_response(response, slot, event_writer, name);
+}
+
+fn send_wm_events_for_egui_response(
+    response: egui::Response,
+    slot: &mut WmSlot,
+    event_writer: &mut EventWriter<WmEvent>,
+    name: &'static str,
+) {
     let pointer_state = &response.ctx.input().pointer;
     let button = if pointer_state.button_down(egui::PointerButton::Primary) {
         WmMouseButton::Left

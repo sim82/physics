@@ -123,6 +123,11 @@ pub struct CsgRepresentation {
     pub csg: csg::Csg,
 }
 
+#[derive(Component)]
+pub struct ProcessedCsg {
+    pub bsp: csg::Node,
+}
+
 // #[derive(Component, Default)]
 // pub struct EditorObjectOutputLink {
 //     pub entities: Vec<Entity>,

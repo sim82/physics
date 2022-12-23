@@ -578,6 +578,7 @@ pub fn select_input_system(
             pointer_state,
         } = *event
         {
+            info!("event: {:?}", event);
             let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue };
             let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
                 warn!("2d window camera not found: {:?}", window.camera);
@@ -596,7 +597,7 @@ pub fn select_input_system(
                     if !tri.0.iter().any(|v| editor_windows_2d.in_view_bounds(v)) {
                         continue;
                     }
-                    if util::raycast_moller_trumbore(&ray, &tri.0) {
+                    if util::raycast_moller_trumbore(&ray, &tri.0, false) {
                         return Some(entity);
                     }
                 }
