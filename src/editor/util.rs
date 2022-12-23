@@ -132,7 +132,15 @@ pub fn spawn_csg_split(
     // generate one mesh per material
     // TODO: maybe do more optimizations like vertex merging and proper t-junctions etc... probably not useful without further merging meshes
     for (i, tri_list) in ref_cells.drain(..).enumerate() {
+        let material_name = unique_materials[i];
+
         let mut tri_list = tri_list.into_inner();
+        if tri_list.is_empty() {
+            // this can happen when all faces of a certain material are clipped away by csg
+            // warn!("empty tri list for material: {}", material_name);
+            continue;
+        }
+
         for tri in &mut tri_list {
             for v in &mut tri.0 {
                 *v -= origin;
@@ -152,7 +160,6 @@ pub fn spawn_csg_split(
         ));
 
         // if let Some(material_name) = materials_res.id_to_name_map.get(&id) {
-        let material_name = unique_materials[i];
         entity_commands.insert((
             components::MaterialRef {
                 material_name: material_name.clone(),

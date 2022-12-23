@@ -698,8 +698,8 @@ pub fn load_save_editor_objects(
 
         let materials = &mut *materials;
         // let filename = &"t4.wsx";
-        let filename = &"x8.wsx";
-        // let filename = &"nav3.wsx";
+        // let filename = &"x8.wsx";
+        let filename = &"nav3.wsx";
         let (brushes, appearance_map) = wsx::load_brushes(filename);
         materials.id_to_name_map = appearance_map;
         for entity in delete_query.iter() {
