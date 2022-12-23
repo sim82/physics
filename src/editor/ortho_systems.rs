@@ -605,7 +605,9 @@ pub fn select_input_system(
 
             let point_selection = point_query.iter().filter_map(|(entity, transform)| {
                 let pos = transform.translation;
-                if editor_windows_2d.in_view_bounds(&pos) && distance(ray, pos) < 0.2 {
+                if editor_windows_2d.in_view_bounds(&pos)
+                    && util::ray_point_distance(ray, pos) < 0.2
+                {
                     Some(entity)
                 } else {
                     None
@@ -641,11 +643,4 @@ pub fn select_input_system(
             }
         }
     }
-}
-
-// https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
-fn distance(ray: Ray, x0: Vec3) -> f32 {
-    let x1 = ray.origin;
-    let x2 = ray.origin + ray.direction;
-    (x0 - x1).cross(x0 - x2).length() / ray.direction.length()
 }
