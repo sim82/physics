@@ -589,40 +589,23 @@ pub fn select_input_system(
                 continue;
             };
 
-            // editor_windows_2d.
-            let brush_selection = brush_query.iter().filter_map(|(entity, brush, csg)| {
-                if !csg.csg.polygons.iter().any(|poly| {
-                    poly.vertices.iter().any(|v| {
-                        v.position.x >= editor_windows_2d.view_min.x
-                            && v.position.y >= editor_windows_2d.view_min.y
-                            && v.position.z >= editor_windows_2d.view_min.z
-                            && v.position.x <= editor_windows_2d.view_max.x
-                            && v.position.y <= editor_windows_2d.view_max.y
-                            && v.position.z <= editor_windows_2d.view_max.z
-                    })
-                }) {
-                    return None;
+            // TODO: brute force raycast against all brushes. can be accelerated by spatial index if necessary
+            let brush_selection = brush_query.iter().filter_map(|(entity, _brush, csg)| {
+                for tri in csg.csg.get_triangles() {
+                    // check against view bounds to only include visible brushes
+                    if !tri.0.iter().any(|v| editor_windows_2d.in_view_bounds(v)) {
+                        continue;
+                    }
+                    if util::raycast_moller_trumbore(&ray, &tri.0) {
+                        return Some(entity);
+                    }
                 }
-
-                let affected_faces = brush.get_planes_behind_ray(ray);
-                if affected_faces.is_empty() {
-                    Some(entity)
-                } else {
-                    None
-                }
+                None
             });
-            // .collect::<Vec<_>>();
 
             let point_selection = point_query.iter().filter_map(|(entity, transform)| {
                 let pos = transform.translation;
-                if pos.x >= editor_windows_2d.view_min.x
-                    && pos.y >= editor_windows_2d.view_min.y
-                    && pos.z >= editor_windows_2d.view_min.z
-                    && pos.x <= editor_windows_2d.view_max.x
-                    && pos.y <= editor_windows_2d.view_max.y
-                    && pos.z <= editor_windows_2d.view_max.z
-                    && distance(ray, pos) < 0.1
-                {
+                if editor_windows_2d.in_view_bounds(&pos) && distance(ray, pos) < 0.2 {
                     Some(entity)
                 } else {
                     None

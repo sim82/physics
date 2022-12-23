@@ -260,3 +260,49 @@ fn ray_point_distance(ray: Ray, x0: Vec3) -> f32 {
     let x2 = ray.origin + ray.direction;
     (x0 - x1).cross(x0 - x2).length() / ray.direction.length()
 }
+
+pub trait TriangleTrait {
+    fn v0(&self) -> Vec3;
+    fn v1(&self) -> Vec3;
+    fn v2(&self) -> Vec3;
+}
+
+impl TriangleTrait for [Vec3; 3] {
+    fn v0(&self) -> Vec3 {
+        self[0]
+    }
+
+    fn v1(&self) -> Vec3 {
+        self[1]
+    }
+
+    fn v2(&self) -> Vec3 {
+        self[2]
+    }
+}
+
+/// Implementation of the Möller-Trumbore ray-triangle intersection test
+/// adapted from https://github.com/aevyrie/bevy_mod_raycast/blob/main/src/raycast.rs
+pub fn raycast_moller_trumbore(ray: &Ray, triangle: &impl TriangleTrait) -> bool {
+    // Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
+    let vector_v0_to_v1 = triangle.v1() - triangle.v0();
+    let vector_v0_to_v2 = triangle.v2() - triangle.v0();
+    let p_vec = ray.direction.cross(vector_v0_to_v2);
+    let determinant: f32 = vector_v0_to_v1.dot(p_vec);
+
+    if determinant.abs() < std::f32::EPSILON {
+        return false;
+    }
+
+    let determinant_inverse = 1.0 / determinant;
+
+    let t_vec = ray.origin - triangle.v0();
+    let u = t_vec.dot(p_vec) * determinant_inverse;
+    if !(0.0..=1.0).contains(&u) {
+        return false;
+    }
+
+    let q_vec = t_vec.cross(vector_v0_to_v1);
+    let v = ray.direction.dot(q_vec) * determinant_inverse;
+    v >= 0.0 && u + v <= 1.0
+}

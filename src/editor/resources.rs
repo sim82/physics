@@ -55,6 +55,17 @@ pub struct EditorWindows2d {
     pub view_max: Vec3,
 }
 
+impl EditorWindows2d {
+    pub fn in_view_bounds(&self, v: &Vec3) -> bool {
+        v.x >= self.view_min.x
+            && v.y >= self.view_min.y
+            && v.z >= self.view_min.z
+            && v.x <= self.view_max.x
+            && v.y <= self.view_max.y
+            && v.z <= self.view_max.z
+    }
+}
+
 #[derive(Resource)]
 pub struct Materials {
     // pub materials: HashMap<String, Handle<StandardMaterial>>,
