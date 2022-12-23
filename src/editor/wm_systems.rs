@@ -40,7 +40,7 @@ pub fn wm_test_system(
             ui.vertical(|ui| {
                 // info!("avalable: {:?}", ui.available_width());
                 let width = ui.available_width();
-                let size = egui::Vec2::new(width, 512.0);
+                let size = egui::Vec2::new(width, width * 0.75);
                 ui.image(wm_state.slot_main3d.offscreen_egui_texture, size);
 
                 if wm_state.slot_main3d.target_size != size {

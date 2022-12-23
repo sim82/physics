@@ -655,6 +655,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_mod_outline"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "531162ea32f16c73d461b415146f8b10ca6e6112db8280f12ea646788a7fca75"
+dependencies = [
+ "bevy",
+ "bitfield",
+ "thiserror",
+]
+
+[[package]]
 name = "bevy_pbr"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1021,6 +1032,12 @@ name = "bit_field"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcb6dd1c2376d2e096796e234a70e17e94cc2d5d54ff8ce42b28cef1d0d359a4"
+
+[[package]]
+name = "bitfield"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d7e60934ceec538daadb9d8432424ed043a904d8e0243f3c6446bce549a46ac"
 
 [[package]]
 name = "bitflags"
@@ -3098,6 +3115,7 @@ dependencies = [
  "bevy_atmosphere",
  "bevy_egui",
  "bevy_mod_mipmap_generator",
+ "bevy_mod_outline",
  "bevy_prototype_debug_lines",
  "bevy_rapier3d",
  "bitflags",

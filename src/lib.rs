@@ -413,5 +413,6 @@ impl PluginGroup for ExternalPluginGroup {
             .add(FrameTimeDiagnosticsPlugin)
             .add(sky::SkyPlugin)
             .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin)
+            .add(bevy_mod_outline::OutlinePlugin)
     }
 }

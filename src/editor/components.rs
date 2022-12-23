@@ -136,3 +136,9 @@ pub struct Ortho2dCamera;
 
 #[derive(Component)]
 pub struct Main3dCamera;
+
+#[derive(Component)]
+pub struct SelectionHighlighByMaterial;
+
+#[derive(Component)]
+pub struct SelectionHighlighByOutline;

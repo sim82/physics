@@ -17,6 +17,7 @@ use bevy::{
     render::{mesh, primitives::Aabb, view::RenderLayers},
     utils::{HashSet, Instant},
 };
+use bevy_mod_outline::OutlineMeshExt;
 use std::{collections::BTreeSet, path::PathBuf};
 
 pub fn setup(
@@ -395,16 +396,23 @@ pub struct SelectionChangeTracking {
 
 pub fn track_primary_selection(
     // selection: Res<Selection>,
+    mut commands: Commands,
     materials_res: Res<resources::Materials>,
     mut tracking: Local<SelectionChangeTracking>,
-    mut material_query: Query<
-        (&mut Handle<StandardMaterial>, &Parent),
-        Without<components::CsgOutput>,
-    >,
+
     selection_query: Query<Entity, With<components::Selected>>,
+    mut outline_query: Query<
+        &mut bevy_mod_outline::OutlineVolume,
+        With<components::SelectionHighlighByOutline>,
+    >,
+    mut material_query: Query<
+        &mut Handle<StandardMaterial>,
+        With<components::SelectionHighlighByMaterial>,
+    >,
+    children_query: Query<&Children>,
 ) {
     // TODO: this is a brute force PoC with some major inefficiencies.
-    // use change detection on Selected component and look up children via parent, not the other way round.
+    // use change detection on Selected components
     let new_selection = selection_query.iter().collect::<HashSet<_>>();
     if new_selection == tracking.selection {
         return;
@@ -420,11 +428,33 @@ pub fn track_primary_selection(
             .difference(&tracking.selection)
             .collect::<HashSet<_>>();
 
-        for (mut material, parent) in &mut material_query {
-            if to_default_material.contains(&parent.get()) {
-                *material = materials_res.get_brush_2d_material();
-            } else if to_selected_material.contains(&parent.get()) {
-                *material = materials_res.get_brush_2d_selected_material();
+        for entity in to_default_material {
+            let Ok(children) = children_query.get(*entity) else {
+                warn!( "no children: {:?}", entity);
+                continue;
+            };
+            for child in children {
+                if let Ok(mut material) = material_query.get_mut(*child) {
+                    *material = materials_res.get_brush_2d_material();
+                } else if let Ok(mut outline) = outline_query.get_mut(*child) {
+                    outline.colour = Color::BLUE;
+                    outline.width = 2.0;
+                }
+            }
+        }
+        for entity in to_selected_material {
+            let Ok(children) = children_query.get(*entity) else {
+                warn!( "no children: {:?}", entity);
+                continue;
+            };
+
+            for child in children {
+                if let Ok(mut material) = material_query.get_mut(*child) {
+                    *material = materials_res.get_brush_2d_selected_material();
+                } else if let Ok(mut outline) = outline_query.get_mut(*child) {
+                    outline.colour = Color::RED;
+                    outline.width = 4.0;
+                }
             }
         }
     }
@@ -452,18 +482,23 @@ pub fn track_2d_vis_system(
 
             for child in children {
                 if let Ok(mut old_mesh) = mesh_query.get_mut(*child) {
-                    meshes.remove(old_mesh.clone());
-                    let (mesh, origin) = (&csg_rep.csg).into();
+                    // meshes.remove(old_mesh.clone());
+                    let (mut mesh, origin) = (&csg_rep.csg).into();
+                    if let Some(old_mesh) = meshes.get_mut(&old_mesh) {
+                        OutlineMeshExt::generate_outline_normals(&mut mesh);
+                        *old_mesh = mesh;
+                    }
+
                     transform.translation = origin;
 
-                    *old_mesh = meshes.add(mesh);
+                    // *old_mesh = meshes.add(mesh);
                 }
             }
         } else {
-            let (mesh, origin) = (&csg_rep.csg).into();
+            let (mut mesh, origin) = (&csg_rep.csg).into();
             transform.translation = origin;
             info!("brush new");
-
+            OutlineMeshExt::generate_outline_normals(&mut mesh);
             let mesh_entity = commands
                 .spawn((
                     PbrBundle {
@@ -472,6 +507,7 @@ pub fn track_2d_vis_system(
                         ..default()
                     },
                     render_layers::ortho_views(),
+                    components::SelectionHighlighByMaterial,
                 ))
                 .id();
             commands.entity(entity).add_child(mesh_entity);
@@ -521,9 +557,19 @@ pub fn track_lights_system(
                         .into(),
                     ),
                     material: materials_res.get_brush_2d_material(),
+
                     ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
                 },
                 render_layers::ortho_views(),
+                components::SelectionHighlighByOutline,
+                bevy_mod_outline::OutlineBundle {
+                    outline: bevy_mod_outline::OutlineVolume {
+                        colour: Color::BLUE,
+                        visible: true,
+                        width: 2.0,
+                    },
+                    ..default()
+                },
                 Name::new("2dvis Mesh"),
             ))
             .id();
@@ -635,8 +681,8 @@ pub fn load_save_editor_objects(
 
         let materials = &mut *materials;
         // let filename = &"t4.wsx";
-        // let filename = &"x8.wsx";
-        let filename = &"nav3.wsx";
+        let filename = &"x8.wsx";
+        // let filename = &"nav3.wsx";
         let (brushes, appearance_map) = wsx::load_brushes(filename);
         materials.id_to_name_map = appearance_map;
         for entity in delete_query.iter() {

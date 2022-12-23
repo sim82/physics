@@ -66,6 +66,7 @@ console = "0.15"
 rayon = "1"
 bevy_egui = "0.17"
 arrayvec = "0.7"
+bevy_mod_outline = "0.3"
 
 [patch.crates-io]
 #bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
