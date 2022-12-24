@@ -43,7 +43,7 @@ pub fn wm_test_system(
                 let size = egui::Vec2::new(width, width / 1.6);
 
                 let image = egui::Image::new(wm_state.slot_main3d.offscreen_egui_texture, size)
-                    .sense(egui::Sense::click_and_drag());
+                    .sense(egui::Sense::click());
                 let response = ui.add(image);
 
                 send_wm_events_for_egui_response(
@@ -228,7 +228,13 @@ fn send_wm_events_for_egui_response(
         } else if response.clicked() {
             event_writer.send(WmEvent::Clicked {
                 window: name,
-                button,
+                button: WmMouseButton::Left,
+                pointer_state,
+            });
+        } else if response.secondary_clicked() {
+            event_writer.send(WmEvent::Clicked {
+                window: name,
+                button: WmMouseButton::Right,
                 pointer_state,
             });
         }

@@ -13,7 +13,7 @@ pub fn select_input_system(
     mut event_reader: EventReader<util::WmEvent>,
     mut selection: ResMut<resources::Selection>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
-    material_browser: Res<resources::MaterialBrowser>,
+    mut material_browser: ResMut<resources::MaterialBrowser>,
     camera_query: Query<(&GlobalTransform, &Camera), With<components::Main3dCamera>>,
     mut processed_csg_query: Query<(
         Entity,
@@ -26,11 +26,17 @@ pub fn select_input_system(
     for event in event_reader.iter() {
         if let util::WmEvent::Clicked {
             window: focused_name,
-            button: util::WmMouseButton::Left,
+            button,
             pointer_state,
         } = *event
         {
             if focused_name != resources::MAIN3D_WINDOW {
+                continue;
+            }
+            if !matches!(
+                button,
+                util::WmMouseButton::Left | util::WmMouseButton::Right
+            ) {
                 continue;
             }
             info!("event: {:?}", event);
@@ -69,11 +75,20 @@ pub fn select_input_system(
 
             if let Some((entity, appearance)) = closest_hit {
                 if let Ok((_, mut material_properties, _)) = processed_csg_query.get_mut(entity) {
-                    if !material_browser.selected_material.is_empty() {
+                    if button == util::WmMouseButton::Left
+                        && !material_browser.selected_material.is_empty()
+                    {
                         material_properties.materials[appearance as usize] =
                             material_browser.selected_material.clone();
                         info!(
                             "assign material: {} {}",
+                            appearance, material_browser.selected_material
+                        );
+                    } else if button == util::WmMouseButton::Right {
+                        material_browser.selected_material =
+                            material_properties.materials[appearance as usize].clone();
+                        info!(
+                            "select material: {} {}",
                             appearance, material_browser.selected_material
                         );
                     }
