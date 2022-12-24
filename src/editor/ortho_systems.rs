@@ -597,7 +597,7 @@ pub fn select_input_system(
                     if !tri.0.iter().any(|v| editor_windows_2d.in_view_bounds(v)) {
                         continue;
                     }
-                    if util::raycast_moller_trumbore(&ray, &tri.0, false) {
+                    if util::raycast_moller_trumbore(&ray, &tri.0, false).is_some() {
                         return Some(entity);
                     }
                 }

@@ -358,13 +358,19 @@ impl TriangleTrait for [Vec3; 3] {
     }
 }
 
+#[derive(Default, Debug)]
+pub struct RayHit {
+    pub distance: f32,
+    pub uv_coords: (f32, f32),
+}
+
 /// Implementation of the Möller-Trumbore ray-triangle intersection test
 /// adapted from https://github.com/aevyrie/bevy_mod_raycast/blob/main/src/raycast.rs
 pub fn raycast_moller_trumbore(
     ray: &Ray,
     triangle: &impl TriangleTrait,
     cull_backfaces: bool,
-) -> bool {
+) -> Option<RayHit> {
     // Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
     let vector_v0_to_v1 = triangle.v1() - triangle.v0();
     let vector_v0_to_v2 = triangle.v2() - triangle.v0();
@@ -375,7 +381,7 @@ pub fn raycast_moller_trumbore(
         || (!cull_backfaces && determinant.abs() < std::f32::EPSILON)
     {
         // if determinant.abs() < std::f32::EPSILON {
-        return false;
+        return None;
     }
 
     let determinant_inverse = 1.0 / determinant;
@@ -383,10 +389,20 @@ pub fn raycast_moller_trumbore(
     let t_vec = ray.origin - triangle.v0();
     let u = t_vec.dot(p_vec) * determinant_inverse;
     if !(0.0..=1.0).contains(&u) {
-        return false;
+        return None;
     }
 
     let q_vec = t_vec.cross(vector_v0_to_v1);
     let v = ray.direction.dot(q_vec) * determinant_inverse;
-    v >= 0.0 && u + v <= 1.0
+    if v < 0.0 || u + v > 1.0 {
+        return None;
+    }
+
+    // The distance between ray origin and intersection is t.
+    let t: f32 = vector_v0_to_v2.dot(q_vec) * determinant_inverse;
+
+    Some(RayHit {
+        distance: t,
+        uv_coords: (u, v),
+    })
 }

@@ -1,3 +1,5 @@
+use std::f32::NEG_INFINITY;
+
 use bevy::prelude::*;
 use bevy_inspector_egui::egui::plot::Polygon;
 
@@ -45,42 +47,35 @@ pub fn select_input_system(
 
             info!("3d ray: {:?}", ray);
 
-            // let brush_selection = brush_query
-            //     .iter()
-            //     .filter_map(|(entity, _brush, processed_csg)| {
-            //         for polygon in processed_csg.bsp.all_polygons() {}
-            //         for tri in csg.csg.get_triangles() {
-            //             // check against view bounds to only include visible brushes
-            //             // if !tri.0.iter().any(|v| editor_windows_2d.in_view_bounds(v)) {
-            //             //     continue;
-            //             // }
-            //             if util::raycast_moller_trumbore(&ray, &tri.0) {
-            //                 return Some(entity);
-            //             }
-            //         }
-            //         None
-            //     })
-            //     .collect::<Vec<_>>();
-
             // find clicked face
-            for (entity, mut material_properties, processed_csg) in &mut processed_csg_query {
+            let mut closest_hit = None;
+            let mut closest_hit_distance = std::f32::INFINITY;
+            for (entity, _, processed_csg) in &processed_csg_query {
                 'poly_loop: for polygon in processed_csg.bsp.all_polygons() {
                     let mut res = Vec::new();
                     polygon.get_triangles(&mut res);
                     for (tri, normal, appearance) in res {
-                        if util::raycast_moller_trumbore(&ray, &tri, true) {
-                            info!("hit {:?} in {:?}", polygon, entity);
-                            if !material_browser.selected_material.is_empty() {
-                                material_properties.materials[appearance as usize] =
-                                    material_browser.selected_material.clone();
-                                info!(
-                                    "assign material: {} {}",
-                                    appearance, material_browser.selected_material
-                                );
+                        if let Some(hit) = util::raycast_moller_trumbore(&ray, &tri, true) {
+                            // info!("hit {:?} in {:?}", polygon, entity);
+                            if hit.distance < closest_hit_distance {
+                                closest_hit = Some((entity, appearance));
+                                closest_hit_distance = hit.distance;
+                                break 'poly_loop; // cannot hit another poly from same brush, since they are convex
                             }
-
-                            break 'poly_loop;
                         }
+                    }
+                }
+            }
+
+            if let Some((entity, appearance)) = closest_hit {
+                if let Ok((_, mut material_properties, _)) = processed_csg_query.get_mut(entity) {
+                    if !material_browser.selected_material.is_empty() {
+                        material_properties.materials[appearance as usize] =
+                            material_browser.selected_material.clone();
+                        info!(
+                            "assign material: {} {}",
+                            appearance, material_browser.selected_material
+                        );
                     }
                 }
             }
