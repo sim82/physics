@@ -40,7 +40,7 @@ pub fn wm_test_system(
             ui.vertical(|ui| {
                 // info!("avalable: {:?}", ui.available_width());
                 let width = ui.available_width();
-                let size = egui::Vec2::new(width, width * 0.75);
+                let size = egui::Vec2::new(width, width / 1.6);
 
                 let image = egui::Image::new(wm_state.slot_main3d.offscreen_egui_texture, size)
                     .sense(egui::Sense::click_and_drag());
