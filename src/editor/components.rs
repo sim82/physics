@@ -73,6 +73,14 @@ impl EditorObjectBrushBundle {
             name: Name::new("Brush"),
         }
     }
+
+    pub fn with_material_properties(
+        mut self,
+        material_properties: BrushMaterialProperties,
+    ) -> Self {
+        self.material_properties = material_properties;
+        self
+    }
 }
 
 #[derive(Bundle)]
