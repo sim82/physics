@@ -84,14 +84,17 @@ impl EditorObjectBrushBundle {
 }
 
 #[derive(Bundle)]
-pub struct EditorObjectBundle {
+pub struct EditorObjectPointlightBundle {
     // pub editor_object: EditorObject,
     // pub output_links: EditorObjectOutputLink,
     // pub render_layers: bevy::render::view::RenderLayers,
+    pub spatial: SpatialBundle,
     pub editable_point: EditablePoint,
+    pub light_properties: PointLightProperties,
+    pub name: Name,
 }
 
-impl Default for EditorObjectBundle {
+impl Default for EditorObjectPointlightBundle {
     fn default() -> Self {
         Self {
             // editor_object: Default::default(),
@@ -100,7 +103,13 @@ impl Default for EditorObjectBundle {
             //     render_layers::SIDE_2D,
             //     render_layers::TOP_2D,
             // ]),
+            spatial: SpatialBundle::default(),
+            light_properties: PointLightProperties {
+                shadows_enabled: true,
+                ..default()
+            },
             editable_point: EditablePoint,
+            name: Name::new("PointLight"),
         }
     }
 }

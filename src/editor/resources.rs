@@ -192,6 +192,12 @@ pub struct SpatialIndex {
     pub sstree: SsTree<Entity, Vec3, 8>,
 }
 
+impl SpatialIndex {
+    pub fn clear(&mut self) {
+        self.sstree = SsTree::default();
+    }
+}
+
 #[derive(Default)]
 pub struct WmSlot {
     pub offscreen_image: Handle<Image>,

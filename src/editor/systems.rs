@@ -1,12 +1,12 @@
 use super::{
-    components::{self, CsgOutput, CsgRepresentation, EditorObjectBundle, PointLightProperties},
+    components::{self, CsgOutput, CsgRepresentation, PointLightProperties},
     resources::{self, Selection, SpatialIndex},
     CleanupCsgOutputEvent,
 };
 use crate::{
     csg,
     editor::{
-        components::{CsgCollisionOutput, EditorObjectBrushBundle},
+        components::{BrushMaterialProperties, CsgCollisionOutput, EditorObjectBrushBundle},
         util::spawn_csg_split,
     },
     material, render_layers, wsx,
@@ -18,6 +18,7 @@ use bevy::{
     utils::{HashSet, Instant},
 };
 use bevy_mod_outline::OutlineMeshExt;
+use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, path::PathBuf};
 
 pub fn setup(
@@ -102,22 +103,17 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::L) {
         let entity = commands
-            .spawn((
-                SpatialBundle::default(),
-                EditorObjectBundle {
-                    // editor_object: EditorObject::PointLight(components::PointLightProperties {
-                    //     shadows_enabled: true,
-                    //     ..default()
-                    // }),
-                    ..default()
-                },
-                components::PointLightProperties {
-                    shadows_enabled: true,
-                    ..default()
-                },
-                Name::new("PointLight"),
-                components::Selected,
-            ))
+            .spawn(components::EditorObjectPointlightBundle::default())
+            //     (
+            //     SpatialBundle::default(),
+            //     EditorObjectBundle { ..default() },
+            //     components::PointLightProperties {
+            //         shadows_enabled: true,
+            //         ..default()
+            //     },
+            //     Name::new("PointLight"),
+            //     components::Selected,
+            // ))
             .id();
         clear_selection = true;
 
@@ -650,48 +646,96 @@ pub fn track_spatial_index_system(
     }
 }
 
+#[derive(Serialize, Deserialize)]
+enum ExternalEditorObject {
+    Brush {
+        brush: csg::Brush,
+        material_properties: components::BrushMaterialProperties,
+    },
+    PointLight {
+        translation: Vec3,
+        light_properties: components::PointLightProperties,
+    },
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn load_save_editor_objects(
     mut commands: Commands,
     mut event_writer: EventWriter<CleanupCsgOutputEvent>,
 
     keycodes: Res<Input<KeyCode>>,
-    // existing_objects: Query<(Entity, &csg::Brush), With<csg::Brush>>,
-    delete_query: Query<Entity, Or<(With<csg::Brush>, With<components::PointLightProperties>)>>,
+    brush_query: Query<(Entity, &csg::Brush, &components::BrushMaterialProperties)>,
+    light_query: Query<(Entity, &components::PointLightProperties, &Transform)>,
+    mut spatial_index: ResMut<SpatialIndex>,
     mut materials: ResMut<resources::Materials>,
 ) {
+    if keycodes.just_pressed(KeyCode::F12)
+        || keycodes.just_pressed(KeyCode::F6)
+        || keycodes.just_pressed(KeyCode::F7)
+    {
+        let despawn = brush_query
+            .iter()
+            .map(|(entity, _, _)| entity)
+            .chain(light_query.iter().map(|(entity, _, _)| entity));
+
+        for entity in despawn {
+            commands.entity(entity).despawn_recursive();
+        }
+        // TODO: think again if this is smart
+        spatial_index.clear();
+    }
+
     if keycodes.just_pressed(KeyCode::F5) {
-        // let objects = existing_objects
-        //     .iter()
-        //     .map(|(_, obj)| obj)
-        //     .collect::<Vec<_>>();
-        // if let Ok(file) = std::fs::File::create("scene.ron") {
-        //     let _ = ron::ser::to_writer_pretty(file, &objects, default());
-        // }
-        todo!()
+        let brushes =
+            brush_query.iter().map(
+                |(_, brush, material_properties)| ExternalEditorObject::Brush {
+                    brush: brush.clone(),
+                    material_properties: material_properties.clone(),
+                },
+            );
+
+        let lights = light_query.iter().map(|(_, light_properties, transform)| {
+            ExternalEditorObject::PointLight {
+                translation: transform.translation,
+                light_properties: light_properties.clone(),
+            }
+        });
+
+        if let Ok(file) = std::fs::File::create("scene.ron") {
+            let _ = ron::ser::to_writer_pretty(
+                file,
+                &brushes.chain(lights).collect::<Vec<_>>(),
+                default(),
+            );
+        }
     }
 
     if keycodes.just_pressed(KeyCode::F6) {
-        // // let objects = existing_objects.iter().map(|(_,obj)| obj).collect::<Vec<_>>();
-        // if let Ok(file) = std::fs::File::open("scene.ron") {
-        //     let objects: Vec<EditorObject> = ron::de::from_reader(file).unwrap_or_default();
+        if let Ok(file) = std::fs::File::open("scene.ron") {
+            let objects: Vec<ExternalEditorObject> = ron::de::from_reader(file).unwrap_or_default();
 
-        //     for (entity, _) in existing_objects.iter() {
-        //         commands.entity(entity).despawn();
-        //     }
-        //     for editor_object in objects {
-        //         match editor_object {
-        //             EditorObject::None => todo!(),
-        //             EditorObject::Brush(brush) => {
-        //                 commands.spawn(EditorObjectBrushBundle::from_brush(brush))
-        //             }
-        //             EditorObject::PointLight(_) => commands.spawn(EditorObjectBundle {
-        //                 editor_object,
-        //                 ..default()
-        //             }),
-        //         };
-        //     }
-        // }
-        todo!();
+            for editor_object in objects {
+                match editor_object {
+                    ExternalEditorObject::Brush {
+                        brush,
+                        material_properties,
+                    } => commands.spawn(
+                        components::EditorObjectBrushBundle::from_brush(brush)
+                            .with_material_properties(material_properties),
+                    ),
+                    ExternalEditorObject::PointLight {
+                        translation,
+                        light_properties,
+                    } => commands.spawn(components::EditorObjectPointlightBundle {
+                        spatial: SpatialBundle::from_transform(Transform::from_translation(
+                            translation,
+                        )),
+                        light_properties,
+                        ..default()
+                    }),
+                };
+            }
+        }
     }
 
     if keycodes.just_pressed(KeyCode::F7) {
@@ -702,13 +746,22 @@ pub fn load_save_editor_objects(
         // let filename = &"x8.wsx";
         let filename = &"nav3.wsx";
         let (brushes, appearance_map) = wsx::load_brushes(filename);
+        info!("appearance map: {:?}", appearance_map);
+
+        for mut brush in brushes {
+            let materials = brush
+                .appearances
+                .iter()
+                .map(|id| appearance_map.get(id).unwrap().clone())
+                .collect();
+            brush.appearances = (0..brush.planes.len() as i32).collect();
+
+            commands.spawn(
+                EditorObjectBrushBundle::from_brush(brush)
+                    .with_material_properties(BrushMaterialProperties { materials }),
+            );
+        }
         materials.id_to_name_map = appearance_map;
-        for entity in delete_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for brush in brushes {
-            commands.spawn(EditorObjectBrushBundle::from_brush(brush));
-        }
 
         let appearance_names = materials.id_to_name_map.values().collect::<BTreeSet<_>>();
         // let mut material_names = materials.material_defs.keys();
@@ -747,18 +800,14 @@ pub fn load_save_editor_objects(
         // TODO: do not load twice. Probably makes no difference, but I still hate it...
         let pointlights = wsx::load_pointlights(filename);
         for (pos, _range) in pointlights {
-            commands.spawn((
-                SpatialBundle::from_transform(Transform::from_translation(pos)),
-                EditorObjectBundle { ..default() },
-                PointLightProperties { ..default() },
-            ));
+            commands.spawn(components::EditorObjectPointlightBundle {
+                spatial: SpatialBundle::from_transform(Transform::from_translation(pos)),
+                light_properties: components::PointLightProperties {
+                    shadows_enabled: false,
+                    range: 5.0,
+                },
+                ..default()
+            });
         }
-    }
-
-    if keycodes.just_pressed(KeyCode::F8) {
-        for entity in delete_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        event_writer.send(CleanupCsgOutputEvent);
     }
 }
