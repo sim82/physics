@@ -257,14 +257,30 @@ impl Orientation2d {
                 Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, -Vec3::Z)
             }
             Orientation2d::DownRight => {
-                Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, Vec3::Z)
+                Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, -Vec3::X)
             }
             Orientation2d::Front => {
                 Transform::from_xyz(0.0, 0.0, ORTHO_OFFSET).looking_at(Vec3::ZERO, Vec3::Y)
             }
             Orientation2d::Right => {
-                Transform::from_xyz(0.0, 0.0, -ORTHO_OFFSET).looking_at(Vec3::ZERO, Vec3::Y)
+                Transform::from_xyz(ORTHO_OFFSET, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y)
             }
+        }
+    }
+    pub fn get_up_axis(&self, v: Vec3) -> f32 {
+        match self {
+            Orientation2d::DownFront => v.z,
+            Orientation2d::DownRight => v.x,
+            Orientation2d::Front => v.y,
+            Orientation2d::Right => v.y,
+        }
+    }
+    pub fn get_up_axis_mut<'a>(&self, v: &'a mut Vec3) -> &'a mut f32 {
+        match self {
+            Orientation2d::DownFront => &mut v.z,
+            Orientation2d::DownRight => &mut v.x,
+            Orientation2d::Front => &mut v.y,
+            Orientation2d::Right => &mut v.y,
         }
     }
 }

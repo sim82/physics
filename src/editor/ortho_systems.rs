@@ -247,6 +247,8 @@ pub fn control_input_wm_system(
 }
 
 pub fn adjust_clip_planes_system(
+    keycodes: Res<Input<KeyCode>>,
+
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
 ) {
@@ -259,6 +261,9 @@ pub fn adjust_clip_planes_system(
         return;
     };
 
+    let upper_orientation = &upper.settings.orientation;
+    let lower_orientation = &lower.settings.orientation;
+
     let Ok((upper_transform, upper_camera, _upper_projection, _)) = camera_query.get(upper.camera) else {
         return;
     };
@@ -270,13 +275,12 @@ pub fn adjust_clip_planes_system(
     let Some((upper_min, upper_max)) = ortho_view_bounds(upper_camera, upper_transform) else { return };
     let Some((lower_min, lower_max)) = ortho_view_bounds(lower_camera, lower_transform) else { return };
 
-    // FIXME: this is all pretty much hardcoded to the 'Right' view
     // info!("upper bounds: {:?} {:?}", upper_min, upper_max);
     // info!("lower bounds: {:?} {:?}", lower_min, lower_max);
 
     {
-        let zmin = upper_min.z;
-        let zmax = upper_max.z;
+        let min = upper_orientation.get_up_axis(upper_min);
+        let max = upper_orientation.get_up_axis(upper_max);
 
         let Ok((_, _, mut lower_projection, mut lower_transform)) = camera_query.get_mut(lower.camera) else {
             return;
@@ -285,16 +289,32 @@ pub fn adjust_clip_planes_system(
             return;
         };
 
-        lower_transform.translation.z = zmax;
-        lower_ortho.far = zmax - zmin;
+        *upper_orientation.get_up_axis_mut(&mut lower_transform.translation) = max;
+        lower_ortho.far = max - min;
 
-        editor_windows_2d.view_max.z = zmax;
-        editor_windows_2d.view_min.z = zmin;
+        *upper_orientation.get_up_axis_mut(&mut editor_windows_2d.view_max) = max;
+        *upper_orientation.get_up_axis_mut(&mut editor_windows_2d.view_min) = min;
     }
 
     {
-        let ymin = lower_min.y;
-        let ymax = lower_max.y;
+        // let ymin = lower_min.y;
+        // let ymax = lower_max.y;
+
+        // let Ok((_, _, mut upper_projection, mut upper_transform)) = camera_query.get_mut(upper.camera) else {
+        //     return;
+        // };
+        // let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
+        //     return;
+        // };
+
+        // upper_transform.translation.y = ymax;
+        // upper_ortho.far = ymax - ymin;
+
+        // editor_windows_2d.view_max.y = ymax;
+        // editor_windows_2d.view_min.y = ymin;
+
+        let min = lower_orientation.get_up_axis(lower_min);
+        let max = lower_orientation.get_up_axis(lower_max);
 
         let Ok((_, _, mut upper_projection, mut upper_transform)) = camera_query.get_mut(upper.camera) else {
             return;
@@ -303,24 +323,27 @@ pub fn adjust_clip_planes_system(
             return;
         };
 
-        upper_transform.translation.y = ymax;
-        upper_ortho.far = ymax - ymin;
+        *lower_orientation.get_up_axis_mut(&mut upper_transform.translation) = max;
+        upper_ortho.far = max - min;
 
-        editor_windows_2d.view_max.y = ymax;
-        editor_windows_2d.view_min.y = ymin;
+        *lower_orientation.get_up_axis_mut(&mut editor_windows_2d.view_max) = max;
+        *lower_orientation.get_up_axis_mut(&mut editor_windows_2d.view_min) = min;
     }
 
-    // info!("far: {}", lower_ortho.far);
-
-    // let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
-    //     return
-    // };
-    // let Projection::Orthographic(lower_ortho) = &mut *lower_projection else {
-    //     return
-    // };
-
-    // upper.camera
-    // info!("upper: {:?} {:?}", upper_projection,);
+    if keycodes.just_pressed(KeyCode::F2) {
+        if let Some(window) = editor_windows_2d.windows.get_mut(resources::UPPER_WINDOW) {
+            window.settings.orientation = window.settings.orientation.flipped();
+            if let Ok((_, _, _, mut transform)) = camera_query.get_mut(window.camera) {
+                *transform = window.settings.orientation.get_transform();
+            };
+        }
+        if let Some(window) = editor_windows_2d.windows.get_mut(resources::LOWER_WINDOW) {
+            window.settings.orientation = window.settings.orientation.flipped();
+            if let Ok((_, _, _, mut transform)) = camera_query.get_mut(window.camera) {
+                *transform = window.settings.orientation.get_transform();
+            };
+        }
+    }
 }
 
 fn ortho_view_bounds(camera: &Camera, transform: &GlobalTransform) -> Option<(Vec3, Vec3)> {
