@@ -267,33 +267,16 @@ pub fn adjust_clip_planes_system(
         return;
     };
 
-    let Some((Some(upper_min), Some(upper_max))) =
-        upper_camera.logical_viewport_rect().map(|(min, max)| {
-            (
-                upper_camera.viewport_to_world(upper_transform, min),
-                upper_camera.viewport_to_world(upper_transform, max),
-            )
-        }) else {
-            return;
-        };
-
-    let Some((Some(lower_min), Some(lower_max))) =
-        lower_camera.logical_viewport_rect().map(|(min, max)| {
-            (
-                lower_camera.viewport_to_world(lower_transform, min),
-                lower_camera.viewport_to_world(lower_transform, max),
-            )
-        }) else {
-            return;
-        };
+    let Some((upper_min, upper_max)) = ortho_view_bounds(upper_camera, upper_transform) else { return };
+    let Some((lower_min, lower_max)) = ortho_view_bounds(lower_camera, lower_transform) else { return };
 
     // FIXME: this is all pretty much hardcoded to the 'Right' view
     // info!("upper bounds: {:?} {:?}", upper_min, upper_max);
     // info!("lower bounds: {:?} {:?}", lower_min, lower_max);
 
     {
-        let xmin = upper_min.origin.x;
-        let xmax = upper_max.origin.x;
+        let zmin = upper_min.z;
+        let zmax = upper_max.z;
 
         let Ok((_, _, mut lower_projection, mut lower_transform)) = camera_query.get_mut(lower.camera) else {
             return;
@@ -302,16 +285,16 @@ pub fn adjust_clip_planes_system(
             return;
         };
 
-        lower_transform.translation.x = xmin;
-        lower_ortho.far = xmax - xmin;
+        lower_transform.translation.z = zmax;
+        lower_ortho.far = zmax - zmin;
 
-        editor_windows_2d.view_max.x = xmax;
-        editor_windows_2d.view_min.x = xmin;
+        editor_windows_2d.view_max.z = zmax;
+        editor_windows_2d.view_min.z = zmin;
     }
 
     {
-        let ymin = lower_min.origin.y;
-        let ymax = lower_max.origin.y;
+        let ymin = lower_min.y;
+        let ymax = lower_max.y;
 
         let Ok((_, _, mut upper_projection, mut upper_transform)) = camera_query.get_mut(upper.camera) else {
             return;
@@ -338,6 +321,20 @@ pub fn adjust_clip_planes_system(
 
     // upper.camera
     // info!("upper: {:?} {:?}", upper_projection,);
+}
+
+fn ortho_view_bounds(camera: &Camera, transform: &GlobalTransform) -> Option<(Vec3, Vec3)> {
+    let (view_min, view_max) = camera.logical_viewport_rect()?;
+
+    // get world space coords of viewport bounds (ignoring ray.direction, assuming ortographic projection)
+    let view_min_world = camera.viewport_to_world(transform, view_min)?.origin;
+    let view_max_world = camera.viewport_to_world(transform, view_max)?.origin;
+
+    // get min / max in worldspace (viewport axis directions might be opposite of worldspace axes)
+    Some((
+        view_min_world.min(view_max_world),
+        view_min_world.max(view_max_world),
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]

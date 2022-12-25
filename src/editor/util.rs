@@ -254,13 +254,13 @@ impl Orientation2d {
         const ORTHO_OFFSET: f32 = 100.0;
         match self {
             Orientation2d::DownFront => {
-                Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, Vec3::X)
+                Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, -Vec3::Z)
             }
             Orientation2d::DownRight => {
                 Transform::from_xyz(0.0, ORTHO_OFFSET, 0.0).looking_at(Vec3::ZERO, Vec3::Z)
             }
             Orientation2d::Front => {
-                Transform::from_xyz(-ORTHO_OFFSET, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y)
+                Transform::from_xyz(0.0, 0.0, ORTHO_OFFSET).looking_at(Vec3::ZERO, Vec3::Y)
             }
             Orientation2d::Right => {
                 Transform::from_xyz(0.0, 0.0, -ORTHO_OFFSET).looking_at(Vec3::ZERO, Vec3::Y)
