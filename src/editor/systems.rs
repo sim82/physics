@@ -1,6 +1,6 @@
 use super::{
     components::{self, CsgOutput, CsgRepresentation, PointLightProperties},
-    resources::{self, Selection, SpatialIndex},
+    resources::{self, Selection, SpatialBounds, SpatialIndex},
     CleanupCsgOutputEvent,
 };
 use crate::{
@@ -256,13 +256,7 @@ pub fn create_brush_csg_system_inc(
         .map(|(e, _, _)| e)
         .collect::<HashSet<_>>();
     for (_entity, csg_repr, &_transform) in &mut query_changed {
-        let mut out = Vec::new();
-        spatial_index.sstree.find_entries_within_radius(
-            &csg_repr.center,
-            csg_repr.radius,
-            &mut out,
-        );
-        affected.extend(out.drain(..).map(|entry| entry.payload));
+        affected.extend(spatial_index.query(csg_repr.bounds));
     }
 
     // re-create meshes for all affected brushes:
@@ -275,31 +269,27 @@ pub fn create_brush_csg_system_inc(
         };
 
         debug!("csg changed: {:?}", entity);
-        let mut out = Vec::new();
-        spatial_index.sstree.find_entries_within_radius(
-            &csg_repr.center,
-            csg_repr.radius,
-            &mut out,
-        );
-        // TODO: check if we should store bsp trees rather than Csg objects.in CsgRepresentation
-        let mut bsp =
-            csg::Node::from_polygons(&csg_repr.csg.polygons).expect("Node::from_polygons failed");
 
-        let others = out
-            .iter()
+        let others = spatial_index
+            .query(csg_repr.bounds)
             .filter_map(|entry| {
-                if entry.payload == entity {
+                if entry == entity {
                     return None;
                 }
-                let (other_csg, _, _) = query_csg.get(entry.payload).ok()?;
+                let (other_csg, _, _) = query_csg.get(entry).ok()?;
                 let other_bsp = csg::Node::from_polygons(&other_csg.csg.polygons)?;
                 if !csg_repr.csg.intersects_or_touches(&other_csg.csg) {
                     return None;
                 }
 
-                Some((other_bsp, entity < entry.payload))
+                Some((other_bsp, entity < entry))
             })
             .collect::<Vec<_>>();
+
+        // TODO: check if we should store bsp trees rather than Csg objects.in CsgRepresentation
+        let mut bsp =
+            csg::Node::from_polygons(&csg_repr.csg.polygons).expect("Node::from_polygons failed");
+
         // clip to overlapping brushes
         for (other_bsp, _) in &others {
             bsp.clip_to(other_bsp);
@@ -627,9 +617,7 @@ pub fn track_brush_updates(
 ) {
     let mut added_set = HashSet::new();
     for (entity, csg_repr) in &query_added {
-        spatial_index
-            .sstree
-            .insert(entity, csg_repr.center, csg_repr.radius);
+        spatial_index.update(entity, None, csg_repr.bounds);
         added_set.insert(entity);
     }
     for (entity, mut old_brush, mut old_csg_repr, edit_update) in &mut query_modified {
@@ -642,19 +630,11 @@ pub fn track_brush_updates(
                 let csg: Result<csg::Csg, _> = brush.clone().try_into();
                 if let Ok(csg) = csg {
                     let (center, radius) = csg.bounding_sphere();
-                    spatial_index.update(
-                        entity,
-                        old_csg_repr.center,
-                        old_csg_repr.radius,
-                        center,
-                        radius,
-                    );
+                    let bounds = SpatialBounds { center, radius };
+
+                    spatial_index.update(entity, Some(old_csg_repr.bounds), bounds);
                     *old_brush = brush.clone();
-                    *old_csg_repr = components::CsgRepresentation {
-                        csg,
-                        center,
-                        radius,
-                    };
+                    *old_csg_repr = components::CsgRepresentation { csg, bounds };
                 }
             }
         }

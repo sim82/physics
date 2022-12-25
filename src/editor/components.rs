@@ -6,6 +6,8 @@ use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
+use super::resources::SpatialBounds;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Component)]
 pub struct PointLightProperties {
     pub shadows_enabled: bool,
@@ -52,8 +54,7 @@ impl EditorObjectBrushBundle {
         let (center, radius) = csg.bounding_sphere();
 
         let csg_representation = CsgRepresentation {
-            center,
-            radius,
+            bounds: SpatialBounds { center, radius },
             csg,
         };
         EditorObjectBrushBundle {
@@ -156,8 +157,7 @@ pub struct CsgCollisionOutput;
 
 #[derive(Component, Inspectable, Clone)]
 pub struct CsgRepresentation {
-    pub center: Vec3,
-    pub radius: f32,
+    pub bounds: SpatialBounds,
     pub csg: csg::Csg,
 }
 

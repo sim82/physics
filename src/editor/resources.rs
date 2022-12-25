@@ -6,6 +6,7 @@ use bevy::{
     window::WindowId,
 };
 use bevy_egui::{egui, EguiContext};
+use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
 use crate::{material, sstree::SsTree};
@@ -187,33 +188,40 @@ impl MaterialBrowser {
     }
 }
 
+#[derive(Debug, Clone, Copy, Inspectable)]
+pub struct SpatialBounds {
+    pub center: Vec3,
+    pub radius: f32,
+}
+
 #[derive(Resource, Default)]
 pub struct SpatialIndex {
-    pub sstree: SsTree<Entity, Vec3, 8>,
+    sstree: SsTree<Entity, Vec3, 8>,
 }
 
 impl SpatialIndex {
     pub fn clear(&mut self) {
         self.sstree = SsTree::default();
     }
-    pub fn update(
-        &mut self,
-        entity: Entity,
-        from_center: Vec3,
-        from_radius: f32,
-        center: Vec3,
-        radius: f32,
-    ) {
-        if self
-            .sstree
-            .remove_if(&from_center, from_radius, |e| *e == entity)
-            .is_none()
-        {
-            error!("failed to remove brush from spatial index for update");
-            panic!("aborting");
+    pub fn update(&mut self, entity: Entity, from: Option<SpatialBounds>, to: SpatialBounds) {
+        if let Some(SpatialBounds { center, radius }) = from {
+            if self
+                .sstree
+                .remove_if(&center, radius, |e| *e == entity)
+                .is_none()
+            {
+                error!("failed to remove brush from spatial index for update");
+                panic!("aborting");
+            }
         }
+        self.sstree.insert(entity, to.center, to.radius);
+    }
 
-        self.sstree.insert(entity, center, radius);
+    pub fn query(&self, bounds: SpatialBounds) -> impl Iterator<Item = Entity> + '_ {
+        let mut out = Vec::new();
+        self.sstree
+            .find_entries_within_radius(&bounds.center, bounds.radius, &mut out);
+        out.into_iter().map(|e| e.payload)
     }
 }
 
