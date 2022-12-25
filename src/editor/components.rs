@@ -138,6 +138,15 @@ pub enum DragActionType {
 }
 
 #[derive(Component)]
+#[component(storage = "SparseSet")]
+pub enum EditUpdate {
+    BrushDrag {
+        brush: csg::Brush,
+        // csg_reprensentation: CsgRepresentation,
+    },
+}
+
+#[derive(Component)]
 pub struct MaterialRef {
     pub material_name: String,
 }
@@ -145,7 +154,7 @@ pub struct MaterialRef {
 #[derive(Component)]
 pub struct CsgCollisionOutput;
 
-#[derive(Component, Inspectable)]
+#[derive(Component, Inspectable, Clone)]
 pub struct CsgRepresentation {
     pub center: Vec3,
     pub radius: f32,

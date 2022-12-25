@@ -196,6 +196,25 @@ impl SpatialIndex {
     pub fn clear(&mut self) {
         self.sstree = SsTree::default();
     }
+    pub fn update(
+        &mut self,
+        entity: Entity,
+        from_center: Vec3,
+        from_radius: f32,
+        center: Vec3,
+        radius: f32,
+    ) {
+        if self
+            .sstree
+            .remove_if(&from_center, from_radius, |e| *e == entity)
+            .is_none()
+        {
+            error!("failed to remove brush from spatial index for update");
+            panic!("aborting");
+        }
+
+        self.sstree.insert(entity, center, radius);
+    }
 }
 
 #[derive(Default)]

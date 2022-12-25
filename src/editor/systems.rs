@@ -610,10 +610,20 @@ pub fn track_lights_system(
 //     }
 // }
 
-pub fn track_spatial_index_system(
+#[allow(clippy::type_complexity)]
+pub fn track_brush_updates(
+    mut commands: Commands,
     mut spatial_index: ResMut<resources::SpatialIndex>,
-    query_added: Query<(Entity, &CsgRepresentation), Added<CsgRepresentation>>,
-    query_modified: Query<(Entity, &CsgRepresentation), Changed<CsgRepresentation>>,
+    query_added: Query<
+        (Entity, &components::CsgRepresentation),
+        (Added<CsgRepresentation>, Without<components::EditUpdate>),
+    >,
+    mut query_modified: Query<(
+        Entity,
+        &mut csg::Brush,
+        &mut components::CsgRepresentation,
+        &components::EditUpdate,
+    )>,
 ) {
     let mut added_set = HashSet::new();
     for (entity, csg_repr) in &query_added {
@@ -622,27 +632,33 @@ pub fn track_spatial_index_system(
             .insert(entity, csg_repr.center, csg_repr.radius);
         added_set.insert(entity);
     }
-    for (entity, csg_repr) in &query_modified {
+    for (entity, mut old_brush, mut old_csg_repr, edit_update) in &mut query_modified {
         if added_set.contains(&entity) {
             continue;
         }
 
-        let Some(_entry)  = spatial_index
-            .sstree
-            .remove_if(&csg_repr.center, csg_repr.radius, |e| *e == entity) else {
-                error!( "failed to remove brush from spatial index for update");
-                // info!( "{:?} {} {:?}", csg_repr.center, csg_repr.radius, entity);
-                // info!( "{:?}", spatial_index.sstree);
-                panic!( "aborting.");
-                // continue;
-            };
-        debug!(
-            "update: {:?} {} -> {:?} {}",
-            _entry.center, _entry.radius, csg_repr.center, csg_repr.radius
-        );
-        spatial_index
-            .sstree
-            .insert(entity, csg_repr.center, csg_repr.radius);
+        match edit_update {
+            components::EditUpdate::BrushDrag { brush } => {
+                let csg: Result<csg::Csg, _> = brush.clone().try_into();
+                if let Ok(csg) = csg {
+                    let (center, radius) = csg.bounding_sphere();
+                    spatial_index.update(
+                        entity,
+                        old_csg_repr.center,
+                        old_csg_repr.radius,
+                        center,
+                        radius,
+                    );
+                    *old_brush = brush.clone();
+                    *old_csg_repr = components::CsgRepresentation {
+                        csg,
+                        center,
+                        radius,
+                    };
+                }
+            }
+        }
+        commands.entity(entity).remove::<components::EditUpdate>();
     }
 }
 

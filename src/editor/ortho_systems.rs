@@ -448,7 +448,7 @@ pub fn edit_input_system(
 
                 // update dragged objects. Do this in two steps, only touch EditorObject as mutable if there is a relevant change
                 // to prevent triggering the bevy change detection.
-                let mut csg_updates = Vec::new();
+                // let mut csg_updates = Vec::new();
                 let mut transform_updates = Vec::new();
                 for (entity, drag_action, brush, _) in &brush_drag_query {
                     let drag_delta = ray.origin - drag_action.start_ray.origin;
@@ -457,7 +457,7 @@ pub fn edit_input_system(
 
                     match &drag_action.action {
                         components::DragActionType::Face { affected_faces }
-                        | components::DragActionType::WholeBrush { affected_faces } /* yay, free implementation */ => {
+                        | components::DragActionType::WholeBrush { affected_faces } => {
                             let mut new_brush = brush.clone();
                             let mut relevant_change = false;
                             for (face, start_w) in affected_faces {
@@ -483,29 +483,29 @@ pub fn edit_input_system(
                                 relevant_change = true;
                             }
                             if relevant_change {
-                                let csg: Result<csg::Csg, _> = new_brush.clone().try_into();
-                                match csg {
-                                    Ok(csg) => {
-                                        let (center, radius) = csg.bounding_sphere();
-                                        csg_updates.push((
-                                            entity,
-                                            (
-                                                new_brush,
-                                                components::CsgRepresentation {
-                                                    center,
-                                                    radius,
-                                                    csg,
-                                                },
-                                            ),
-                                        ));
-                                    }
-                                    Err(_) => {
-                                        warn!("edit action degenerates brush. ignoring.");
-                                    }
-                                }
+                                // let csg: Result<csg::Csg, _> = new_brush.clone().try_into();
+                                // match csg {
+                                // Ok(csg) => {
+                                // let (center, radius) = csg.bounding_sphere();
+                                commands
+                                    .entity(entity)
+                                    .insert(components::EditUpdate::BrushDrag {
+                                        brush: new_brush,
+                                        // csg_reprensentation:
+                                        //     components::CsgRepresentation {
+                                        //         center,
+                                        //         radius,
+                                        //         csg,
+                                        //     },
+                                    });
+                                // }
+                                // Err(_) => {
+                                // warn!("edit action degenerates brush. ignoring.");
+                                // }
+                                // }
                             }
                         }
-                        _ => warn!( "invalid drag action in brush object"),
+                        _ => warn!("invalid drag action in brush object"),
                     }
                 }
 
@@ -524,15 +524,15 @@ pub fn edit_input_system(
 
                 // info!("updates: {:?}", updates);
 
-                for (entity, (obj, bounds)) in csg_updates {
-                    info!("apply update on {:?}", entity);
-                    if let Ok((_, _, mut target_obj, mut target_bounds)) =
-                        brush_drag_query.get_mut(entity)
-                    {
-                        *target_obj = obj;
-                        *target_bounds = bounds;
-                    }
-                }
+                // for (entity, (obj, bounds)) in csg_updates {
+                //     info!("apply update on {:?}", entity);
+                //     if let Ok((_, _, mut target_obj, mut target_bounds)) =
+                //         brush_drag_query.get_mut(entity)
+                //     {
+                //         *target_obj = obj;
+                //         *target_bounds = bounds;
+                //     }
+                // }
 
                 for (entity, translation) in transform_updates {
                     if let Ok((_, _, mut transform)) = point_drag_query.get_mut(entity) {

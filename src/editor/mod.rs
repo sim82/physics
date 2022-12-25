@@ -72,7 +72,7 @@ impl Plugin for EditorPlugin {
                 .with_system(systems::track_2d_vis_system)
                 .with_system(ortho_systems::adjust_clip_planes_system)
                 .with_system(systems::track_lights_system)
-                .with_system(systems::track_spatial_index_system),
+                .with_system(systems::track_brush_updates),
         );
 
         // CsgStage: incremental CSG update. Deferred update with fixed timestep. Needs all 'fist order' post
