@@ -334,13 +334,13 @@ pub fn adjust_clip_planes_system(
         if let Some(window) = editor_windows_2d.windows.get_mut(resources::UPPER_WINDOW) {
             window.settings.orientation = window.settings.orientation.flipped();
             if let Ok((_, _, _, mut transform)) = camera_query.get_mut(window.camera) {
-                *transform = window.settings.orientation.get_transform();
+                transform.rotation = window.settings.orientation.get_transform().rotation;
             };
         }
         if let Some(window) = editor_windows_2d.windows.get_mut(resources::LOWER_WINDOW) {
             window.settings.orientation = window.settings.orientation.flipped();
             if let Ok((_, _, _, mut transform)) = camera_query.get_mut(window.camera) {
-                *transform = window.settings.orientation.get_transform();
+                transform.rotation = window.settings.orientation.get_transform().rotation;
             };
         }
     }
