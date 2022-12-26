@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Material {
     pub base: Option<String>,
-    pub base_color: Option<Vec3>,
+    pub base_color: Option<Color>,
     pub emissive: Option<String>,
     pub emissive_color: Option<Vec3>,
     pub roughness: Option<f32>,
@@ -69,6 +69,7 @@ pub fn instantiate_material(
 ) -> Handle<StandardMaterial> {
     materials.add(StandardMaterial {
         base_color_texture: load_image(material.base.clone(), asset_server),
+        base_color: material.base_color.unwrap_or(Color::WHITE),
         perceptual_roughness: material.roughness.unwrap_or(0.089),
         metallic: material.roughness.unwrap_or(0.001),
 
@@ -91,7 +92,7 @@ pub fn instantiate_material(
 fn test() {
     let mat = Material {
         base: Some("base".into()),
-        base_color: Some(Vec3::ZERO),
+        base_color: Some(Color::LIME_GREEN),
         emissive: Some("emissive".into()),
         emissive_color: Some(Vec3::ZERO),
         roughness: Some(1.0),

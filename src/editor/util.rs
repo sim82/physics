@@ -147,9 +147,14 @@ pub fn spawn_csg_split(
             }
         }
 
-        let texgen = csg::texgen::Texgen::with_offset(origin);
-        let mesh = csg::triangles_to_mesh_with_texgen(&tri_list, &texgen);
-        let mesh = meshes.add(mesh);
+        // FIXME: this is crap: we don't really need to create an entity here
+        let mesh = if material_name != "material/special/sky1" {
+            let texgen = csg::texgen::Texgen::with_offset(origin);
+            let mesh = csg::triangles_to_mesh_with_texgen(&tri_list, &texgen);
+            meshes.add(mesh)
+        } else {
+            default()
+        };
 
         let mut entity_commands = commands.spawn((
             PbrBundle {
@@ -281,6 +286,22 @@ impl Orientation2d {
             Orientation2d::DownRight => &mut v.x,
             Orientation2d::Front => &mut v.y,
             Orientation2d::Right => &mut v.y,
+        }
+    }
+    pub fn get_right_axis(&self, v: Vec3) -> f32 {
+        match self {
+            Orientation2d::DownFront => v.x,
+            Orientation2d::DownRight => v.z,
+            Orientation2d::Front => v.x,
+            Orientation2d::Right => v.z,
+        }
+    }
+    pub fn get_right_axis_mut<'a>(&self, v: &'a mut Vec3) -> &'a mut f32 {
+        match self {
+            Orientation2d::DownFront => &mut v.x,
+            Orientation2d::DownRight => &mut v.z,
+            Orientation2d::Front => &mut v.x,
+            Orientation2d::Right => &mut v.z,
         }
     }
 }
