@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::{
     csg::{self, Brush},
     render_layers,
@@ -19,6 +21,21 @@ impl Default for PointLightProperties {
         Self {
             shadows_enabled: false,
             range: 5.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Component)]
+pub struct DirectionalLightProperties {
+    pub shadows_enabled: bool,
+    pub half_size: f32,
+}
+
+impl Default for DirectionalLightProperties {
+    fn default() -> Self {
+        Self {
+            shadows_enabled: false,
+            half_size: 10.0,
         }
     }
 }
@@ -111,6 +128,41 @@ impl Default for EditorObjectPointlightBundle {
             },
             editable_point: EditablePoint,
             name: Name::new("PointLight"),
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct EditorObjectDirectionalLightBundle {
+    // pub editor_object: EditorObject,
+    // pub output_links: EditorObjectOutputLink,
+    // pub render_layers: bevy::render::view::RenderLayers,
+    pub spatial: SpatialBundle,
+    pub editable_point: EditablePoint,
+    pub light_properties: DirectionalLightProperties,
+    pub name: Name,
+}
+
+impl Default for EditorObjectDirectionalLightBundle {
+    fn default() -> Self {
+        // directional 'sun' light
+
+        Self {
+            // editor_object: Default::default(),
+            // output_links: Default::default(),
+            // render_layers: bevy::render::view::RenderLayers::from_layers(&[
+            //     render_layers::SIDE_2D,
+            //     render_layers::TOP_2D,
+            // ]),
+            spatial: SpatialBundle::from_transform(Transform::from_rotation(
+                Quat::from_rotation_x(-PI / 4.),
+            )),
+            light_properties: DirectionalLightProperties {
+                shadows_enabled: true,
+                ..default()
+            },
+            editable_point: EditablePoint,
+            name: Name::new("DirectionalLight"),
         }
     }
 }

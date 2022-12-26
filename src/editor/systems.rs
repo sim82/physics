@@ -120,6 +120,23 @@ pub fn editor_input_system(
         // selection.primary = Some(entity);
     }
 
+    if keycodes.just_pressed(KeyCode::K) {
+        let entity = commands
+            .spawn(components::EditorObjectDirectionalLightBundle::default())
+            //     (
+            //     SpatialBundle::default(),
+            //     EditorObjectBundle { ..default() },
+            //     components::PointLightProperties {
+            //         shadows_enabled: true,
+            //         ..default()
+            //     },
+            //     Name::new("PointLight"),
+            //     components::Selected,
+            // ))
+            .id();
+        clear_selection = true;
+    }
+
     if clear_selection {
         for entity in &selection_query {
             commands.entity(entity).remove::<components::Selected>();
@@ -528,6 +545,13 @@ pub fn track_lights_system(
         (Entity, &components::PointLightProperties, &Transform),
         (With<components::PointLightProperties>, Without<Children>),
     >,
+    directial_query: Query<
+        (Entity, &components::DirectionalLightProperties, &Transform),
+        (
+            With<components::DirectionalLightProperties>,
+            Without<Children>,
+        ),
+    >,
     // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
 ) {
     for (entity, light_props, transform) in &query {
@@ -541,6 +565,76 @@ pub fn track_lights_system(
                     point_light: PointLight {
                         shadows_enabled: light_props.shadows_enabled,
                         range: light_props.range,
+                        ..default()
+                    },
+                    ..default()
+                },
+                RenderLayers::layer(render_layers::MAIN_3D),
+                Name::new("bevy 3d PointLight"),
+            ))
+            .id();
+
+        let vis2d_entity = commands
+            .spawn((
+                PbrBundle {
+                    mesh: meshes.add(
+                        mesh::shape::Icosphere {
+                            radius: 0.1,
+                            subdivisions: 2,
+                        }
+                        .into(),
+                    ),
+                    material: materials_res.get_brush_2d_material(),
+
+                    ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                },
+                render_layers::ortho_views(),
+                components::SelectionHighlighByOutline,
+                bevy_mod_outline::OutlineBundle {
+                    outline: bevy_mod_outline::OutlineVolume {
+                        colour: Color::BLUE,
+                        visible: true,
+                        width: 2.0,
+                    },
+                    ..default()
+                },
+                Name::new("2dvis Mesh"),
+            ))
+            .id();
+
+        commands
+            .entity(entity)
+            .add_child(light_entity)
+            .add_child(vis2d_entity);
+        // .insert(NotShadowCaster)
+        // .insert(NotShadowReceiver)
+        // .insert(EditorObjectLinkedBevyTransform(light_entity))
+        // .add_child(light_entity);
+    }
+
+    for (entity, light_props, _transform) in &directial_query {
+        // if !matches!(editor_object, EditorObject::PointLight(_)) {
+        //     continue;
+        // }
+
+        // directional 'sun' light
+        let half_size = light_props.half_size;
+
+        let light_entity = commands
+            .spawn((
+                DirectionalLightBundle {
+                    directional_light: DirectionalLight {
+                        shadow_projection: OrthographicProjection {
+                            left: -half_size,
+                            right: half_size,
+                            bottom: -half_size,
+                            top: half_size,
+                            near: -10.0 * half_size,
+                            far: 10.0 * half_size,
+                            ..default()
+                        },
+
+                        shadows_enabled: true,
                         ..default()
                     },
                     ..default()
