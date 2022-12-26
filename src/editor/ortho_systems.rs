@@ -331,16 +331,25 @@ pub fn adjust_clip_planes_system(
     }
 
     if keycodes.just_pressed(KeyCode::F2) {
+        let mut right = 0.0;
         if let Some(window) = editor_windows_2d.windows.get_mut(resources::UPPER_WINDOW) {
             window.settings.orientation = window.settings.orientation.flipped();
             if let Ok((_, _, _, mut transform)) = camera_query.get_mut(window.camera) {
                 transform.rotation = window.settings.orientation.get_transform().rotation;
+                right = window
+                    .settings
+                    .orientation
+                    .get_right_axis(transform.translation);
             };
         }
         if let Some(window) = editor_windows_2d.windows.get_mut(resources::LOWER_WINDOW) {
             window.settings.orientation = window.settings.orientation.flipped();
             if let Ok((_, _, _, mut transform)) = camera_query.get_mut(window.camera) {
                 transform.rotation = window.settings.orientation.get_transform().rotation;
+                *window
+                    .settings
+                    .orientation
+                    .get_right_axis_mut(&mut transform.translation) = right;
             };
         }
     }
