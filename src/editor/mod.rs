@@ -9,6 +9,7 @@ pub mod main3d_systems;
 pub mod ortho_systems;
 pub mod resources;
 pub mod systems;
+pub mod undo;
 pub mod util;
 pub mod wm_systems;
 
@@ -35,6 +36,8 @@ impl Plugin for EditorPlugin {
             .init_resource::<resources::Selection>()
             .init_resource::<resources::EditorWindows2d>();
 
+        app.init_resource::<undo::UndoStack>();
+
         app.init_resource::<resources::Materials>();
         app.init_resource::<resources::MaterialBrowser>();
         app.init_resource::<resources::SpatialIndex>();
@@ -58,6 +61,7 @@ impl Plugin for EditorPlugin {
             .add_system(systems::load_save_editor_objects);
 
         app.add_system(main3d_systems::select_input_system);
+        app.add_system(undo::undo_system);
 
         // TrackUpdateStage: do 'first order' post processing based on user interaction, e.g.:
         //  - update spacial index of Editor Objects

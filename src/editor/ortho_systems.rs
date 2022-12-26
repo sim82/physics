@@ -12,6 +12,7 @@ use bevy::{
 use super::{
     components,
     resources::{self, LOWER_WINDOW, UPPER_WINDOW},
+    undo,
     util::{self, Orientation2d, SnapToGrid, WmMouseButton},
 };
 use crate::{
@@ -373,7 +374,7 @@ fn ortho_view_bounds(camera: &Camera, transform: &GlobalTransform) -> Option<(Ve
 pub fn edit_input_system(
     mut commands: Commands,
     mut event_reader: EventReader<util::WmEvent>,
-    selection: Res<resources::Selection>,
+    mut undo_stack: ResMut<undo::UndoStack>,
     keycodes: Res<Input<KeyCode>>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
 
@@ -516,6 +517,7 @@ pub fn edit_input_system(
                                 // match csg {
                                 // Ok(csg) => {
                                 // let (center, radius) = csg.bounding_sphere();
+                                undo_stack.push_brush_drag(entity, &brush, &new_brush);
                                 commands
                                     .entity(entity)
                                     .insert(components::EditUpdate::BrushDrag {
@@ -581,6 +583,7 @@ pub fn edit_input_system(
                     .chain(point_drag_query.iter().map(|(e, _, _)| e))
                 {
                     commands.entity(entity).remove::<components::DragAction>();
+                    undo_stack.commit();
                     info!("stop drag for {:?}", entity);
                 }
             }
