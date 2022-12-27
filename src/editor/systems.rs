@@ -499,7 +499,7 @@ pub fn track_2d_vis_system(
     for (entity, csg_rep, mut transform) in &mut changed_query {
         if let Ok(children) = children_query.get(entity) {
             // 2d vis mesh already exists. just update.
-            info!("brush update");
+            // info!("brush update");
 
             for child in children {
                 if let Ok(mut old_mesh) = mesh_query.get_mut(*child) {
@@ -518,7 +518,7 @@ pub fn track_2d_vis_system(
         } else {
             let (mut mesh, origin) = (&csg_rep.csg).into();
             transform.translation = origin;
-            info!("brush new");
+            // info!("brush new");
             OutlineMeshExt::generate_outline_normals(&mut mesh);
             let mesh_entity = commands
                 .spawn((

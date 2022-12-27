@@ -4,6 +4,7 @@ use bevy_inspector_egui::RegisterInspectable;
 use crate::AppState;
 
 pub mod components;
+pub mod edit_commands;
 pub mod gui_systems;
 pub mod main3d_systems;
 pub mod ortho_systems;

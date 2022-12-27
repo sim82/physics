@@ -20,6 +20,7 @@ pub struct UndoStack {
 
 impl UndoStack {
     pub fn commit(&mut self) {
+        info!("commit");
         self.open = false;
     }
     pub fn push_brush_drag(
@@ -37,7 +38,7 @@ impl UndoStack {
                     brush: update,
                 }),
             ) if entity == *old_entity => {
-                info!("update undo entry");
+                // info!("update undo entry");
                 *update = brush.clone()
             }
             _ => {

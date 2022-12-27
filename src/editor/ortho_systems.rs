@@ -11,6 +11,7 @@ use bevy::{
 
 use super::{
     components,
+    edit_commands::EditCommands,
     resources::{self, LOWER_WINDOW, UPPER_WINDOW},
     undo,
     util::{self, Orientation2d, SnapToGrid, WmMouseButton},
@@ -372,9 +373,10 @@ fn ortho_view_bounds(camera: &Camera, transform: &GlobalTransform) -> Option<(Ve
 
 #[allow(clippy::too_many_arguments)]
 pub fn edit_input_system(
+    mut edit_commands: EditCommands,
     mut commands: Commands,
     mut event_reader: EventReader<util::WmEvent>,
-    mut undo_stack: ResMut<undo::UndoStack>,
+    // mut undo_stack: ResMut<undo::UndoStack>,
     keycodes: Res<Input<KeyCode>>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
 
@@ -517,18 +519,8 @@ pub fn edit_input_system(
                                 // match csg {
                                 // Ok(csg) => {
                                 // let (center, radius) = csg.bounding_sphere();
-                                undo_stack.push_brush_drag(entity, &brush, &new_brush);
-                                commands
-                                    .entity(entity)
-                                    .insert(components::EditUpdate::BrushDrag {
-                                        brush: new_brush,
-                                        // csg_reprensentation:
-                                        //     components::CsgRepresentation {
-                                        //         center,
-                                        //         radius,
-                                        //         csg,
-                                        //     },
-                                    });
+                                edit_commands.brush_drag(entity, brush, new_brush);
+
                                 // }
                                 // Err(_) => {
                                 // warn!("edit action degenerates brush. ignoring.");
@@ -582,8 +574,7 @@ pub fn edit_input_system(
                     .map(|(e, _, _, _)| e)
                     .chain(point_drag_query.iter().map(|(e, _, _)| e))
                 {
-                    commands.entity(entity).remove::<components::DragAction>();
-                    undo_stack.commit();
+                    edit_commands.end_brush_drag(entity);
                     info!("stop drag for {:?}", entity);
                 }
             }
