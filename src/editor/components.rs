@@ -237,3 +237,7 @@ pub struct SelectionHighlighByMaterial;
 
 #[derive(Component)]
 pub struct SelectionHighlighByOutline;
+
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct Despawn;

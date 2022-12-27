@@ -65,7 +65,7 @@ impl Plugin for EditorPlugin {
         app.add_system(undo::undo_system);
 
         // TrackUpdateStage: do 'first order' post processing based on user interaction, e.g.:
-        //  - update spacial index of Editor Objects
+        //  - update spatial index of Editor Objects
         //  - track 2d vis meshes
         //  - derive Editor Object origin from brush geometry
 

@@ -89,7 +89,9 @@ pub fn undo_system(
                         //     },
                     });
             }
-            Some(UndoEntry::EntityAdd { entity }) => commands.entity(entity).despawn_recursive(),
+            Some(UndoEntry::EntityAdd { entity }) => {
+                commands.entity(entity).insert(components::Despawn);
+            }
             None => info!("nothing to undo"),
         }
     }

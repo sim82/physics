@@ -704,12 +704,19 @@ pub fn track_brush_updates(
         (Entity, &components::CsgRepresentation),
         (Added<CsgRepresentation>, Without<components::EditUpdate>),
     >,
-    mut query_modified: Query<(
-        Entity,
-        &mut csg::Brush,
-        &mut components::CsgRepresentation,
-        &components::EditUpdate,
-    )>,
+    mut query_modified: Query<
+        (
+            Entity,
+            &mut csg::Brush,
+            &mut components::CsgRepresentation,
+            &components::EditUpdate,
+        ),
+        Without<components::Despawn>,
+    >,
+    brush_despawn: Query<
+        (Entity, &components::CsgRepresentation),
+        (With<csg::Brush>, With<components::Despawn>),
+    >,
 ) {
     let mut added_set = HashSet::new();
     for (entity, csg_repr) in &query_added {
@@ -735,6 +742,11 @@ pub fn track_brush_updates(
             }
         }
         commands.entity(entity).remove::<components::EditUpdate>();
+    }
+
+    for (entity, csg_repr) in &brush_despawn {
+        commands.entity(entity).despawn_recursive();
+        spatial_index.remove(entity, csg_repr.bounds);
     }
 }
 

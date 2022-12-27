@@ -217,6 +217,11 @@ impl SpatialIndex {
         self.sstree.insert(entity, to.center, to.radius);
     }
 
+    pub fn remove(&mut self, entity: Entity, bounds: SpatialBounds) {
+        self.sstree
+            .remove_if(&bounds.center, bounds.radius, |e| *e == entity);
+    }
+
     pub fn query(&self, bounds: SpatialBounds) -> impl Iterator<Item = Entity> + '_ {
         let mut out = Vec::new();
         self.sstree
