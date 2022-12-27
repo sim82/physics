@@ -68,6 +68,7 @@ impl Plugin for EditorPlugin {
         //  - update spatial index of Editor Objects
         //  - track 2d vis meshes
         //  - derive Editor Object origin from brush geometry
+        //  - despawn
 
         app.add_stage_after(
             CoreStage::Update,

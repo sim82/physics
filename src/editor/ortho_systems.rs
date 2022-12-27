@@ -389,12 +389,12 @@ pub fn edit_input_system(
             Without<components::DragAction>,
         ),
     >,
-    mut brush_drag_query: Query<
+    brush_drag_query: Query<
         (
             Entity,
             &components::DragAction,
-            &mut csg::Brush,
-            &mut components::CsgRepresentation,
+            &csg::Brush,
+            &components::CsgRepresentation,
         ),
         Without<components::EditablePoint>,
     >,

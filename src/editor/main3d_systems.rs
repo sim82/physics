@@ -3,23 +3,20 @@ use std::f32::NEG_INFINITY;
 use bevy::prelude::*;
 use bevy_inspector_egui::egui::plot::Polygon;
 
-use crate::csg;
+use crate::{csg, editor::edit_commands};
 
-use super::{components, resources, util};
+use super::{components, edit_commands::EditCommands, resources, util};
 
 #[allow(clippy::too_many_arguments)]
 pub fn select_input_system(
     mut commands: Commands,
+    mut edit_commands: EditCommands,
     mut event_reader: EventReader<util::WmEvent>,
     mut selection: ResMut<resources::Selection>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
     mut material_browser: ResMut<resources::MaterialBrowser>,
     camera_query: Query<(&GlobalTransform, &Camera), With<components::Main3dCamera>>,
-    mut processed_csg_query: Query<(
-        Entity,
-        &mut components::BrushMaterialProperties,
-        &components::ProcessedCsg,
-    )>,
+    processed_csg_query: Query<(Entity, &components::ProcessedCsg)>,
     point_query: Query<(Entity, &Transform), With<components::EditablePoint>>,
     selected_query: Query<Entity, With<components::Selected>>,
 ) {
@@ -56,7 +53,7 @@ pub fn select_input_system(
             // find clicked face
             let mut closest_hit = None;
             let mut closest_hit_distance = std::f32::INFINITY;
-            for (entity, _, processed_csg) in &processed_csg_query {
+            for (entity, processed_csg) in &processed_csg_query {
                 'poly_loop: for polygon in processed_csg.bsp.all_polygons() {
                     let mut res = Vec::new();
                     polygon.get_triangles(&mut res);
@@ -74,17 +71,22 @@ pub fn select_input_system(
             }
 
             if let Some((entity, appearance)) = closest_hit {
-                if let Ok((_, mut material_properties, _)) = processed_csg_query.get_mut(entity) {
-                    if button == util::WmMouseButton::Left
-                        && !material_browser.selected_material.is_empty()
-                    {
-                        material_properties.materials[appearance as usize] =
-                            material_browser.selected_material.clone();
-                        info!(
-                            "assign material: {} {}",
-                            appearance, material_browser.selected_material
-                        );
-                    } else if button == util::WmMouseButton::Right {
+                if button == util::WmMouseButton::Left
+                    && !material_browser.selected_material.is_empty()
+                {
+                    edit_commands.set_brush_material(
+                        entity,
+                        appearance,
+                        material_browser.selected_material.clone(),
+                    );
+                    // material_properties.materials[appearance as usize] =
+                    //     material_browser.selected_material.clone();
+                    info!(
+                        "assign material: {} {}",
+                        appearance, material_browser.selected_material
+                    );
+                } else if button == util::WmMouseButton::Right {
+                    if let Ok((material_properties, _)) = edit_commands.brush_query.get(entity) {
                         material_browser.selected_material =
                             material_properties.materials[appearance as usize].clone();
                         info!(

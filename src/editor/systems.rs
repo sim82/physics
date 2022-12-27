@@ -68,7 +68,7 @@ pub fn editor_input_system(
     mut edit_commands: EditCommands,
     keycodes: Res<Input<KeyCode>>,
     mut selection: ResMut<Selection>,
-    query: Query<(&csg::Brush, &components::BrushMaterialProperties)>,
+    // query: Query<(&csg::Brush, &components::BrushMaterialProperties)>,
     selection_query: Query<Entity, With<components::Selected>>,
 ) {
     let mut clear_selection = false;
@@ -88,18 +88,8 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::D) {
         if let Ok(primary) = selection_query.get_single() {
-            if let Ok((brush, material_properties)) = query.get(primary) {
-                let entity = commands
-                    .spawn((
-                        EditorObjectBrushBundle::from_brush(brush.clone())
-                            .with_material_properties(material_properties.clone()),
-                        components::Selected,
-                    ))
-                    .id();
-                info!("duplicate brush: {:?} -> {:?}", primary, entity);
-                // selection.primary = Some(entity);
-                clear_selection = true;
-            }
+            edit_commands.duplicate_brush(primary);
+            clear_selection = true;
         }
     }
 

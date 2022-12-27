@@ -13,6 +13,12 @@ pub enum UndoEntry {
     EntityAdd {
         entity: Entity,
     },
+    MaterialSet {
+        entity: Entity,
+        face: i32,
+        old_material: String,
+        material: String,
+    },
 }
 
 #[derive(Resource, Default)]
@@ -62,13 +68,27 @@ impl UndoStack {
     pub fn push_entity_add(&mut self, entity: Entity) {
         self.stack.push(UndoEntry::EntityAdd { entity })
     }
+    pub fn push_matrial_set(
+        &mut self,
+        entity: Entity,
+        face: i32,
+        old_material: String,
+        material: String,
+    ) {
+        self.stack.push(UndoEntry::MaterialSet {
+            entity,
+            face,
+            old_material,
+            material,
+        })
+    }
 }
 
 pub fn undo_system(
     mut commands: Commands,
     keycodes: Res<Input<KeyCode>>,
-
     mut undo_stack: ResMut<UndoStack>,
+    mut material_properties_query: Query<&mut components::BrushMaterialProperties>,
 ) {
     if keycodes.just_pressed(KeyCode::Z) {
         match undo_stack.stack.pop() {
@@ -91,6 +111,16 @@ pub fn undo_system(
             }
             Some(UndoEntry::EntityAdd { entity }) => {
                 commands.entity(entity).insert(components::Despawn);
+            }
+            Some(UndoEntry::MaterialSet {
+                entity,
+                face,
+                old_material,
+                material,
+            }) => {
+                if let Ok(mut material_props) = material_properties_query.get_mut(entity) {
+                    material_props.materials[face as usize] = old_material;
+                }
             }
             None => info!("nothing to undo"),
         }
