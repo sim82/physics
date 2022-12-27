@@ -519,7 +519,7 @@ pub fn edit_input_system(
                                 // match csg {
                                 // Ok(csg) => {
                                 // let (center, radius) = csg.bounding_sphere();
-                                edit_commands.brush_drag(entity, brush, new_brush);
+                                edit_commands.update_brush_drag(entity, brush, new_brush);
 
                                 // }
                                 // Err(_) => {

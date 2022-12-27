@@ -1,5 +1,6 @@
 use super::{
     components::{self, CsgOutput, CsgRepresentation, PointLightProperties},
+    edit_commands::EditCommands,
     resources::{self, Selection, SpatialBounds, SpatialIndex},
     CleanupCsgOutputEvent,
 };
@@ -64,7 +65,7 @@ pub fn setup(
 #[allow(clippy::too_many_arguments)]
 pub fn editor_input_system(
     mut commands: Commands,
-
+    mut edit_commands: EditCommands,
     keycodes: Res<Input<KeyCode>>,
     mut selection: ResMut<Selection>,
     query: Query<(&csg::Brush, &components::BrushMaterialProperties)>,
@@ -72,14 +73,15 @@ pub fn editor_input_system(
 ) {
     let mut clear_selection = false;
     if keycodes.just_pressed(KeyCode::B) {
-        let entity = commands
-            .spawn((
-                EditorObjectBrushBundle::from_brush(default()),
-                components::Selected,
-            ))
-            .id();
+        // let entity = commands
+        //     .spawn((
+        //         EditorObjectBrushBundle::from_brush(default()),
+        //         components::Selected,
+        //     ))
+        //     .id();
+        edit_commands.add_brush(default());
         clear_selection = true;
-        info!("new brush: {:?}", entity);
+        // info!("new brush: {:?}", entity);
         // selection.primary = Some(entity);
         // spatial_index.sstree.insert(entity, center, radius);
     }

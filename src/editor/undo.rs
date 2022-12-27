@@ -10,6 +10,9 @@ pub enum UndoEntry {
         start_brush: csg::Brush,
         brush: csg::Brush,
     },
+    EntityAdd {
+        entity: Entity,
+    },
 }
 
 #[derive(Resource, Default)]
@@ -55,6 +58,10 @@ impl UndoStack {
 
         // info!("undo: {:?}", self.stack);
     }
+
+    pub fn push_entity_add(&mut self, entity: Entity) {
+        self.stack.push(UndoEntry::EntityAdd { entity })
+    }
 }
 
 pub fn undo_system(
@@ -82,7 +89,8 @@ pub fn undo_system(
                         //     },
                     });
             }
-            _ => info!("nothing to undo"),
+            Some(UndoEntry::EntityAdd { entity }) => commands.entity(entity).despawn_recursive(),
+            None => info!("nothing to undo"),
         }
     }
 }
