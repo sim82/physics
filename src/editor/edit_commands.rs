@@ -79,4 +79,12 @@ impl<'w, 's> EditCommands<'w, 's> {
                 .push_matrial_set(entity, face, old_material, material);
         }
     }
+
+    pub fn remove_entity(&mut self, primary: Entity) {
+        if let Ok((material_props, brush)) = self.brush_query.get(primary) {
+            self.undo_stack
+                .push_brush_remove(primary, brush.clone(), material_props.clone());
+        }
+        self.commands.entity(primary).insert(components::Despawn);
+    }
 }

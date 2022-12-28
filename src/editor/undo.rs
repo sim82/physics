@@ -1,7 +1,10 @@
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 
 use crate::csg;
 use crate::editor::components;
+
+use super::components::BrushMaterialProperties;
 
 #[derive(Debug, Clone)]
 pub enum UndoEntry {
@@ -19,15 +22,27 @@ pub enum UndoEntry {
         old_material: String,
         material: String,
     },
+    BrushRemove {
+        entity: Entity,
+        brush: csg::Brush,
+        material_props: BrushMaterialProperties,
+    },
 }
 
 #[derive(Resource, Default)]
 pub struct UndoStack {
     pub stack: Vec<UndoEntry>,
     pub open: bool,
+    entity_recreate_map: HashMap<Entity, Entity>,
 }
 
 impl UndoStack {
+    fn remap_entity(&self, entity: Entity) -> Entity {
+        match self.entity_recreate_map.get(&entity) {
+            Some(entity) => *entity,
+            None => entity,
+        }
+    }
     pub fn commit(&mut self) {
         info!("commit");
         self.open = false;
@@ -82,6 +97,19 @@ impl UndoStack {
             material,
         })
     }
+
+    pub fn push_brush_remove(
+        &mut self,
+        entity: Entity,
+        brush: csg::Brush,
+        material_props: components::BrushMaterialProperties,
+    ) {
+        self.stack.push(UndoEntry::BrushRemove {
+            entity,
+            brush,
+            material_props,
+        });
+    }
 }
 
 pub fn undo_system(
@@ -97,6 +125,7 @@ pub fn undo_system(
                 start_brush,
                 brush: _,
             }) => {
+                let entity = undo_stack.remap_entity(entity);
                 commands
                     .entity(entity)
                     .insert(components::EditUpdate::BrushDrag {
@@ -110,6 +139,7 @@ pub fn undo_system(
                     });
             }
             Some(UndoEntry::EntityAdd { entity }) => {
+                let entity = undo_stack.remap_entity(entity);
                 commands.entity(entity).insert(components::Despawn);
             }
             Some(UndoEntry::MaterialSet {
@@ -118,9 +148,24 @@ pub fn undo_system(
                 old_material,
                 material,
             }) => {
+                let entity = undo_stack.remap_entity(entity);
+
                 if let Ok(mut material_props) = material_properties_query.get_mut(entity) {
                     material_props.materials[face as usize] = old_material;
                 }
+            }
+            Some(UndoEntry::BrushRemove {
+                entity,
+                brush,
+                material_props,
+            }) => {
+                let new_entity = commands
+                    .spawn(
+                        components::EditorObjectBrushBundle::from_brush(brush)
+                            .with_material_properties(material_props),
+                    )
+                    .id();
+                undo_stack.entity_recreate_map.insert(entity, new_entity);
             }
             None => info!("nothing to undo"),
         }

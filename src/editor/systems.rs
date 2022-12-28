@@ -129,6 +129,12 @@ pub fn editor_input_system(
         clear_selection = true;
     }
 
+    if keycodes.just_pressed(KeyCode::X) {
+        if let Ok(primary) = selection_query.get_single() {
+            edit_commands.remove_entity(primary);
+        }
+    }
+
     if clear_selection {
         for entity in &selection_query {
             commands.entity(entity).remove::<components::Selected>();
