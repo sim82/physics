@@ -39,7 +39,10 @@ pub struct UndoStack {
 impl UndoStack {
     fn remap_entity(&self, entity: Entity) -> Entity {
         match self.entity_recreate_map.get(&entity) {
-            Some(entity) => *entity,
+            Some(mapped_entity) => {
+                info!("remap {:?} {:?}", entity, mapped_entity);
+                *mapped_entity
+            }
             None => entity,
         }
     }
@@ -119,7 +122,9 @@ pub fn undo_system(
     mut material_properties_query: Query<&mut components::BrushMaterialProperties>,
 ) {
     if keycodes.just_pressed(KeyCode::Z) {
-        match undo_stack.stack.pop() {
+        let undo_entry = undo_stack.stack.pop();
+        info!("undo: {:?}", undo_entry);
+        match undo_entry {
             Some(UndoEntry::BrushDrag {
                 entity,
                 start_brush,
@@ -141,6 +146,7 @@ pub fn undo_system(
             Some(UndoEntry::EntityAdd { entity }) => {
                 let entity = undo_stack.remap_entity(entity);
                 commands.entity(entity).insert(components::Despawn);
+                // TODO: remove all entries in entity_recreate_map that point to [entity]
             }
             Some(UndoEntry::MaterialSet {
                 entity,

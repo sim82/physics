@@ -58,13 +58,17 @@ impl<'w, 's> EditCommands<'w, 's> {
         // info!("new brush: {:?}", entity);
     }
 
-    pub fn duplicate_brush(&mut self, entity: Entity) {
-        if let Ok((material_properties, brush)) = self.brush_query.get(entity) {
-            self.commands.spawn((
-                components::EditorObjectBrushBundle::from_brush(brush.clone())
-                    .with_material_properties(material_properties.clone()),
-                components::Selected,
-            ));
+    pub fn duplicate_brush(&mut self, template_entity: Entity) {
+        if let Ok((material_properties, brush)) = self.brush_query.get(template_entity) {
+            let entity = self
+                .commands
+                .spawn((
+                    components::EditorObjectBrushBundle::from_brush(brush.clone())
+                        .with_material_properties(material_properties.clone()),
+                    components::Selected,
+                ))
+                .id();
+            self.undo_stack.push_entity_add(entity);
         }
     }
 
