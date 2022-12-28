@@ -19,6 +19,7 @@ pub struct EditCommands<'w, 's> {
             &'static csg::Brush,
         ),
     >,
+    pub transform_query: Query<'w, 's, &'static mut Transform, With<components::EditablePoint>>,
 }
 impl<'w, 's> EditCommands<'w, 's> {
     pub fn update_brush_drag(
@@ -33,15 +34,15 @@ impl<'w, 's> EditCommands<'w, 's> {
             .insert(components::EditUpdate::BrushDrag { brush });
     }
 
-    pub fn end_brush_drag(&mut self, entity: Entity) {
+    pub fn end_drag(&mut self, entity: Entity) {
         self.commands
             .entity(entity)
             .remove::<components::DragAction>();
 
-        if !matches!(self.undo_stack.stack.last(), Some(undo::UndoEntry::BrushDrag { entity: top_entity, start_brush: _, brush: _ }) if *top_entity == entity)
-        {
-            warn!("undo stack top entity doesn ot match end_brush_drag")
-        }
+        // if !matches!(self.undo_stack.stack.last(), Some(undo::UndoEntry::BrushDrag { entity: top_entity, start_brush: _, brush: _ }) if *top_entity == entity)
+        // {
+        //     warn!("undo stack top entity doesn ot match end_brush_drag")
+        // }
         self.undo_stack.commit();
     }
 
@@ -58,6 +59,14 @@ impl<'w, 's> EditCommands<'w, 's> {
         // info!("new brush: {:?}", entity);
     }
 
+    pub fn add_pointlight(&mut self) {
+        let entity = self
+            .commands
+            .spawn(components::EditorObjectPointlightBundle::default())
+            .id();
+
+        self.undo_stack.push_entity_add(entity);
+    }
     pub fn duplicate_brush(&mut self, template_entity: Entity) {
         if let Ok((material_properties, brush)) = self.brush_query.get(template_entity) {
             let entity = self
@@ -90,5 +99,15 @@ impl<'w, 's> EditCommands<'w, 's> {
                 .push_brush_remove(primary, brush.clone(), material_props.clone());
         }
         self.commands.entity(primary).insert(components::Despawn);
+    }
+
+    pub fn update_point_transform(&mut self, entity: Entity, update: Transform) {
+        if let Ok(mut transform) = self.transform_query.get_mut(entity) {
+            let old_transform = *transform;
+            transform.translation = update.translation;
+
+            self.undo_stack
+                .push_point_drag(entity, old_transform, *transform);
+        }
     }
 }

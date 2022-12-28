@@ -382,13 +382,13 @@ pub fn edit_input_system(
 
     camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<&csg::Brush, Without<components::DragAction>>,
-    point_query: Query<
-        &Transform,
-        (
-            With<components::EditablePoint>,
-            Without<components::DragAction>,
-        ),
-    >,
+    // point_query: Query<
+    //     &Transform,
+    //     (
+    //         With<components::EditablePoint>,
+    //         Without<components::DragAction>,
+    //     ),
+    // >,
     brush_drag_query: Query<
         (
             Entity,
@@ -398,10 +398,7 @@ pub fn edit_input_system(
         ),
         Without<components::EditablePoint>,
     >,
-    mut point_drag_query: Query<
-        (Entity, &components::DragAction, &mut Transform),
-        With<components::EditablePoint>,
-    >,
+    point_drag_query: Query<(Entity, &components::DragAction), With<components::EditablePoint>>,
     selected_query: Query<Entity, With<components::Selected>>,
     // mut transform_query: Query<&mut Transform>,
 ) {
@@ -450,7 +447,7 @@ pub fn edit_input_system(
                             });
                             info!("start whole-brush drag for {:?}", primary);
                         }
-                    } else if let Ok(transform) = point_query.get(primary) {
+                    } else if let Ok(transform) = edit_commands.transform_query.get(primary) {
                         info!("light drag start");
 
                         commands.entity(primary).insert(components::DragAction {
@@ -481,7 +478,6 @@ pub fn edit_input_system(
                 // update dragged objects. Do this in two steps, only touch EditorObject as mutable if there is a relevant change
                 // to prevent triggering the bevy change detection.
                 // let mut csg_updates = Vec::new();
-                let mut transform_updates = Vec::new();
                 for (entity, drag_action, brush, _) in &brush_drag_query {
                     let drag_delta = ray.origin - drag_action.start_ray.origin;
 
@@ -515,51 +511,27 @@ pub fn edit_input_system(
                                 relevant_change = true;
                             }
                             if relevant_change {
-                                // let csg: Result<csg::Csg, _> = new_brush.clone().try_into();
-                                // match csg {
-                                // Ok(csg) => {
-                                // let (center, radius) = csg.bounding_sphere();
                                 edit_commands.update_brush_drag(entity, brush, new_brush);
-
-                                // }
-                                // Err(_) => {
-                                // warn!("edit action degenerates brush. ignoring.");
-                                // }
-                                // }
                             }
                         }
                         _ => warn!("invalid drag action in brush object"),
                     }
                 }
 
-                for (entity, drag_action, _) in &point_drag_query {
+                for (entity, drag_action) in &point_drag_query {
                     let drag_delta = ray.origin - drag_action.start_ray.origin;
 
                     debug!("drag: {:?} on point {:?}", drag_delta, entity);
 
                     match &drag_action.action {
                         components::DragActionType::NonBrush { start_translation } => {
-                            transform_updates.push((entity, *start_translation + drag_delta));
+                            // transform_updates.push((entity, *start_translation + drag_delta));
+                            edit_commands.update_point_transform(
+                                entity,
+                                Transform::from_translation(*start_translation + drag_delta),
+                            );
                         }
                         _ => warn!("invalid drag action in editable point."),
-                    }
-                }
-
-                // info!("updates: {:?}", updates);
-
-                // for (entity, (obj, bounds)) in csg_updates {
-                //     info!("apply update on {:?}", entity);
-                //     if let Ok((_, _, mut target_obj, mut target_bounds)) =
-                //         brush_drag_query.get_mut(entity)
-                //     {
-                //         *target_obj = obj;
-                //         *target_bounds = bounds;
-                //     }
-                // }
-
-                for (entity, translation) in transform_updates {
-                    if let Ok((_, _, mut transform)) = point_drag_query.get_mut(entity) {
-                        transform.translation = translation;
                     }
                 }
             }
@@ -572,9 +544,9 @@ pub fn edit_input_system(
                 for entity in brush_drag_query
                     .iter()
                     .map(|(e, _, _, _)| e)
-                    .chain(point_drag_query.iter().map(|(e, _, _)| e))
+                    .chain(point_drag_query.iter().map(|(e, _)| e))
                 {
-                    edit_commands.end_brush_drag(entity);
+                    edit_commands.end_drag(entity);
                     info!("stop drag for {:?}", entity);
                 }
             }

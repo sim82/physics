@@ -94,19 +94,8 @@ pub fn editor_input_system(
     }
 
     if keycodes.just_pressed(KeyCode::L) {
-        let entity = commands
-            .spawn(components::EditorObjectPointlightBundle::default())
-            //     (
-            //     SpatialBundle::default(),
-            //     EditorObjectBundle { ..default() },
-            //     components::PointLightProperties {
-            //         shadows_enabled: true,
-            //         ..default()
-            //     },
-            //     Name::new("PointLight"),
-            //     components::Selected,
-            // ))
-            .id();
+        edit_commands.add_pointlight();
+
         clear_selection = true;
 
         // selection.primary = Some(entity);
@@ -550,7 +539,16 @@ pub fn track_lights_system(
             Without<Children>,
         ),
     >,
-    // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
+    despawn_query: Query<
+        Entity,
+        (
+            Or<(
+                With<components::PointLightProperties>,
+                With<components::DirectionalLightProperties>,
+            )>,
+            With<components::Despawn>,
+        ),
+    >, // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
 ) {
     for (entity, light_props, transform) in &query {
         // if !matches!(editor_object, EditorObject::PointLight(_)) {
@@ -678,6 +676,9 @@ pub fn track_lights_system(
         // .insert(NotShadowReceiver)
         // .insert(EditorObjectLinkedBevyTransform(light_entity))
         // .add_child(light_entity);
+    }
+    for entity in &despawn_query {
+        commands.entity(entity).despawn_recursive();
     }
 }
 

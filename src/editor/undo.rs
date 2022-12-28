@@ -27,6 +27,11 @@ pub enum UndoEntry {
         brush: csg::Brush,
         material_props: BrushMaterialProperties,
     },
+    PointDrag {
+        entity: Entity,
+        start_transform: Transform,
+        transform: Transform,
+    },
 }
 
 #[derive(Resource, Default)]
@@ -113,6 +118,37 @@ impl UndoStack {
             material_props,
         });
     }
+
+    pub fn push_point_drag(
+        &mut self,
+        entity: Entity,
+        start_transform: Transform,
+        transform: Transform,
+    ) {
+        match (self.open, self.stack.last_mut()) {
+            (
+                true,
+                Some(UndoEntry::PointDrag {
+                    entity: old_entity,
+                    start_transform: _,
+                    transform: transform_update,
+                }),
+            ) if entity == *old_entity => {
+                // info!("update undo entry");
+                *transform_update = transform;
+            }
+            _ => {
+                // info!("new undo entry");
+
+                self.stack.push(UndoEntry::PointDrag {
+                    entity,
+                    start_transform,
+                    transform,
+                });
+                self.open = true;
+            }
+        }
+    }
 }
 
 pub fn undo_system(
@@ -120,6 +156,7 @@ pub fn undo_system(
     keycodes: Res<Input<KeyCode>>,
     mut undo_stack: ResMut<UndoStack>,
     mut material_properties_query: Query<&mut components::BrushMaterialProperties>,
+    mut transform_query: Query<&mut Transform>,
 ) {
     if keycodes.just_pressed(KeyCode::Z) {
         let undo_entry = undo_stack.stack.pop();
@@ -172,6 +209,15 @@ pub fn undo_system(
                     )
                     .id();
                 undo_stack.entity_recreate_map.insert(entity, new_entity);
+            }
+            Some(UndoEntry::PointDrag {
+                entity,
+                start_transform,
+                transform: _,
+            }) => {
+                if let Ok(mut transform) = transform_query.get_mut(entity) {
+                    *transform = start_transform;
+                }
             }
             None => info!("nothing to undo"),
         }

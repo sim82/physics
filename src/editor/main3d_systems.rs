@@ -9,16 +9,11 @@ use super::{components, edit_commands::EditCommands, resources, util};
 
 #[allow(clippy::too_many_arguments)]
 pub fn select_input_system(
-    mut commands: Commands,
     mut edit_commands: EditCommands,
     mut event_reader: EventReader<util::WmEvent>,
-    mut selection: ResMut<resources::Selection>,
-    editor_windows_2d: Res<resources::EditorWindows2d>,
     mut material_browser: ResMut<resources::MaterialBrowser>,
     camera_query: Query<(&GlobalTransform, &Camera), With<components::Main3dCamera>>,
     processed_csg_query: Query<(Entity, &components::ProcessedCsg)>,
-    point_query: Query<(Entity, &Transform), With<components::EditablePoint>>,
-    selected_query: Query<Entity, With<components::Selected>>,
 ) {
     for event in event_reader.iter() {
         if let util::WmEvent::Clicked {
