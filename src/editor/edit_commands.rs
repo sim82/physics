@@ -62,7 +62,10 @@ impl<'w, 's> EditCommands<'w, 's> {
     pub fn add_pointlight(&mut self) {
         let entity = self
             .commands
-            .spawn(components::EditorObjectPointlightBundle::default())
+            .spawn((
+                components::EditorObjectPointlightBundle::default(),
+                components::Selected,
+            ))
             .id();
 
         self.undo_stack.push_entity_add(entity);
@@ -87,6 +90,7 @@ impl<'w, 's> EditCommands<'w, 's> {
                 &mut material_props.materials[face as usize],
                 material.clone(),
             );
+            self.commands.entity(entity).insert(components::CsgDirty);
 
             self.undo_stack
                 .push_matrial_set(entity, face, old_material, material);

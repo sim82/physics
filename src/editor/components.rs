@@ -63,6 +63,7 @@ pub struct EditorObjectBrushBundle {
     // pub csg_output_link: EditorObjectOutputLink,
     // pub render_layers: bevy::render::view::RenderLayers,
     pub name: Name,
+    pub csg_dirty: CsgDirty,
 }
 
 impl EditorObjectBrushBundle {
@@ -89,6 +90,7 @@ impl EditorObjectBrushBundle {
             //     render_layers::TOP_2D,
             // ]),
             name: Name::new("Brush"),
+            csg_dirty: CsgDirty,
         }
     }
 
@@ -217,6 +219,10 @@ pub struct CsgRepresentation {
 pub struct ProcessedCsg {
     pub bsp: csg::Node,
 }
+
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct CsgDirty;
 
 // #[derive(Component, Default)]
 // pub struct EditorObjectOutputLink {

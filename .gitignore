@@ -7,5 +7,6 @@ ext/*
 *.ron
 cache/*
 windows.yaml
+wm_settings.yaml
 scene.ron
 *.wsx

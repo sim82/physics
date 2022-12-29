@@ -181,13 +181,7 @@ pub fn create_brush_csg_system_inc(
     mut meshes: ResMut<Assets<Mesh>>,
     materials_res: ResMut<resources::Materials>,
 
-    mut query_changed: Query<
-        (Entity, &CsgRepresentation, &Transform),
-        Or<(
-            Changed<components::CsgRepresentation>,
-            Changed<components::BrushMaterialProperties>,
-        )>,
-    >,
+    mut query_changed: Query<(Entity, &CsgRepresentation, &Transform), With<components::CsgDirty>>,
     query_csg: Query<(
         &CsgRepresentation,
         &Transform,
@@ -338,6 +332,10 @@ pub fn create_brush_csg_system_inc(
         //         csg_output.entities.push(entity);
         //     }
         // }
+    }
+
+    for (entity, _, _) in &query_changed {
+        commands.entity(entity).remove::<components::CsgDirty>();
     }
 
     if num_affected > 0 {
@@ -696,6 +694,8 @@ pub fn track_brush_updates(
         spatial_index.update(entity, None, csg_repr.bounds);
         added_set.insert(entity);
     }
+
+    let mut spatial_dirty_set = HashSet::new();
     for (entity, mut old_brush, mut old_csg_repr, edit_update) in &mut query_modified {
         if added_set.contains(&entity) {
             continue;
@@ -711,6 +711,12 @@ pub fn track_brush_updates(
                     spatial_index.update(entity, Some(old_csg_repr.bounds), bounds);
                     *old_brush = brush.clone();
                     *old_csg_repr = components::CsgRepresentation { csg, bounds };
+
+                    spatial_dirty_set.extend(
+                        spatial_index
+                            .query(bounds)
+                            .chain(spatial_index.query(old_csg_repr.bounds)),
+                    );
                 }
             }
         }
@@ -720,6 +726,11 @@ pub fn track_brush_updates(
     for (entity, csg_repr) in &brush_despawn {
         commands.entity(entity).despawn_recursive();
         spatial_index.remove(entity, csg_repr.bounds);
+        spatial_dirty_set.extend(spatial_index.query(csg_repr.bounds));
+    }
+
+    for dirty in spatial_dirty_set {
+        commands.entity(dirty).insert(components::CsgDirty);
     }
 }
 

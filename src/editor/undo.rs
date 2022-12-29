@@ -195,6 +195,7 @@ pub fn undo_system(
 
                 if let Ok(mut material_props) = material_properties_query.get_mut(entity) {
                     material_props.materials[face as usize] = old_material;
+                    commands.entity(entity).insert(components::CsgDirty);
                 }
             }
             Some(UndoEntry::BrushRemove {
