@@ -34,7 +34,7 @@ impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(systems::setup);
         app.add_startup_system(ortho_systems::setup_editor_system)
-            .init_resource::<resources::Selection>()
+            .init_resource::<resources::SelectionPickSet>()
             .init_resource::<resources::EditorWindows2d>();
 
         app.init_resource::<undo::UndoStack>();

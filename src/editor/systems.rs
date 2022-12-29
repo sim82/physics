@@ -1,7 +1,7 @@
 use super::{
     components::{self, CsgOutput, CsgRepresentation, PointLightProperties},
     edit_commands::EditCommands,
-    resources::{self, Selection, SpatialBounds, SpatialIndex},
+    resources::{self, SelectionPickSet, SpatialBounds, SpatialIndex},
     CleanupCsgOutputEvent,
 };
 use crate::{
@@ -67,23 +67,12 @@ pub fn editor_input_system(
     mut commands: Commands,
     mut edit_commands: EditCommands,
     keycodes: Res<Input<KeyCode>>,
-    mut selection: ResMut<Selection>,
-    // query: Query<(&csg::Brush, &components::BrushMaterialProperties)>,
     selection_query: Query<Entity, With<components::Selected>>,
 ) {
     let mut clear_selection = false;
     if keycodes.just_pressed(KeyCode::B) {
-        // let entity = commands
-        //     .spawn((
-        //         EditorObjectBrushBundle::from_brush(default()),
-        //         components::Selected,
-        //     ))
-        //     .id();
         edit_commands.add_brush(default());
         clear_selection = true;
-        // info!("new brush: {:?}", entity);
-        // selection.primary = Some(entity);
-        // spatial_index.sstree.insert(entity, center, radius);
     }
 
     if keycodes.just_pressed(KeyCode::D) {
@@ -95,28 +84,15 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::L) {
         edit_commands.add_pointlight();
-
-        clear_selection = true;
-
-        // selection.primary = Some(entity);
-    }
-
-    if keycodes.just_pressed(KeyCode::K) {
-        let entity = commands
-            .spawn(components::EditorObjectDirectionalLightBundle::default())
-            //     (
-            //     SpatialBundle::default(),
-            //     EditorObjectBundle { ..default() },
-            //     components::PointLightProperties {
-            //         shadows_enabled: true,
-            //         ..default()
-            //     },
-            //     Name::new("PointLight"),
-            //     components::Selected,
-            // ))
-            .id();
         clear_selection = true;
     }
+
+    // if keycodes.just_pressed(KeyCode::K) {
+    //     let entity = commands
+    //         .spawn(components::EditorObjectDirectionalLightBundle::default())
+    //         .id();
+    //     clear_selection = true;
+    // }
 
     if keycodes.just_pressed(KeyCode::X) {
         if let Ok(primary) = selection_query.get_single() {

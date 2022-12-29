@@ -258,9 +258,6 @@ pub fn adjust_clip_planes_system(
     let Some((upper_min, upper_max)) = ortho_view_bounds(upper_camera, upper_transform) else { return };
     let Some((lower_min, lower_max)) = ortho_view_bounds(lower_camera, lower_transform) else { return };
 
-    // info!("upper bounds: {:?} {:?}", upper_min, upper_max);
-    // info!("lower bounds: {:?} {:?}", lower_min, lower_max);
-
     {
         let min = upper_orientation.get_up_axis(upper_min);
         let max = upper_orientation.get_up_axis(upper_max);
@@ -280,22 +277,6 @@ pub fn adjust_clip_planes_system(
     }
 
     {
-        // let ymin = lower_min.y;
-        // let ymax = lower_max.y;
-
-        // let Ok((_, _, mut upper_projection, mut upper_transform)) = camera_query.get_mut(upper.camera) else {
-        //     return;
-        // };
-        // let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
-        //     return;
-        // };
-
-        // upper_transform.translation.y = ymax;
-        // upper_ortho.far = ymax - ymin;
-
-        // editor_windows_2d.view_max.y = ymax;
-        // editor_windows_2d.view_min.y = ymin;
-
         let min = lower_orientation.get_up_axis(lower_min);
         let max = lower_orientation.get_up_axis(lower_max);
 
@@ -353,19 +334,11 @@ pub fn edit_input_system(
     mut edit_commands: EditCommands,
     mut commands: Commands,
     mut event_reader: EventReader<util::WmEvent>,
-    // mut undo_stack: ResMut<undo::UndoStack>,
     keycodes: Res<Input<KeyCode>>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
 
     camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<&csg::Brush, Without<components::DragAction>>,
-    // point_query: Query<
-    //     &Transform,
-    //     (
-    //         With<components::EditablePoint>,
-    //         Without<components::DragAction>,
-    //     ),
-    // >,
     brush_drag_query: Query<
         (
             Entity,
@@ -377,7 +350,6 @@ pub fn edit_input_system(
     >,
     point_drag_query: Query<(Entity, &components::DragAction), With<components::EditablePoint>>,
     selected_query: Query<Entity, With<components::Selected>>,
-    // mut transform_query: Query<&mut Transform>,
 ) {
     for event in event_reader.iter() {
         debug!("event edit: {:?}", event);
@@ -502,7 +474,6 @@ pub fn edit_input_system(
 
                     match &drag_action.action {
                         components::DragActionType::NonBrush { start_translation } => {
-                            // transform_updates.push((entity, *start_translation + drag_delta));
                             edit_commands.update_point_transform(
                                 entity,
                                 Transform::from_translation(*start_translation + drag_delta),
@@ -536,7 +507,7 @@ pub fn edit_input_system(
 pub fn select_input_system(
     mut commands: Commands,
     mut event_reader: EventReader<util::WmEvent>,
-    mut selection: ResMut<resources::Selection>,
+    mut selection: ResMut<resources::SelectionPickSet>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
     camera_query: Query<(&GlobalTransform, &Camera)>,
     brush_query: Query<(Entity, &csg::Brush, &components::CsgRepresentation)>,
