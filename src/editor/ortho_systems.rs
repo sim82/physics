@@ -62,21 +62,21 @@ pub fn enter_editor_state(
         // lazy create camera entities
         match editor_windows_2d.windows.entry(name.to_string()) {
             bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
-                let settings =
-                    settings_map
-                        .get(name)
-                        .cloned()
-                        .unwrap_or(resources::EditorWindowSettings {
-                            pos_x: 0,
-                            pos_y: 0,
-                            width: 800,
-                            height: 600,
-                            orientation: t,
-                        });
+                // let settings =
+                //     settings_map
+                //         .get(name)
+                //         .cloned()
+                //         .unwrap_or(resources::EditorWindowSettings {
+                //             pos_x: 0,
+                //             pos_y: 0,
+                //             width: 800,
+                //             height: 600,
+                //             orientation: t,
+                //         });
 
                 let entity = commands
                     .spawn(Camera3dBundle {
-                        transform: settings.orientation.get_transform(),
+                        transform: t.get_transform(),
                         camera,
                         projection: Projection::Orthographic(OrthographicProjection {
                             scaling_mode: ScalingMode::FixedHorizontal(10.0),
@@ -91,7 +91,7 @@ pub fn enter_editor_state(
                 e.insert(resources::EditorWindow2d {
                     camera: entity,
                     offscreen_image,
-                    settings,
+                    orientation: t,
                 });
             }
 
@@ -110,25 +110,6 @@ pub fn leave_editor_state(
 ) {
     for entity in &query {
         commands.entity(entity).remove::<Camera>();
-    }
-}
-
-pub fn write_window_settings(
-    mut last_written_settings: Local<BTreeMap<String, resources::EditorWindowSettings>>,
-    editor_windows_2d: Res<resources::EditorWindows2d>,
-) {
-    let settings = editor_windows_2d
-        .windows
-        .iter()
-        .map(|(name, window)| (name.clone(), window.settings))
-        .collect::<BTreeMap<_, _>>();
-
-    if settings != *last_written_settings {
-        if let Ok(file) = std::fs::File::create("windows.yaml") {
-            let _ = serde_yaml::to_writer(file, &settings);
-            *last_written_settings = settings;
-            info!("window settings written");
-        }
     }
 }
 
@@ -263,8 +244,8 @@ pub fn adjust_clip_planes_system(
         return;
     };
 
-    let upper_orientation = &upper.settings.orientation;
-    let lower_orientation = &lower.settings.orientation;
+    let upper_orientation = &upper.orientation;
+    let lower_orientation = &lower.orientation;
 
     let Ok((upper_transform, upper_camera, _upper_projection, _)) = camera_query.get(upper.camera) else {
         return;
@@ -335,21 +316,17 @@ pub fn adjust_clip_planes_system(
     if keycodes.just_pressed(KeyCode::F2) {
         let mut right = 0.0;
         if let Some(window) = editor_windows_2d.windows.get_mut(resources::UPPER_WINDOW) {
-            window.settings.orientation = window.settings.orientation.flipped();
+            window.orientation = window.orientation.flipped();
             if let Ok((_, _, _, mut transform)) = camera_query.get_mut(window.camera) {
-                transform.rotation = window.settings.orientation.get_transform().rotation;
-                right = window
-                    .settings
-                    .orientation
-                    .get_right_axis(transform.translation);
+                transform.rotation = window.orientation.get_transform().rotation;
+                right = window.orientation.get_right_axis(transform.translation);
             };
         }
         if let Some(window) = editor_windows_2d.windows.get_mut(resources::LOWER_WINDOW) {
-            window.settings.orientation = window.settings.orientation.flipped();
+            window.orientation = window.orientation.flipped();
             if let Ok((_, _, _, mut transform)) = camera_query.get_mut(window.camera) {
-                transform.rotation = window.settings.orientation.get_transform().rotation;
+                transform.rotation = window.orientation.get_transform().rotation;
                 *window
-                    .settings
                     .orientation
                     .get_right_axis_mut(&mut transform.translation) = right;
             };

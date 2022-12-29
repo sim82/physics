@@ -89,7 +89,7 @@ impl Plugin for EditorPlugin {
             CsgStage,
             SystemStage::parallel()
                 .with_run_criteria(FixedTimestep::step(0.1))
-                .with_system(ortho_systems::write_window_settings) // running as guest, just for fixed timestep...
+                .with_system(wm_systems::write_view_settings) // running as guest, just for fixed timestep...
                 .with_system(systems::create_brush_csg_system_inc),
         );
 

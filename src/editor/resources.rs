@@ -33,7 +33,7 @@ pub struct EditorWindowSettings {
 pub struct EditorWindow2d {
     pub camera: Entity,
     pub offscreen_image: Handle<Image>,
-    pub settings: EditorWindowSettings,
+    pub orientation: Orientation2d,
 }
 
 pub struct TranslateDrag {
@@ -55,6 +55,7 @@ pub struct EditorWindows2d {
     pub translate_drag: Option<TranslateDrag>,
     pub view_min: Vec3,
     pub view_max: Vec3,
+    // pub
 }
 
 impl EditorWindows2d {
@@ -299,11 +300,26 @@ pub enum WmSidpanelContent {
     Miscsettings,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
+pub struct WmSettings {
+    pub ortho_separator: f32,
+    pub sidepanel_separator: f32,
+}
+
+impl Default for WmSettings {
+    fn default() -> Self {
+        Self {
+            ortho_separator: 768.0,
+            sidepanel_separator: 512.0,
+        }
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct WmState {
     pub slot_upper2d: WmSlot,
     pub slot_lower2d: WmSlot,
     pub slot_main3d: WmSlot,
-    pub separator_bias: f32,
     pub sidepanel_content: WmSidpanelContent,
+    pub settings: WmSettings,
 }

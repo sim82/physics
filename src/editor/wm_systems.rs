@@ -8,7 +8,7 @@ use crate::{editor::util::WmMouseButton, render_layers::MAIN_3D};
 
 use super::{
     gui_systems,
-    resources::{self, WmSidpanelContent, WmSlot},
+    resources::{self, WmSettings, WmSidpanelContent, WmSlot},
     util::{WmEvent, WmEventPointerState},
 };
 
@@ -20,6 +20,12 @@ pub fn wm_test_setup_system(
     wm_state.slot_upper2d = WmSlot::new(&mut image_assets, &mut egui_context);
     wm_state.slot_lower2d = WmSlot::new(&mut image_assets, &mut egui_context);
     wm_state.slot_main3d = WmSlot::new(&mut image_assets, &mut egui_context);
+
+    if let Ok(file) = std::fs::File::open("wm_settings.yaml") {
+        // TODO: migration strategy
+        wm_state.settings =
+            serde_yaml::from_reader(file).expect("failed to deserialize wm settings");
+    }
 }
 
 pub fn wm_test_system(
@@ -35,11 +41,12 @@ pub fn wm_test_system(
 
     egui::SidePanel::left("left side panel")
         .resizable(true)
-        .default_width(768.0)
+        .default_width(wm_state.settings.sidepanel_separator)
         .show(egui_context.ctx_mut(), |ui| {
+            wm_state.settings.sidepanel_separator = ui.available_width();
             ui.vertical(|ui| {
                 // info!("avalable: {:?}", ui.available_width());
-                let width = ui.available_width();
+                let width = ui.available_width().round();
                 let size = egui::Vec2::new(width, width / 1.6);
 
                 let image = egui::Image::new(wm_state.slot_main3d.offscreen_egui_texture, size)
@@ -115,8 +122,10 @@ pub fn wm_test_system(
         egui::TopBottomPanel::top("top 2d view")
             .resizable(true)
             .min_height(32.0)
-            .default_height(512.0)
+            .default_height(wm_state.settings.ortho_separator)
             .show(ui.ctx(), |ui| {
+                wm_state.settings.ortho_separator = ui.available_height().round();
+                // info!("size: {:?}", ui.available_size());
                 let size_upper = ui.available_size();
                 show_2d_view(
                     ui,
@@ -237,6 +246,19 @@ fn send_wm_events_for_egui_response(
                 button: WmMouseButton::Right,
                 pointer_state,
             });
+        }
+    }
+}
+
+pub fn write_view_settings(
+    wm_state: Res<resources::WmState>,
+    mut last_written_settings: Local<WmSettings>,
+) {
+    if wm_state.settings != *last_written_settings {
+        if let Ok(file) = std::fs::File::create("wm_settings.yaml") {
+            let _ = serde_yaml::to_writer(file, &wm_state.settings);
+            *last_written_settings = wm_state.settings;
+            info!("window settings written");
         }
     }
 }
