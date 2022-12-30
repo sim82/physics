@@ -1,6 +1,6 @@
 use super::{
     components::{self, CsgOutput, CsgRepresentation, PointLightProperties},
-    edit_commands::{add_brush, duplicate_brush, EditCommands},
+    edit_commands::{add_brush, add_pointlight, duplicate_brush, remove_entity, EditCommands},
     resources::{self, SelectionPickSet, SpatialBounds, SpatialIndex},
     CleanupCsgOutputEvent,
 };
@@ -85,7 +85,7 @@ pub fn editor_input_system(
     }
 
     if keycodes.just_pressed(KeyCode::L) {
-        edit_commands.add_pointlight();
+        edit_commands.apply(add_pointlight::Command);
         clear_selection = true;
     }
 
@@ -98,7 +98,7 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::X) {
         if let Ok(primary) = selection_query.get_single() {
-            edit_commands.remove_entity(primary);
+            edit_commands.apply(remove_entity::Command { entity: primary });
         }
     }
 

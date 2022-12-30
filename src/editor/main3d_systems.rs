@@ -3,7 +3,10 @@ use std::f32::NEG_INFINITY;
 use bevy::prelude::*;
 use bevy_inspector_egui::egui::plot::Polygon;
 
-use crate::{csg, editor::edit_commands};
+use crate::{
+    csg,
+    editor::edit_commands::{self, set_brush_material},
+};
 
 use super::{components, edit_commands::EditCommands, resources, util};
 
@@ -69,11 +72,11 @@ pub fn select_input_system(
                 if button == util::WmMouseButton::Left
                     && !material_browser.selected_material.is_empty()
                 {
-                    edit_commands.set_brush_material(
+                    edit_commands.apply(set_brush_material::Command {
                         entity,
-                        appearance,
-                        material_browser.selected_material.clone(),
-                    );
+                        face: appearance,
+                        material: material_browser.selected_material.clone(),
+                    });
                     // material_properties.materials[appearance as usize] =
                     //     material_browser.selected_material.clone();
                     info!(

@@ -157,6 +157,200 @@ pub mod duplicate_brush {
     }
 }
 
+pub mod add_pointlight {
+    use super::prelude::*;
+
+    pub struct Command;
+    pub use super::add_entity::Undo;
+    impl EditCommand for Command {
+        fn apply(self, commands: &mut EditCommands) -> Box<dyn UndoCommand + Send + Sync> {
+            let entity = commands
+                .commands
+                .spawn((
+                    components::EditorObjectPointlightBundle::default(),
+                    components::Selected,
+                ))
+                .id();
+
+            Box::new(Undo { entity })
+        }
+    }
+}
+
+pub mod set_brush_material {
+
+    use super::prelude::*;
+
+    pub struct Command {
+        pub entity: Entity,
+        pub face: i32,
+        pub material: String,
+    }
+
+    pub struct Undo {
+        pub entity: Entity,
+        pub face: i32,
+        pub old_material: String,
+    }
+
+    impl EditCommand for Command {
+        fn apply(self, commands: &mut EditCommands) -> Box<dyn UndoCommand + Send + Sync> {
+            if let Ok((mut material_props, _)) = commands.brush_query.get_mut(self.entity) {
+                let old_material = std::mem::replace(
+                    &mut material_props.materials[self.face as usize],
+                    self.material,
+                );
+                commands
+                    .commands
+                    .entity(self.entity)
+                    .insert(components::CsgDirty);
+
+                return Box::new(Undo {
+                    entity: self.entity,
+                    face: self.face,
+                    old_material,
+                });
+            }
+
+            panic!("material props not found for {:?}", self.entity);
+        }
+    }
+
+    impl UndoCommand for Undo {
+        fn try_merge(&mut self, other: &dyn UndoCommand) -> bool {
+            false
+        }
+
+        fn undo(&self, undo_commands: &mut UndoCommands) {
+            let entity = undo_commands.undo_stack.remap_entity(self.entity);
+
+            if let Ok(mut material_props) = undo_commands.material_properties_query.get_mut(entity)
+            {
+                material_props.materials[self.face as usize] = self.old_material.clone();
+                undo_commands
+                    .commands
+                    .entity(entity)
+                    .insert(components::CsgDirty);
+            }
+        }
+    }
+}
+
+pub mod remove_entity {
+    use crate::editor::components::BrushMaterialProperties;
+
+    use super::prelude::*;
+
+    pub struct Command {
+        pub entity: Entity,
+    }
+
+    pub enum Undo {
+        Brush {
+            entity: Entity,
+            brush: csg::Brush,
+            material_props: BrushMaterialProperties,
+        },
+        NotImplemented,
+    }
+
+    impl EditCommand for Command {
+        fn apply(self, commands: &mut EditCommands) -> Box<dyn UndoCommand + Send + Sync> {
+            let undo = if let Ok((material_props, brush)) = commands.brush_query.get(self.entity) {
+                Box::new(Undo::Brush {
+                    entity: self.entity,
+                    brush: brush.clone(),
+                    material_props: material_props.clone(),
+                })
+            } else {
+                Box::new(Undo::NotImplemented)
+            };
+            commands
+                .commands
+                .entity(self.entity)
+                .insert(components::Despawn);
+            undo
+        }
+    }
+
+    impl UndoCommand for Undo {
+        fn try_merge(&mut self, _other: &dyn UndoCommand) -> bool {
+            false
+        }
+
+        fn undo(&self, undo_commands: &mut UndoCommands) {
+            match self {
+                Undo::Brush {
+                    entity,
+                    brush,
+                    material_props,
+                } => {
+                    let new_entity = undo_commands
+                        .commands
+                        .spawn(
+                            components::EditorObjectBrushBundle::from_brush(brush.clone())
+                                .with_material_properties(material_props.clone()),
+                        )
+                        .id();
+                    undo_commands
+                        .undo_stack
+                        .entity_recreate_map
+                        .insert(*entity, new_entity);
+                }
+                Undo::NotImplemented => warn!("undo not implemented for entity remove"),
+            }
+        }
+    }
+}
+
+pub mod update_point_transform {
+    use super::prelude::*;
+
+    pub struct Command {
+        pub entity: Entity,
+        pub transform: Transform,
+    }
+
+    pub struct Undo {
+        pub entity: Entity,
+        pub old_transform: Transform,
+    }
+
+    impl EditCommand for Command {
+        fn apply(self, commands: &mut EditCommands) -> Box<dyn UndoCommand + Send + Sync> {
+            if let Ok(mut transform) = commands.transform_query.get_mut(self.entity) {
+                let old_transform = *transform;
+                transform.translation = self.transform.translation;
+
+                return Box::new(Undo {
+                    entity: self.entity,
+                    old_transform,
+                });
+            }
+
+            panic!("transform not found for {:?}", self.entity);
+        }
+    }
+
+    impl UndoCommand for Undo {
+        fn try_merge(&mut self, other: &dyn UndoCommand) -> bool {
+            if let Some(other) = other.as_any().downcast_ref::<Self>() {
+                if self.entity == other.entity {
+                    info!("merged");
+                    return true;
+                }
+            }
+            false
+        }
+
+        fn undo(&self, undo_commands: &mut UndoCommands) {
+            if let Ok(mut transform) = undo_commands.transform_query.get_mut(self.entity) {
+                *transform = self.old_transform;
+            }
+        }
+    }
+}
+
 #[derive(SystemParam)]
 pub struct EditCommands<'w, 's> {
     commands: Commands<'w, 's>,
@@ -183,74 +377,5 @@ impl<'w, 's> EditCommands<'w, 's> {
             .remove::<components::DragAction>();
 
         self.undo_stack.commit();
-    }
-
-    // pub fn add_brush(&mut self, brush: csg::Brush) {
-    //     // let entity = self
-    //     //     .commands
-    //     //     .spawn((
-    //     //         components::EditorObjectBrushBundle::from_brush(brush),
-    //     //         components::Selected,
-    //     //     ))
-    //     //     .id();
-
-    //     // self.undo_stack.push_entity_add(entity);
-    //     // info!("new brush: {:?}", entity);
-    // }
-
-    pub fn add_pointlight(&mut self) {
-        let entity = self
-            .commands
-            .spawn((
-                components::EditorObjectPointlightBundle::default(),
-                components::Selected,
-            ))
-            .id();
-
-        self.undo_stack.push_entity_add(entity);
-    }
-    // pub fn duplicate_brush(&mut self, template_entity: Entity) {
-    // if let Ok((material_properties, brush)) = self.brush_query.get(template_entity) {
-    //     let entity = self
-    //         .commands
-    //         .spawn((
-    //             components::EditorObjectBrushBundle::from_brush(brush.clone())
-    //                 .with_material_properties(material_properties.clone()),
-    //             components::Selected,
-    //         ))
-    //         .id();
-    //     self.undo_stack.push_entity_add(entity);
-    // }
-    // }
-
-    pub fn set_brush_material(&mut self, entity: Entity, face: i32, material: String) {
-        if let Ok((mut material_props, _)) = self.brush_query.get_mut(entity) {
-            let old_material = std::mem::replace(
-                &mut material_props.materials[face as usize],
-                material.clone(),
-            );
-            self.commands.entity(entity).insert(components::CsgDirty);
-
-            self.undo_stack
-                .push_matrial_set(entity, face, old_material, material);
-        }
-    }
-
-    pub fn remove_entity(&mut self, primary: Entity) {
-        if let Ok((material_props, brush)) = self.brush_query.get(primary) {
-            self.undo_stack
-                .push_brush_remove(primary, brush.clone(), material_props.clone());
-        }
-        self.commands.entity(primary).insert(components::Despawn);
-    }
-
-    pub fn update_point_transform(&mut self, entity: Entity, update: Transform) {
-        if let Ok(mut transform) = self.transform_query.get_mut(entity) {
-            let old_transform = *transform;
-            transform.translation = update.translation;
-
-            self.undo_stack
-                .push_point_drag(entity, old_transform, *transform);
-        }
     }
 }

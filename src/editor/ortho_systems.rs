@@ -18,7 +18,7 @@ use super::{
 };
 use crate::{
     csg::{self, PLANE_EPSILON},
-    editor::edit_commands::update_brush_drag,
+    editor::edit_commands::{update_brush_drag, update_point_transform},
     render_layers,
 };
 // systems related to 2d windows
@@ -479,10 +479,12 @@ pub fn edit_input_system(
 
                     match &drag_action.action {
                         components::DragActionType::NonBrush { start_translation } => {
-                            edit_commands.update_point_transform(
+                            edit_commands.apply(update_point_transform::Command {
                                 entity,
-                                Transform::from_translation(*start_translation + drag_delta),
-                            );
+                                transform: Transform::from_translation(
+                                    *start_translation + drag_delta,
+                                ),
+                            });
                         }
                         _ => warn!("invalid drag action in editable point."),
                     }

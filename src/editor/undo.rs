@@ -43,7 +43,7 @@ pub enum UndoEntry {
 pub struct UndoStack {
     pub stack: Vec<UndoEntry>,
     pub open: bool,
-    entity_recreate_map: HashMap<Entity, Entity>,
+    pub entity_recreate_map: HashMap<Entity, Entity>,
 }
 
 impl UndoStack {
@@ -219,34 +219,35 @@ pub fn undo_system(mut undo_commands: UndoCommands, keycodes: Res<Input<KeyCode>
                 old_material,
                 material,
             }) => {
-                let entity = undo_commands.undo_stack.remap_entity(entity);
+                // let entity = undo_commands.undo_stack.remap_entity(entity);
 
-                if let Ok(mut material_props) =
-                    undo_commands.material_properties_query.get_mut(entity)
-                {
-                    material_props.materials[face as usize] = old_material;
-                    undo_commands
-                        .commands
-                        .entity(entity)
-                        .insert(components::CsgDirty);
-                }
+                // if let Ok(mut material_props) =
+                //     undo_commands.material_properties_query.get_mut(entity)
+                // {
+                //     material_props.materials[face as usize] = old_material;
+                //     undo_commands
+                //         .commands
+                //         .entity(entity)
+                //         .insert(components::CsgDirty);
+                // }
+                panic!("outdated");
             }
             Some(UndoEntry::BrushRemove {
                 entity,
                 brush,
                 material_props,
             }) => {
-                let new_entity = undo_commands
-                    .commands
-                    .spawn(
-                        components::EditorObjectBrushBundle::from_brush(brush)
-                            .with_material_properties(material_props),
-                    )
-                    .id();
-                undo_commands
-                    .undo_stack
-                    .entity_recreate_map
-                    .insert(entity, new_entity);
+                // let new_entity = undo_commands
+                //     .commands
+                //     .spawn(
+                //         components::EditorObjectBrushBundle::from_brush(brush)
+                //             .with_material_properties(material_props),
+                //     )
+                //     .id();
+                // undo_commands
+                //     .undo_stack
+                //     .entity_recreate_map
+                //     .insert(entity, new_entity);
             }
             Some(UndoEntry::PointDrag {
                 entity,
