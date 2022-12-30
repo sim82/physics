@@ -1,6 +1,6 @@
 use super::{
     components::{self, CsgOutput, CsgRepresentation, PointLightProperties},
-    edit_commands::EditCommands,
+    edit_commands::{add_brush, duplicate_brush, EditCommands},
     resources::{self, SelectionPickSet, SpatialBounds, SpatialIndex},
     CleanupCsgOutputEvent,
 };
@@ -71,13 +71,15 @@ pub fn editor_input_system(
 ) {
     let mut clear_selection = false;
     if keycodes.just_pressed(KeyCode::B) {
-        edit_commands.add_brush(default());
+        edit_commands.apply(add_brush::Command { brush: default() });
         clear_selection = true;
     }
 
     if keycodes.just_pressed(KeyCode::D) {
         if let Ok(primary) = selection_query.get_single() {
-            edit_commands.duplicate_brush(primary);
+            edit_commands.apply(duplicate_brush::Command {
+                template_entity: primary,
+            });
             clear_selection = true;
         }
     }

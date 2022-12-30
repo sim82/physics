@@ -18,6 +18,7 @@ use super::{
 };
 use crate::{
     csg::{self, PLANE_EPSILON},
+    editor::edit_commands::update_brush_drag,
     render_layers,
 };
 // systems related to 2d windows
@@ -460,7 +461,11 @@ pub fn edit_input_system(
                                 relevant_change = true;
                             }
                             if relevant_change {
-                                edit_commands.update_brush_drag(entity, brush, new_brush);
+                                edit_commands.apply(update_brush_drag::Command {
+                                    entity,
+                                    start_brush: brush.clone(),
+                                    brush: new_brush,
+                                });
                             }
                         }
                         _ => warn!("invalid drag action in brush object"),

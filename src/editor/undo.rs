@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
@@ -5,8 +6,9 @@ use crate::csg;
 use crate::editor::components;
 
 use super::components::BrushMaterialProperties;
+use super::edit_commands;
 
-#[derive(Debug, Clone)]
+// #[derive(Clone)]
 pub enum UndoEntry {
     BrushDrag {
         entity: Entity,
@@ -32,6 +34,9 @@ pub enum UndoEntry {
         start_transform: Transform,
         transform: Transform,
     },
+    Generic {
+        cmd: Box<dyn edit_commands::UndoCommand + Send + Sync + 'static>,
+    },
 }
 
 #[derive(Resource, Default)]
@@ -42,7 +47,7 @@ pub struct UndoStack {
 }
 
 impl UndoStack {
-    fn remap_entity(&self, entity: Entity) -> Entity {
+    pub fn remap_entity(&self, entity: Entity) -> Entity {
         match self.entity_recreate_map.get(&entity) {
             Some(mapped_entity) => {
                 info!("remap {:?} {:?}", entity, mapped_entity);
@@ -55,6 +60,21 @@ impl UndoStack {
         info!("commit");
         self.open = false;
     }
+    pub fn push_generic(
+        &mut self,
+        cmd: Box<dyn edit_commands::UndoCommand + Send + Sync + 'static>,
+    ) {
+        if let (true, Some(UndoEntry::Generic { cmd: top_cmd })) =
+            (self.open, self.stack.last_mut())
+        {
+            if top_cmd.try_merge(cmd.as_ref()) {
+                return;
+            }
+        }
+        self.stack.push(UndoEntry::Generic { cmd });
+        self.open = true;
+    }
+
     pub fn push_brush_drag(
         &mut self,
         entity: Entity,
@@ -151,39 +171,47 @@ impl UndoStack {
     }
 }
 
-pub fn undo_system(
-    mut commands: Commands,
-    keycodes: Res<Input<KeyCode>>,
-    mut undo_stack: ResMut<UndoStack>,
-    mut material_properties_query: Query<&mut components::BrushMaterialProperties>,
-    mut transform_query: Query<&mut Transform>,
-) {
+#[derive(SystemParam)]
+pub struct UndoCommands<'w, 's> {
+    pub commands: Commands<'w, 's>,
+    pub material_properties_query: Query<'w, 's, &'static mut components::BrushMaterialProperties>,
+    pub transform_query: Query<'w, 's, &'static mut Transform>,
+    pub undo_stack: ResMut<'w, UndoStack>,
+}
+
+pub fn undo_system(mut undo_commands: UndoCommands, keycodes: Res<Input<KeyCode>>) {
     if keycodes.just_pressed(KeyCode::Z) {
-        let undo_entry = undo_stack.stack.pop();
-        info!("undo: {:?}", undo_entry);
+        let undo_entry = undo_commands.undo_stack.stack.pop();
+        // info!("undo: {:?}", undo_entry);
         match undo_entry {
             Some(UndoEntry::BrushDrag {
                 entity,
                 start_brush,
                 brush: _,
             }) => {
-                let entity = undo_stack.remap_entity(entity);
-                commands
-                    .entity(entity)
-                    .insert(components::EditUpdate::BrushDrag {
-                        brush: start_brush,
-                        // csg_reprensentation:
-                        //     components::CsgRepresentation {
-                        //         center,
-                        //         radius,
-                        //         csg,
-                        //     },
-                    });
+                // let entity = undo_commands.undo_stack.remap_entity(entity);
+                // undo_commands
+                //     .commands
+                //     .entity(entity)
+                //     .insert(components::EditUpdate::BrushDrag {
+                //         brush: start_brush,
+                //         // csg_reprensentation:
+                //         //     components::CsgRepresentation {
+                //         //         center,
+                //         //         radius,
+                //         //         csg,
+                //         //     },
+                //     });
+                panic!("outdated");
             }
             Some(UndoEntry::EntityAdd { entity }) => {
-                let entity = undo_stack.remap_entity(entity);
-                commands.entity(entity).insert(components::Despawn);
+                // let entity = undo_commands.undo_stack.remap_entity(entity);
+                // undo_commands
+                //     .commands
+                //     .entity(entity)
+                //     .insert(components::Despawn);
                 // TODO: remove all entries in entity_recreate_map that point to [entity]
+                panic!("outdated");
             }
             Some(UndoEntry::MaterialSet {
                 entity,
@@ -191,11 +219,16 @@ pub fn undo_system(
                 old_material,
                 material,
             }) => {
-                let entity = undo_stack.remap_entity(entity);
+                let entity = undo_commands.undo_stack.remap_entity(entity);
 
-                if let Ok(mut material_props) = material_properties_query.get_mut(entity) {
+                if let Ok(mut material_props) =
+                    undo_commands.material_properties_query.get_mut(entity)
+                {
                     material_props.materials[face as usize] = old_material;
-                    commands.entity(entity).insert(components::CsgDirty);
+                    undo_commands
+                        .commands
+                        .entity(entity)
+                        .insert(components::CsgDirty);
                 }
             }
             Some(UndoEntry::BrushRemove {
@@ -203,23 +236,28 @@ pub fn undo_system(
                 brush,
                 material_props,
             }) => {
-                let new_entity = commands
+                let new_entity = undo_commands
+                    .commands
                     .spawn(
                         components::EditorObjectBrushBundle::from_brush(brush)
                             .with_material_properties(material_props),
                     )
                     .id();
-                undo_stack.entity_recreate_map.insert(entity, new_entity);
+                undo_commands
+                    .undo_stack
+                    .entity_recreate_map
+                    .insert(entity, new_entity);
             }
             Some(UndoEntry::PointDrag {
                 entity,
                 start_transform,
                 transform: _,
             }) => {
-                if let Ok(mut transform) = transform_query.get_mut(entity) {
+                if let Ok(mut transform) = undo_commands.transform_query.get_mut(entity) {
                     *transform = start_transform;
                 }
             }
+            Some(UndoEntry::Generic { cmd }) => cmd.undo(&mut undo_commands),
             None => info!("nothing to undo"),
         }
     }
