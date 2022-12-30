@@ -363,9 +363,7 @@ fn write_material_images(
     };
     let albedo_output = format!("{}_albedo.png", name);
     let normal_output = format!("{}_normal.norm", name);
-    let ao_output = format!("{}_ao.norm", name);
     let mr_output = format!("{}_mr.norm", name);
-    let emissive_output = format!("{}_emissive.norm", name);
     let preview64_output = format!("{}_preview64.png", name);
 
     let preview_image = if let Some((_name, preview)) = images.get(&ImageKind::Preview) {
@@ -398,44 +396,46 @@ fn write_material_images(
     rm_image
         .save_with_format(output_dir.join(&mr_output), image::ImageFormat::Png)
         .expect("failed tp rm albedo image");
-    if let Some((_ao, ao_image)) = images.remove(&ImageKind::Ao) {
+
+    let ao_output = if let Some((_ao, ao_image)) = images.remove(&ImageKind::Ao) {
         // println!("ao image: {:?}", ao_image.color());
 
         let ao_image = ao_image.into_luma8();
-
+        let ao_output = format!("{}_ao.norm", name);
         ao_image
             .save_with_format(output_dir.join(&ao_output), image::ImageFormat::Png)
             .expect("failed tp write ao image");
-    }
-    if let Some((_, emissive_image)) = images.remove(&ImageKind::Emissive) {
+        Some(ao_output)
+    } else {
+        None
+    };
+
+    let emissive_output = if let Some((_, emissive_image)) = images.remove(&ImageKind::Emissive) {
+        let emissive_output = format!("{}_emissive.norm", name);
+
         emissive_image
             .into_rgb8()
             .save_with_format(output_dir.join(&emissive_output), image::ImageFormat::Png)
             .expect("failed to write emissive image");
-    }
+        Some(emissive_output)
+    } else {
+        None
+    };
 
     Ok(material::Material {
         base: Some(format!("images/{}/{}", name, albedo_output)),
-        occlusion: if images.contains_key(&ImageKind::Ao) {
-            Some(format!("images/{}/{}", name, ao_output))
-        } else {
-            None
-        },
+        occlusion: ao_output.map(|output| format!("images/{}/{}", name, output)),
         normal_map: Some(format!("images/{}/{}", name, normal_output)),
         metallic_roughness_texture: Some(format!("images/{}/{}", name, mr_output)),
         metallic: Some(1.0),
         roughness: Some(1.0),
         base_color: None,
-        emissive: if images.contains_key(&ImageKind::Emissive) {
-            Some(format!("images/{}/{}", name, emissive_output))
-        } else {
-            None
-        },
-        emissive_color: if images.contains_key(&ImageKind::Emissive) {
+        emissive_color: if emissive_output.is_some() {
             Some(Vec3::ONE)
         } else {
             None
         },
+        emissive: emissive_output.map(|output| format!("images/{}/{}", name, output)),
         reflectance: None,
         preview64: Some(format!("images/{}/{}", name, preview64_output)),
     })
