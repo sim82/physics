@@ -247,3 +247,12 @@ pub struct Despawn;
 
 #[derive(Component)]
 pub struct ClipPreview;
+
+#[derive(Component)]
+pub struct ClipPoint0;
+
+#[derive(Component)]
+pub struct ClipPoint1;
+
+#[derive(Component)]
+pub struct ClipPoint2;

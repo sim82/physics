@@ -597,11 +597,39 @@ pub fn select_input_system(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn clip_input_system(
+    mut commands: Commands,
     mut clip_state: ResMut<resources::ClipState>,
     mut event_reader: EventReader<util::WmEvent>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    materials_res: Res<resources::Materials>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
     camera_query: Query<(&GlobalTransform, &Camera)>,
+    mut query_clip0: Query<
+        &mut Transform,
+        (
+            With<components::ClipPoint0>,
+            Without<components::ClipPoint1>,
+            Without<components::ClipPoint2>,
+        ),
+    >,
+    mut query_clip1: Query<
+        &mut Transform,
+        (
+            With<components::ClipPoint1>,
+            Without<components::ClipPoint0>,
+            Without<components::ClipPoint2>,
+        ),
+    >,
+    mut query_clip2: Query<
+        &mut Transform,
+        (
+            With<components::ClipPoint2>,
+            Without<components::ClipPoint0>,
+            Without<components::ClipPoint1>,
+        ),
+    >,
 ) {
     for event in event_reader.iter() {
         if let util::WmEvent::Clicked {
@@ -631,10 +659,110 @@ pub fn clip_input_system(
                 clip_state.cursor = ray.origin;
                 continue;
             }
-
             let point = window.orientation.mix(ray.origin, clip_state.cursor);
+
+            let Ok(transform0) = query_clip0.get_single_mut() else {
+                commands
+                .spawn((
+                    PbrBundle {
+                        mesh: meshes.add(
+                            bevy::render::mesh::shape::Icosphere {
+                                radius: 0.1,
+                                subdivisions: 2,
+                            }
+                            .into(),
+                        ),
+                        material: materials_res.get_brush_2d_material(),
+                        transform: Transform::from_translation(point),
+                        ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                    },
+                    render_layers::ortho_views(),
+                    components::SelectionHighlighByOutline,
+                    bevy_mod_outline::OutlineBundle {
+                        outline: bevy_mod_outline::OutlineVolume {
+                            colour: Color::BLUE,
+                            visible: true,
+                            width: 2.0,
+                        },
+                        ..default()
+                    },
+                    Name::new("clip 0"),
+                    components::ClipPoint0,
+                ));
+                return;
+            };
+
+            let Ok(transform1) = query_clip1.get_single_mut() else {
+                commands
+                .spawn((
+                    PbrBundle {
+                        mesh: meshes.add(
+                            bevy::render::mesh::shape::Icosphere {
+                                radius: 0.1,
+                                subdivisions: 2,
+                            }
+                            .into(),
+                        ),
+                        material: materials_res.get_brush_2d_material(),
+                        transform: Transform::from_translation(point),
+                        ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                    },
+                    render_layers::ortho_views(),
+                    components::SelectionHighlighByOutline,
+                    bevy_mod_outline::OutlineBundle {
+                        outline: bevy_mod_outline::OutlineVolume {
+                            colour: Color::BLUE,
+                            visible: true,
+                            width: 2.0,
+                        },
+                        ..default()
+                    },
+                    Name::new("clip 1"),
+                    components::ClipPoint1,
+                ));
+                return;
+            };
+
+            let Ok(transform2) = query_clip2.get_single_mut() else {
+                commands
+                .spawn((
+                    PbrBundle {
+                        mesh: meshes.add(
+                            bevy::render::mesh::shape::Icosphere {
+                                radius: 0.1,
+                                subdivisions: 2,
+                            }
+                            .into(),
+                        ),
+                        material: materials_res.get_brush_2d_material(),
+                        transform: Transform::from_translation(point),
+                        ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
+                    },
+                    render_layers::ortho_views(),
+                    components::SelectionHighlighByOutline,
+                    bevy_mod_outline::OutlineBundle {
+                        outline: bevy_mod_outline::OutlineVolume {
+                            colour: Color::BLUE,
+                            visible: true,
+                            width: 2.0,
+                        },
+                        ..default()
+                    },
+                    Name::new("clip 2"),
+                    components::ClipPoint2,
+                ));
+                return;
+            };
+
+            // let transform = if let Ok(transform) = query_clip0.get_single_mut() {
+            //     Some(transform)
+            // } else if let Ok(transform) = query_clip1.get_single_mut() {
+            //     Some(transform)
+            // }
+            let mut transforms = [transform0, transform1, transform2];
             info!("point {}: {:?}", clip_state.next_point % 3, point);
             clip_state.plane_points[clip_state.next_point % 3] = point;
+            transforms[clip_state.next_point % 3].translation = point;
             clip_state.next_point += 1;
         }
     }
