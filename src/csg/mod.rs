@@ -106,6 +106,8 @@ impl Vertex {
 // point is on the plane.
 pub const PLANE_EPSILON: f32 = 1e-3; // HACK: work around stability problems. not sure if this is the right approach
 
+pub type TriWithNormal = ([Vec3; 3], Vec3);
+
 #[derive(Clone, Debug, Default, Copy, Serialize, Deserialize, bevy_inspector_egui::Inspectable)]
 pub struct Plane {
     pub normal: Vec3,
@@ -367,7 +369,7 @@ impl Csg {
         Csg { polygons }
     }
 
-    pub fn get_triangles_no_appearance(&self) -> Vec<([Vec3; 3], Vec3)> {
+    pub fn get_triangles_no_appearance(&self) -> Vec<TriWithNormal> {
         let mut res = Vec::new();
 
         for p in &self.polygons {
@@ -719,10 +721,9 @@ impl From<&Csg> for (Mesh, Vec3) {
     }
 }
 
-struct TriangleSlice<'a>(&'a [([Vec3; 3], Vec3)]);
+struct TriangleSlice<'a>(&'a [TriWithNormal]);
 
-pub fn triangles_to_mesh_with_texgen(tris: &[([Vec3; 3], Vec3)], texgen: &Texgen) -> Mesh {
-    let mut num = 0;
+pub fn triangles_to_mesh_with_texgen(tris: &[TriWithNormal], texgen: &Texgen) -> Mesh {
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
@@ -805,9 +806,8 @@ impl<'a> From<TriangleSlice<'a>> for (Mesh, Vec3) {
 pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
     let triangles = csg.get_triangles();
 
-    let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
+    let mut id_to_triangles = HashMap::<i32, Vec<TriWithNormal>>::new();
 
-    let mut num_points = 0;
     // separate triangles per appearance id
     for (tri, normal, id) in triangles {
         match id_to_triangles.entry(id) {
@@ -822,7 +822,7 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
 
     id_to_triangles
         .drain()
-        .map(|(k, mut v)| {
+        .map(|(k, v)| {
             let (mesh, origin) = TriangleSlice(&v).into();
             (k, origin, mesh)
         })
@@ -832,7 +832,7 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
 // pub fn csg_to_split_meshes_relative_to_origin(csg: &Csg, origin: Vec3) -> Vec<(i32, Mesh)> {
 //     let triangles = csg.get_triangles();
 
-//     let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
+//     let mut id_to_triangles = HashMap::<i32, Vec<TriWithNormal>>::new();
 
 //     // separate triangles per appearance id
 //     for (mut tri, normal, id) in triangles {
@@ -858,10 +858,11 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
 //         .collect()
 // }
 
-pub fn csg_to_split_tri_lists(csg: &Csg, output: &[&std::cell::RefCell<Vec<([Vec3; 3], Vec3)>>]) {
+// #[allow(clippy::type_complexity)]
+pub fn csg_to_split_tri_lists(csg: &Csg, output: &[&std::cell::RefCell<Vec<TriWithNormal>>]) {
     let triangles = csg.get_triangles();
 
-    // let mut id_to_triangles = HashMap::<i32, Vec<([Vec3; 3], Vec3)>>::new();
+    // let mut id_to_triangles = HashMap::<i32, Vec<TriWithNormal>>::new();
 
     // separate triangles per appearance id
     for (tri, normal, id) in triangles {
