@@ -19,7 +19,7 @@ default = ["inspector"]
 # bevy = { version = "0.9" }
 bevy = { version = "0.9.1", features = ["dynamic"] }
 wgpu = "*"
-bevy-inspector-egui = { version = "0.14", optional = true }
+bevy-inspector-egui = { version = "0.15", optional = true }
 
 # TODO: bevy 0.9
 # bevy-inspector-egui-rapier = { version = "0.7", optional = true, features = [
@@ -65,7 +65,7 @@ env_logger = "0.10"
 dialoguer = "0.10"
 console = "0.15"
 rayon = "1"
-bevy_egui = "0.17"
+bevy_egui = "0.18"
 arrayvec = "0.7"
 bevy_mod_outline = "0.3"
 thiserror = "1"
