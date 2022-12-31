@@ -106,7 +106,7 @@ impl Vertex {
 // point is on the plane.
 pub const PLANE_EPSILON: f32 = 1e-3; // HACK: work around stability problems. not sure if this is the right approach
 
-pub type TriWithNormal = ([Vec3; 3], Vec3);
+pub struct TriWithNormal(pub [Vec3; 3], pub Vec3);
 
 #[derive(Clone, Debug, Default, Copy, Serialize, Deserialize, bevy_inspector_egui::Inspectable)]
 pub struct Plane {
@@ -384,7 +384,7 @@ impl Csg {
             let v0 = p.vertices[0];
             // sweep over 2-windows of the remaining vertices to get 2nd and 3rd points
             for vs in p.vertices[1..].windows(2) {
-                res.push((
+                res.push(TriWithNormal(
                     [v0.position, vs[0].position, vs[1].position],
                     p.plane.normal,
                 ));
@@ -812,10 +812,10 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
     for (tri, normal, id) in triangles {
         match id_to_triangles.entry(id) {
             bevy::utils::hashbrown::hash_map::Entry::Occupied(mut e) => {
-                e.get_mut().push((tri, normal));
+                e.get_mut().push(TriWithNormal(tri, normal));
             }
             bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
-                e.insert(vec![(tri, normal)]);
+                e.insert(vec![TriWithNormal(tri, normal)]);
             }
         }
     }
@@ -867,7 +867,7 @@ pub fn csg_to_split_tri_lists(csg: &Csg, output: &[&std::cell::RefCell<Vec<TriWi
     // separate triangles per appearance id
     for (tri, normal, id) in triangles {
         let mut output = output[id as usize].borrow_mut();
-        output.push((tri, normal))
+        output.push(TriWithNormal(tri, normal))
     }
 }
 
