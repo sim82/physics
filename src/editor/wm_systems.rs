@@ -4,7 +4,7 @@ use bevy_egui::EguiContext;
 use bevy_inspector_egui::egui;
 use bevy_rapier3d::render::DebugRenderContext;
 
-use crate::{editor::util::WmMouseButton, render_layers::MAIN_3D};
+use crate::editor::util::WmMouseButton;
 
 use super::{
     gui_systems,

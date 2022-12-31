@@ -1,26 +1,24 @@
 use super::{
-    components::{self, CsgOutput, CsgRepresentation, PointLightProperties},
+    components::{self, CsgOutput, CsgRepresentation},
     edit_commands::{add_brush, add_pointlight, duplicate_brush, remove_entity, EditCommands},
-    resources::{self, SelectionPickSet, SpatialBounds, SpatialIndex},
-    CleanupCsgOutputEvent,
+    resources::{self, SpatialBounds, SpatialIndex},
 };
 use crate::{
     csg,
     editor::{
-        components::{BrushMaterialProperties, CsgCollisionOutput, EditorObjectBrushBundle},
+        components::{BrushMaterialProperties, EditorObjectBrushBundle},
         util::spawn_csg_split,
     },
     material, render_layers, wsx,
 };
 use bevy::{
-    pbr::{NotShadowCaster, NotShadowReceiver},
-    prelude::{shape::Cube, *},
-    render::{mesh, primitives::Aabb, view::RenderLayers},
+    prelude::*,
+    render::{mesh, view::RenderLayers},
     utils::{HashSet, Instant},
 };
 use bevy_mod_outline::OutlineMeshExt;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeSet, io::Write, path::PathBuf};
+use std::{collections::BTreeSet, path::PathBuf};
 
 pub fn setup(
     mut materials_res: ResMut<resources::Materials>,
@@ -71,21 +69,31 @@ pub fn editor_input_system(
 ) {
     let mut clear_selection = false;
     if keycodes.just_pressed(KeyCode::B) {
-        edit_commands.apply(add_brush::Command { brush: default() });
+        let res = edit_commands.apply(add_brush::Command { brush: default() });
+        if let Err(err) = res {
+            warn!("failed to add brush: {:?}", err);
+        }
+
         clear_selection = true;
     }
 
     if keycodes.just_pressed(KeyCode::D) {
         if let Ok(primary) = selection_query.get_single() {
-            edit_commands.apply(duplicate_brush::Command {
+            let res = edit_commands.apply(duplicate_brush::Command {
                 template_entity: primary,
             });
+            if let Err(err) = res {
+                warn!("failed to duplicate brush: {:?}", err);
+            }
             clear_selection = true;
         }
     }
 
     if keycodes.just_pressed(KeyCode::L) {
-        edit_commands.apply(add_pointlight::Command);
+        let res = edit_commands.apply(add_pointlight::Command);
+        if let Err(err) = res {
+            warn!("failed to add point light: {:?}", err);
+        }
         clear_selection = true;
     }
 
@@ -98,7 +106,10 @@ pub fn editor_input_system(
 
     if keycodes.just_pressed(KeyCode::X) {
         if let Ok(primary) = selection_query.get_single() {
-            edit_commands.apply(remove_entity::Command { entity: primary });
+            let res = edit_commands.apply(remove_entity::Command { entity: primary });
+            if let Err(err) = res {
+                warn!("failed to remove entity: {:?}", err);
+            }
         }
     }
 
@@ -181,7 +192,6 @@ pub fn create_brush_csg_system_inc(
     spatial_index: Res<SpatialIndex>,
 
     mut meshes: ResMut<Assets<Mesh>>,
-    materials_res: ResMut<resources::Materials>,
 
     mut query_changed: Query<(Entity, &CsgRepresentation, &Transform), With<components::CsgDirty>>,
     query_csg: Query<(
@@ -290,8 +300,7 @@ pub fn create_brush_csg_system_inc(
         // }
 
         if let Ok(children) = query_children.get(entity) {
-            let mut entity_commands = commands.entity(entity);
-            let mut remove_children = children
+            let remove_children = children
                 .iter()
                 .cloned()
                 .filter(|child| query_csg_output.contains(*child))
@@ -380,7 +389,6 @@ pub struct SelectionChangeTracking {
 
 pub fn track_primary_selection(
     // selection: Res<Selection>,
-    mut commands: Commands,
     materials_res: Res<resources::Materials>,
     mut tracking: Local<SelectionChangeTracking>,
 
@@ -465,11 +473,17 @@ pub fn track_2d_vis_system(
             // info!("brush update");
 
             for child in children {
-                if let Ok(mut old_mesh) = mesh_query.get_mut(*child) {
+                if let Ok(old_mesh) = mesh_query.get_mut(*child) {
                     // meshes.remove(old_mesh.clone());
                     let (mut mesh, origin) = (&csg_rep.csg).into();
                     if let Some(old_mesh) = meshes.get_mut(&old_mesh) {
-                        OutlineMeshExt::generate_outline_normals(&mut mesh);
+                        let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
+                        if let Err(err) = res {
+                            warn!(
+                                "failed to generate outline normals for {:?}: {:?}",
+                                child, err
+                            );
+                        }
                         *old_mesh = mesh;
                     }
 
@@ -482,7 +496,10 @@ pub fn track_2d_vis_system(
             let (mut mesh, origin) = (&csg_rep.csg).into();
             transform.translation = origin;
             // info!("brush new");
-            OutlineMeshExt::generate_outline_normals(&mut mesh);
+            let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
+            if let Err(err) = res {
+                warn!("failed to generate outline normals for: {:?}", err);
+            }
             let mesh_entity = commands
                 .spawn((
                     PbrBundle {
@@ -526,7 +543,7 @@ pub fn track_lights_system(
         ),
     >, // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
 ) {
-    for (entity, light_props, transform) in &query {
+    for (entity, light_props, _transform) in &query {
         // if !matches!(editor_object, EditorObject::PointLight(_)) {
         //     continue;
         // }
@@ -751,7 +768,6 @@ enum ExternalEditorObject {
 #[allow(clippy::too_many_arguments)]
 pub fn load_save_editor_objects(
     mut commands: Commands,
-    mut event_writer: EventWriter<CleanupCsgOutputEvent>,
 
     keycodes: Res<Input<KeyCode>>,
     brush_query: Query<(Entity, &csg::Brush, &components::BrushMaterialProperties)>,

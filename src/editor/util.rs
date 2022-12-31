@@ -11,10 +11,7 @@ use crate::{
     render_layers,
 };
 
-use super::{
-    components::{self, CsgOutput},
-    resources,
-};
+use super::components::{self, CsgOutput};
 
 pub fn spawn_box(
     commands: &mut Commands,

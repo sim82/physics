@@ -1,19 +1,16 @@
-use std::collections::BTreeMap;
-
 use bevy::{
     prelude::*,
     render::{
         camera::{Projection, RenderTarget, ScalingMode},
         view::RenderLayers,
     },
-    utils::{HashMap, HashSet},
+    utils::HashSet,
 };
 
 use super::{
     components,
     edit_commands::EditCommands,
     resources::{self, LOWER_WINDOW, UPPER_WINDOW},
-    undo,
     util::{self, Orientation2d, SnapToGrid, WmMouseButton},
 };
 use crate::{
@@ -33,12 +30,6 @@ pub fn enter_editor_state(
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut commands: Commands,
 ) {
-    let settings_map = if let Ok(file) = std::fs::File::open("windows.yaml") {
-        serde_yaml::from_reader(file).unwrap_or_default()
-    } else {
-        HashMap::<String, resources::EditorWindowSettings>::new()
-    };
-
     let view_configs = vec![
         (
             UPPER_WINDOW,
@@ -461,11 +452,14 @@ pub fn edit_input_system(
                                 relevant_change = true;
                             }
                             if relevant_change {
-                                edit_commands.apply(update_brush_drag::Command {
+                                let res = edit_commands.apply(update_brush_drag::Command {
                                     entity,
                                     start_brush: brush.clone(),
                                     brush: new_brush,
                                 });
+                                if let Err(err) = res {
+                                    warn!("update_brush_drag apply failed: {:?}", err);
+                                }
                             }
                         }
                         _ => warn!("invalid drag action in brush object"),
@@ -479,12 +473,15 @@ pub fn edit_input_system(
 
                     match &drag_action.action {
                         components::DragActionType::NonBrush { start_translation } => {
-                            edit_commands.apply(update_point_transform::Command {
+                            let res = edit_commands.apply(update_point_transform::Command {
                                 entity,
                                 transform: Transform::from_translation(
                                     *start_translation + drag_delta,
                                 ),
                             });
+                            if let Err(err) = res {
+                                warn!("update_point_transform apply failed: {:?}", err);
+                            }
                         }
                         _ => warn!("invalid drag action in editable point."),
                     }

@@ -829,36 +829,6 @@ pub fn csg_to_split_meshes(csg: &Csg) -> Vec<(i32, Vec3, Mesh)> {
         .collect()
 }
 
-// pub fn csg_to_split_meshes_relative_to_origin(csg: &Csg, origin: Vec3) -> Vec<(i32, Mesh)> {
-//     let triangles = csg.get_triangles();
-
-//     let mut id_to_triangles = HashMap::<i32, Vec<TriWithNormal>>::new();
-
-//     // separate triangles per appearance id
-//     for (mut tri, normal, id) in triangles {
-//         for v in &mut tri {
-//             *v -= origin;
-//         }
-//         match id_to_triangles.entry(id) {
-//             bevy::utils::hashbrown::hash_map::Entry::Occupied(mut e) => {
-//                 e.get_mut().push((tri, normal));
-//             }
-//             bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
-//                 e.insert(vec![(tri, normal)]);
-//             }
-//         }
-//     }
-//     let texgen = Texgen::with_offset(origin);
-//     id_to_triangles
-//         .drain()
-//         .map(|(k, mut v)| {
-//             let mesh = triangles_to_mesh_with_texgen(&v, &texgen);
-//             (k, mesh)
-//         })
-//         .collect()
-// }
-
-// #[allow(clippy::type_complexity)]
 pub fn csg_to_split_tri_lists(csg: &Csg, output: &[&std::cell::RefCell<Vec<TriWithNormal>>]) {
     let triangles = csg.get_triangles();
 

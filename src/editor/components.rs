@@ -1,9 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::{
-    csg::{self, Brush},
-    render_layers,
-};
+use crate::csg::{self, Brush};
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};

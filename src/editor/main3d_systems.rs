@@ -1,14 +1,7 @@
-use std::f32::NEG_INFINITY;
-
 use bevy::prelude::*;
-use bevy_inspector_egui::egui::plot::Polygon;
-
-use crate::{
-    csg,
-    editor::edit_commands::{self, set_brush_material},
-};
 
 use super::{components, edit_commands::EditCommands, resources, util};
+use crate::editor::edit_commands::set_brush_material;
 
 #[allow(clippy::too_many_arguments)]
 pub fn select_input_system(
@@ -55,7 +48,7 @@ pub fn select_input_system(
                 'poly_loop: for polygon in processed_csg.bsp.all_polygons() {
                     let mut res = Vec::new();
                     polygon.get_triangles(&mut res);
-                    for (tri, normal, appearance) in res {
+                    for (tri, _normal, appearance) in res {
                         if let Some(hit) = util::raycast_moller_trumbore(&ray, &tri, true) {
                             // info!("hit {:?} in {:?}", polygon, entity);
                             if hit.distance < closest_hit_distance {
@@ -72,7 +65,7 @@ pub fn select_input_system(
                 if button == util::WmMouseButton::Left
                     && !material_browser.selected_material.is_empty()
                 {
-                    edit_commands.apply(set_brush_material::Command {
+                    let _ = edit_commands.apply(set_brush_material::Command {
                         entity,
                         face: appearance,
                         material: material_browser.selected_material.clone(),

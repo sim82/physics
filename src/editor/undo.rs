@@ -1,12 +1,8 @@
+use super::edit_commands;
+use crate::editor::components;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
-
-use crate::csg;
-use crate::editor::components;
-
-use super::components::BrushMaterialProperties;
-use super::edit_commands;
 
 // #[derive(Clone)]
 pub enum UndoEntry {

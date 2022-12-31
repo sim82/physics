@@ -7,7 +7,7 @@ use bevy::{
 
 use super::{
     components,
-    undo::{self, UndoCommands, UndoStack},
+    undo::{UndoCommands, UndoStack},
 };
 use crate::csg;
 use thiserror::Error;
