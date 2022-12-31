@@ -11,7 +11,7 @@ impl EditCommand for Command {
         commands
             .commands
             .get_entity(self.entity)
-            .ok_or_else(|| EditCommandError::UnknownEntity(self.entity))?
+            .ok_or(EditCommandError::UnknownEntity(self.entity))?
             .insert(components::EditUpdate::BrushDrag {
                 brush: self.brush.clone(),
             });
@@ -35,7 +35,7 @@ impl UndoCommand for Command {
         undo_commands
             .commands
             .get_entity(entity)
-            .ok_or_else(|| EditCommandError::UnknownEntity(entity))?
+            .ok_or(EditCommandError::UnknownEntity(entity))?
             .insert(components::EditUpdate::BrushDrag {
                 brush: self.start_brush.clone(),
             });

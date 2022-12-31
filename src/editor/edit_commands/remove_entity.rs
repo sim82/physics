@@ -20,7 +20,7 @@ impl EditCommand for Command {
         commands
             .commands
             .get_entity(self.entity)
-            .ok_or_else(|| EditCommandError::UnknownEntity(self.entity))?
+            .ok_or(EditCommandError::UnknownEntity(self.entity))?
             .insert(components::Despawn);
 
         let undo = if let Ok((material_props, brush)) = commands.brush_query.get(self.entity) {

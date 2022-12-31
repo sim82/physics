@@ -19,7 +19,7 @@ impl EditCommand for Command {
         commands
             .commands
             .get_entity(self.entity)
-            .ok_or_else(|| EditCommandError::UnknownEntity(self.entity))?
+            .ok_or(EditCommandError::UnknownEntity(self.entity))?
             .insert(components::CsgDirty);
         // point of no return
 
@@ -50,7 +50,7 @@ impl UndoCommand for Undo {
         undo_commands
             .commands
             .get_entity(entity)
-            .ok_or_else(|| EditCommandError::UnknownEntity(entity))?
+            .ok_or(EditCommandError::UnknownEntity(entity))?
             .insert(components::CsgDirty);
 
         // point of no return

@@ -23,7 +23,6 @@ impl EditCommand for Command {
 
         Ok(Box::new(Undo { entity }))
 
-        // // FIXME: make apply fallible (if that makes sense)
         // panic!("could not find template brush {:?}", self.template_entity);
     }
 }
