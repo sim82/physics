@@ -9,4 +9,5 @@ cache/*
 windows.yaml
 wm_settings.yaml
 scene.ron
+scene.bin
 *.wsx

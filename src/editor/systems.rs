@@ -20,7 +20,7 @@ use bevy::{
 };
 use bevy_mod_outline::OutlineMeshExt;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeSet, path::PathBuf};
+use std::{collections::BTreeSet, io::Write, path::PathBuf};
 
 pub fn setup(
     mut materials_res: ResMut<resources::Materials>,
@@ -795,9 +795,14 @@ pub fn load_save_editor_objects(
             let _ = ron::ser::to_writer_pretty(
                 file,
                 &brushes.chain(lights).collect::<Vec<_>>(),
-                default(),
+                ron::ser::PrettyConfig::default(), // .indentor(" ".to_string())
+                                                   // .compact_arrays(true),
             );
         }
+        // if let Ok(mut file) = std::fs::File::create("scene.bin") {
+        //     let v = flexbuffers::to_vec(&brushes.chain(lights).collect::<Vec<_>>()).unwrap();
+        //     file.write_all(&v[..]).unwrap();
+        // }
     }
 
     if keycodes.just_pressed(KeyCode::F6) {

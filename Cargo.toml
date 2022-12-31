@@ -33,7 +33,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 serde_yaml = "0.9"
 ron = "0.8"
-flexbuffers = "*"
+
+flexbuffers = "2"
 # bevy_rapier3d = { version = "0.18", path = "ext/bevy_rapier/bevy_rapier3d", features = [
 #     "debug-render",
 # ] }
