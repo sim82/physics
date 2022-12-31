@@ -525,7 +525,11 @@ pub fn select_input_system(
             pointer_state,
         } = *event
         {
+            if pointer_state.modifiers.alt {
+                continue;
+            }
             info!("event: {:?}", event);
+
             let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue };
             let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
                 warn!("2d window camera not found: {:?}", window.camera);
@@ -591,4 +595,115 @@ pub fn select_input_system(
             }
         }
     }
+}
+
+pub fn clip_input_system(
+    mut clip_state: ResMut<resources::ClipState>,
+    mut event_reader: EventReader<util::WmEvent>,
+    editor_windows_2d: Res<resources::EditorWindows2d>,
+    camera_query: Query<(&GlobalTransform, &Camera)>,
+) {
+    for event in event_reader.iter() {
+        if let util::WmEvent::Clicked {
+            window: focused_name,
+            button: util::WmMouseButton::Left,
+            pointer_state,
+        } = *event
+        {
+            if !pointer_state.modifiers.alt {
+                continue;
+            }
+
+            info!("event: {:?}", event);
+            let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue };
+            let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
+                warn!("2d window camera not found: {:?}", window.camera);
+                continue;
+            };
+
+            let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
+                warn!("viewport_to_world failed in {}", focused_name); 
+                continue;
+            };
+            let clip_state = &mut *clip_state;
+
+            if pointer_state.modifiers.shift {
+                clip_state.cursor = ray.origin;
+                continue;
+            }
+
+            let point = window.orientation.mix(ray.origin, clip_state.cursor);
+            info!("point {}: {:?}", clip_state.next_point % 3, point);
+            clip_state.plane_points[clip_state.next_point % 3] = point;
+            clip_state.next_point += 1;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn clip_preview_system(
+    mut commands: Commands,
+    materials_res: Res<resources::Materials>,
+    clip_state: Res<resources::ClipState>,
+    selected_query: Query<&csg::Brush, With<components::Selected>>,
+    brush_changed_query: Query<(), (With<components::Selected>, Changed<csg::Brush>)>,
+    despawn_query: Query<Entity, With<components::ClipPreview>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut last_point: Local<usize>,
+) {
+    if brush_changed_query.is_empty() && *last_point == clip_state.next_point {
+        return;
+    }
+
+    let Ok(brush) = selected_query.get_single() else {
+        return;
+    };
+
+    *last_point = clip_state.next_point;
+
+    for entity in &despawn_query {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    let plane = csg::Plane::from_points_slice(&clip_state.plane_points);
+    info!("plane: {:?} {:?}", clip_state.plane_points, plane);
+    let mut brush1 = brush.clone();
+    brush1.planes.push(plane.flipped());
+    brush1.appearances.push(brush1.appearances.len() as i32);
+
+    let mut brush2 = brush.clone();
+    brush2.planes.push(plane);
+    brush2.appearances.push(brush2.appearances.len() as i32);
+
+    let brushes = [
+        (brush1, materials_res.brush_clip_red.clone()),
+        (brush2, materials_res.brush_clip_green.clone()),
+    ];
+
+    for (brush, material) in brushes {
+        let csg: Result<csg::Csg, _> = brush.try_into();
+        if let Ok(csg) = csg {
+            let (mesh, origin) = (&csg).into();
+            let transform = Transform::from_translation(origin);
+            // transform.translation = origin;
+            // info!("brush new");
+            // let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
+            // if let Err(err) = res {
+            // warn!("failed to generate outline normals for: {:?}", err);
+            // }
+            commands.spawn((
+                PbrBundle {
+                    mesh: meshes.add(mesh),
+                    material: materials_res.get_brush_2d_material(),
+                    transform,
+                    ..default()
+                },
+                render_layers::ortho_views(),
+                components::ClipPreview,
+            ));
+        } else {
+            info!("clip failed");
+        }
+    }
+    info!("clip update");
 }

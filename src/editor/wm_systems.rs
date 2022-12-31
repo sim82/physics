@@ -9,7 +9,7 @@ use crate::editor::util::WmMouseButton;
 use super::{
     gui_systems,
     resources::{self, WmSettings, WmSidpanelContent, WmSlot},
-    util::{WmEvent, WmEventPointerState},
+    util::{WmEvent, WmEventPointerState, WmModifiers},
 };
 
 pub fn wm_test_setup_system(
@@ -180,6 +180,16 @@ fn show_2d_view(
     send_wm_events_for_egui_response(response, slot, event_writer, name);
 }
 
+impl From<egui::Modifiers> for WmModifiers {
+    fn from(modifiers: egui::Modifiers) -> Self {
+        Self {
+            shift: modifiers.shift,
+            ctrl: modifiers.ctrl,
+            alt: modifiers.alt,
+        }
+    }
+}
+
 fn send_wm_events_for_egui_response(
     response: egui::Response,
     slot: &mut WmSlot,
@@ -187,6 +197,7 @@ fn send_wm_events_for_egui_response(
     name: &'static str,
 ) {
     let pointer_state = &response.ctx.input().pointer;
+    let modifiers = response.ctx.input().modifiers.into();
     let button = if pointer_state.button_down(egui::PointerButton::Primary) {
         WmMouseButton::Left
     } else if pointer_state.button_down(egui::PointerButton::Middle) {
@@ -205,6 +216,7 @@ fn send_wm_events_for_egui_response(
                 response.rect.max.x,
                 response.rect.max.y,
             ),
+            modifiers,
         };
 
         let drag_allowed = button == WmMouseButton::Middle

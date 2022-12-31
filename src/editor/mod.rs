@@ -1,7 +1,7 @@
 use bevy::{prelude::*, time::FixedTimestep};
 use bevy_inspector_egui::RegisterInspectable;
 
-use crate::AppState;
+use crate::{render_layers::ortho_views, AppState};
 
 pub mod components;
 pub mod edit_commands;
@@ -42,6 +42,7 @@ impl Plugin for EditorPlugin {
         app.init_resource::<resources::Materials>();
         app.init_resource::<resources::MaterialBrowser>();
         app.init_resource::<resources::SpatialIndex>();
+        app.init_resource::<resources::ClipState>();
         app.add_event::<CleanupCsgOutputEvent>();
 
         // system order is relatively important, since brush csg depends on some derived data to be up to date.
@@ -59,7 +60,8 @@ impl Plugin for EditorPlugin {
         app.add_system(ortho_systems::edit_input_system)
             .add_system(ortho_systems::control_input_wm_system)
             .add_system(ortho_systems::select_input_system)
-            .add_system(systems::load_save_editor_objects);
+            .add_system(systems::load_save_editor_objects)
+            .add_system(ortho_systems::clip_input_system);
 
         app.add_system(main3d_systems::select_input_system);
         app.add_system(undo::undo_system);
@@ -99,7 +101,8 @@ impl Plugin for EditorPlugin {
             PostCsgStage,
             SystemStage::parallel()
                 .with_system(systems::update_material_refs_system)
-                .with_system(systems::track_primary_selection), // must run after track_2d_vis_system
+                .with_system(systems::track_primary_selection) // must run after track_2d_vis_system
+                .with_system(ortho_systems::clip_preview_system),
         );
 
         app.register_inspectable::<components::CsgRepresentation>();

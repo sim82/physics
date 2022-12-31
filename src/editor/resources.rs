@@ -79,6 +79,9 @@ pub struct Materials {
     // special purpose materials for 2d views
     pub brush_2d: Handle<StandardMaterial>,
     pub brush_2d_selected: Handle<StandardMaterial>,
+
+    pub brush_clip_red: Handle<StandardMaterial>,
+    pub brush_clip_green: Handle<StandardMaterial>,
 }
 
 impl Default for Materials {
@@ -92,6 +95,9 @@ impl Default for Materials {
             instantiated_materials: default(),
             brush_2d: default(),
             brush_2d_selected: default(),
+
+            brush_clip_red: default(),
+            brush_clip_green: default(),
         }
     }
 }
@@ -320,4 +326,11 @@ pub struct WmState {
     pub slot_main3d: WmSlot,
     pub sidepanel_content: WmSidpanelContent,
     pub settings: WmSettings,
+}
+
+#[derive(Resource, Default)]
+pub struct ClipState {
+    pub plane_points: [Vec3; 3],
+    pub next_point: usize,
+    pub cursor: Vec3,
 }

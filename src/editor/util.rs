@@ -301,6 +301,16 @@ impl Orientation2d {
             Orientation2d::Right => &mut v.z,
         }
     }
+
+    pub fn mix(&self, origin: Vec3, cursor: Vec3) -> Vec3 {
+        match self {
+            Orientation2d::DownFront | Orientation2d::DownRight => {
+                Vec3::new(origin.x, cursor.y, origin.z)
+            }
+            Orientation2d::Front => Vec3::new(origin.x, origin.y, cursor.z),
+            Orientation2d::Right => Vec3::new(cursor.x, origin.y, origin.z),
+        }
+    }
 }
 
 pub trait SnapToGrid {
@@ -324,10 +334,18 @@ pub enum WmMouseButton {
     Right,
 }
 
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+pub struct WmModifiers {
+    pub shift: bool,
+    pub ctrl: bool,
+    pub alt: bool,
+}
+
 #[derive(Debug, Default, Copy, Clone)]
 pub struct WmEventPointerState {
     pub pos: Vec2,
     pub bounds: Rect,
+    pub modifiers: WmModifiers,
 }
 
 impl WmEventPointerState {

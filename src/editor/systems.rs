@@ -57,6 +57,17 @@ pub fn setup(
     material.unlit = true;
     material.cull_mode = None;
     materials_res.brush_2d_selected = material_assets.add(material);
+
+    let mut material: StandardMaterial = Color::rgba(0.2, 1.0, 0.2, 0.6).into();
+    material.unlit = true;
+    material.cull_mode = None;
+    materials_res.brush_clip_green = material_assets.add(material);
+
+    let mut material: StandardMaterial = Color::rgba(1.0, 0.2, 0.2, 0.6).into();
+    material.unlit = true;
+    material.cull_mode = None;
+    materials_res.brush_clip_red = material_assets.add(material);
+
     info!("loaded {} material defs", materials_res.material_defs.len());
 }
 

@@ -244,3 +244,6 @@ pub struct SelectionHighlighByOutline;
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Despawn;
+
+#[derive(Component)]
+pub struct ClipPreview;
