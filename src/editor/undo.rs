@@ -65,7 +65,12 @@ pub fn undo_system(mut undo_commands: UndoCommands, keycodes: Res<Input<KeyCode>
         let undo_entry = undo_commands.undo_stack.stack.pop();
         // info!("undo: {:?}", undo_entry);
         match undo_entry {
-            Some(UndoEntry::Generic { cmd }) => cmd.undo(&mut undo_commands),
+            Some(UndoEntry::Generic { cmd }) => {
+                let res = cmd.undo(&mut undo_commands);
+                if let Err(err) = res {
+                    warn!("error on undo apply: {:?}", err);
+                }
+            }
             None => info!("nothing to undo"),
         }
     }

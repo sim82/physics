@@ -11,18 +11,17 @@ pub struct Undo {
 }
 
 impl EditCommand for Command {
-    fn apply(self, commands: &mut EditCommands) -> Box<dyn UndoCommand + Send + Sync> {
-        if let Ok(mut transform) = commands.transform_query.get_mut(self.entity) {
-            let old_transform = *transform;
-            transform.translation = self.transform.translation;
+    fn apply(self, commands: &mut EditCommands) -> Result<Box<dyn UndoCommand + Send + Sync>> {
+        let mut transform = commands.transform_query.get_mut(self.entity)?;
+        let old_transform = *transform;
+        transform.translation = self.transform.translation;
 
-            return Box::new(Undo {
-                entity: self.entity,
-                old_transform,
-            });
-        }
+        Ok(Box::new(Undo {
+            entity: self.entity,
+            old_transform,
+        }))
 
-        panic!("transform not found for {:?}", self.entity);
+        // panic!("transform not found for {:?}", self.entity);
     }
 }
 
@@ -37,11 +36,11 @@ impl UndoCommand for Undo {
         false
     }
 
-    fn undo(&self, undo_commands: &mut UndoCommands) {
-        if let Ok(mut transform) = undo_commands.transform_query.get_mut(self.entity) {
-            *transform = self.old_transform;
-        } else {
-            warn!("failed to undo point transform on {:?}", self.entity);
-        }
+    fn undo(&self, undo_commands: &mut UndoCommands) -> Result<()> {
+        let mut transform = undo_commands.transform_query.get_mut(self.entity)?;
+        *transform = self.old_transform;
+        Ok(())
+        // warn!("failed to undo point transform on {:?}", self.entity);
+        // }
     }
 }

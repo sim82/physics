@@ -16,7 +16,13 @@ pub enum Undo {
 }
 
 impl EditCommand for Command {
-    fn apply(self, commands: &mut EditCommands) -> Box<dyn UndoCommand + Send + Sync> {
+    fn apply(self, commands: &mut EditCommands) -> Result<Box<dyn UndoCommand + Send + Sync>> {
+        commands
+            .commands
+            .get_entity(self.entity)
+            .ok_or_else(|| EditCommandError::UnknownEntity(self.entity))?
+            .insert(components::Despawn);
+
         let undo = if let Ok((material_props, brush)) = commands.brush_query.get(self.entity) {
             Box::new(Undo::Brush {
                 entity: self.entity,
@@ -26,11 +32,8 @@ impl EditCommand for Command {
         } else {
             Box::new(Undo::NotImplemented)
         };
-        commands
-            .commands
-            .entity(self.entity)
-            .insert(components::Despawn);
-        undo
+
+        Ok(undo)
     }
 }
 
@@ -39,7 +42,7 @@ impl UndoCommand for Undo {
         false
     }
 
-    fn undo(&self, undo_commands: &mut UndoCommands) {
+    fn undo(&self, undo_commands: &mut UndoCommands) -> Result<()> {
         match self {
             Undo::Brush {
                 entity,
@@ -60,5 +63,6 @@ impl UndoCommand for Undo {
             }
             Undo::NotImplemented => warn!("undo not implemented for add entity."),
         }
+        Ok(())
     }
 }

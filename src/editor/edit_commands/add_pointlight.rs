@@ -3,7 +3,7 @@ use super::prelude::*;
 pub struct Command;
 pub use super::add_entity::Undo;
 impl EditCommand for Command {
-    fn apply(self, commands: &mut EditCommands) -> Box<dyn UndoCommand + Send + Sync> {
+    fn apply(self, commands: &mut EditCommands) -> Result<Box<dyn UndoCommand + Send + Sync>> {
         let entity = commands
             .commands
             .spawn((
@@ -12,6 +12,6 @@ impl EditCommand for Command {
             ))
             .id();
 
-        Box::new(Undo { entity })
+        Ok(Box::new(Undo { entity }))
     }
 }
