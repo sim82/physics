@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 use super::prelude::*;
 
 pub struct Command {

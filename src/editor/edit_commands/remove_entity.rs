@@ -1,4 +1,4 @@
-use crate::editor::components::{BrushMaterialProperties, PointLightProperties};
+use crate::editor::components::BrushMaterialProperties;
 
 use super::prelude::*;
 

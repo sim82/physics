@@ -39,7 +39,7 @@ impl EditCommand for Command {
 }
 
 impl UndoCommand for Undo {
-    fn try_merge(&mut self, other: &dyn UndoCommand) -> bool {
+    fn try_merge(&mut self, _other: &dyn UndoCommand) -> bool {
         false
     }
 
