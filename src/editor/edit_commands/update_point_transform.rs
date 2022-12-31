@@ -12,7 +12,10 @@ pub struct Undo {
 
 impl EditCommand for Command {
     fn apply(self, commands: &mut EditCommands) -> Result<Box<dyn UndoCommand + Send + Sync>> {
-        let mut transform = commands.transform_query.get_mut(self.entity)?;
+        let mut transform = commands
+            .transform_query
+            .get_mut(self.entity)
+            .context("apply update_point_transform")?;
         let old_transform = *transform;
         transform.translation = self.transform.translation;
 
@@ -37,7 +40,10 @@ impl UndoCommand for Undo {
     }
 
     fn undo(&self, undo_commands: &mut UndoCommands) -> Result<()> {
-        let mut transform = undo_commands.transform_query.get_mut(self.entity)?;
+        let mut transform = undo_commands
+            .transform_query
+            .get_mut(self.entity)
+            .context("undo update_point_transform")?;
         *transform = self.old_transform;
         Ok(())
         // warn!("failed to undo point transform on {:?}", self.entity);

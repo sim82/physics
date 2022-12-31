@@ -29,7 +29,8 @@ pub enum EditCommandError {
     EntityQueryError(#[from] QueryEntityError),
 }
 
-pub type Result<T> = std::result::Result<T, EditCommandError>;
+// pub type Result<T> = std::result::Result<T, EditCommandError>;
+pub use anyhow::Result;
 
 pub trait UndoDowncast {
     fn as_any(&self) -> &dyn Any;
@@ -56,6 +57,7 @@ pub mod prelude {
         csg,
         editor::{components, undo::UndoCommands},
     };
+    pub use anyhow::Context;
     pub use bevy::prelude::*;
 }
 
@@ -79,7 +81,7 @@ pub mod add_entity {
                 Ok(())
             } else {
                 error!( "failed to despawn {:?} to undo addition. Either missing remap or undo failed earlier", entity);
-                Err(EditCommandError::UnknownEntity(entity))
+                Err(EditCommandError::UnknownEntity(entity).into())
             }
         }
     }

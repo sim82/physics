@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 use super::prelude::*;
 
 pub struct Command {
@@ -8,7 +10,10 @@ pub use super::add_entity::Undo;
 
 impl EditCommand for Command {
     fn apply(self, commands: &mut EditCommands) -> Result<Box<dyn UndoCommand + Send + Sync>> {
-        let (material_properties, brush) = commands.brush_query.get(self.template_entity)?;
+        let (material_properties, brush) = commands
+            .brush_query
+            .get(self.template_entity)
+            .context("could not find template brush entity.")?;
 
         let entity = commands
             .commands

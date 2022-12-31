@@ -19,7 +19,8 @@ impl EditCommand for Command {
         commands
             .commands
             .get_entity(self.entity)
-            .ok_or(EditCommandError::UnknownEntity(self.entity))?
+            .ok_or(EditCommandError::UnknownEntity(self.entity))
+            .context("apply set_brush_material")?
             .insert(components::CsgDirty);
         // point of no return
 
@@ -50,7 +51,8 @@ impl UndoCommand for Undo {
         undo_commands
             .commands
             .get_entity(entity)
-            .ok_or(EditCommandError::UnknownEntity(entity))?
+            .ok_or(EditCommandError::UnknownEntity(entity))
+            .context("undo set_brush_material")?
             .insert(components::CsgDirty);
 
         // point of no return
