@@ -688,6 +688,8 @@ pub fn clip_input_system(
                     },
                     Name::new("clip 0"),
                     components::ClipPoint0,
+                    components::EditablePoint,
+
                 ));
                 return;
             };
@@ -719,6 +721,8 @@ pub fn clip_input_system(
                     },
                     Name::new("clip 1"),
                     components::ClipPoint1,
+                    components::EditablePoint,
+
                 ));
                 return;
             };
@@ -750,6 +754,7 @@ pub fn clip_input_system(
                     },
                     Name::new("clip 2"),
                     components::ClipPoint2,
+                    components::EditablePoint,
                 ));
                 return;
             };
@@ -772,26 +777,79 @@ pub fn clip_input_system(
 pub fn clip_preview_system(
     mut commands: Commands,
     materials_res: Res<resources::Materials>,
-    clip_state: Res<resources::ClipState>,
+    mut clip_state: ResMut<resources::ClipState>,
     selected_query: Query<&csg::Brush, With<components::Selected>>,
     brush_changed_query: Query<(), (With<components::Selected>, Changed<csg::Brush>)>,
     despawn_query: Query<Entity, With<components::ClipPreview>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut last_point: Local<usize>,
+    query_clip0: Query<
+        &Transform,
+        (
+            With<components::ClipPoint0>,
+            Without<components::ClipPoint1>,
+            Without<components::ClipPoint2>,
+            Changed<Transform>,
+        ),
+    >,
+    mut query_clip1: Query<
+        &Transform,
+        (
+            With<components::ClipPoint1>,
+            Without<components::ClipPoint0>,
+            Without<components::ClipPoint2>,
+            Changed<Transform>,
+        ),
+    >,
+    mut query_clip2: Query<
+        &Transform,
+        (
+            With<components::ClipPoint2>,
+            Without<components::ClipPoint0>,
+            Without<components::ClipPoint1>,
+            Changed<Transform>,
+        ),
+    >,
 ) {
-    if brush_changed_query.is_empty() && *last_point == clip_state.next_point {
+    let update = !brush_changed_query.is_empty()
+        || !query_clip0.is_empty()
+        || !query_clip1.is_empty()
+        || !query_clip2.is_empty();
+
+    if !update {
         return;
+    }
+
+    if let Ok(Transform {
+        translation: point0,
+        ..
+    }) = query_clip0.get_single()
+    {
+        clip_state.plane_points[0] = *point0;
+    };
+
+    if let Ok(Transform {
+        translation: point1,
+        ..
+    }) = query_clip1.get_single()
+    {
+        clip_state.plane_points[1] = *point1;
+    };
+
+    if let Ok(Transform {
+        translation: point2,
+        ..
+    }) = query_clip2.get_single()
+    {
+        clip_state.plane_points[2] = *point2;
+    };
+
+    for entity in &despawn_query {
+        commands.entity(entity).despawn_recursive();
     }
 
     let Ok(brush) = selected_query.get_single() else {
         return;
     };
-
-    *last_point = clip_state.next_point;
-
-    for entity in &despawn_query {
-        commands.entity(entity).despawn_recursive();
-    }
 
     let plane = csg::Plane::from_points_slice(&clip_state.plane_points);
     info!("plane: {:?} {:?}", clip_state.plane_points, plane);
