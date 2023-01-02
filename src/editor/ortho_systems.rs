@@ -657,23 +657,18 @@ pub fn clip_preview_system(
     mut commands: Commands,
     materials_res: Res<resources::Materials>,
     mut clip_state: ResMut<resources::ClipState>,
-    selected_query: Query<&csg::Brush, With<components::Selected>>,
+    selected_query: Query<(&csg::Brush, &Children), With<components::Selected>>,
     brush_changed_query: Query<(), (With<components::Selected>, Changed<csg::Brush>)>,
     despawn_query: Query<Entity, With<components::ClipPreview>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut selection_vis_query: Query<&mut Visibility, With<components::Selected>>,
+    mut vis_query: Query<&mut Visibility, Without<components::ClipPreview>>,
     mut clip_vis_query: Query<
         &mut Visibility,
         (With<components::ClipPreview>, Without<components::Selected>),
     >,
     clip_points: util::ClipPointQuery,
 ) {
-    let update = !brush_changed_query.is_empty()
-        || !clip_points.query_clip0.is_empty()
-        || !clip_points.query_clip1.is_empty()
-        || !clip_points.query_clip2.is_empty();
-
-    if !update {
+    if brush_changed_query.is_empty() && clip_points.clip_points_changed_query.is_empty() {
         return;
     }
 
@@ -705,7 +700,7 @@ pub fn clip_preview_system(
         commands.entity(entity).despawn_recursive();
     }
 
-    let Ok(brush) = selected_query.get_single() else {
+    let Ok((brush, children)) = selected_query.get_single() else {
         return;
     };
 
@@ -758,8 +753,10 @@ pub fn clip_preview_system(
         for mut vis in &mut clip_vis_query {
             vis.is_visible = true;
         }
-        for mut vis in &mut selection_vis_query {
-            vis.is_visible = false;
+        for entity in children {
+            if let Ok(mut vis) = vis_query.get_mut(*entity) {
+                vis.is_visible = false;
+            }
         }
     } else if !clip_state.clip_mode && clip_state.last_clip_mode {
         info!("from clip mode");
@@ -767,8 +764,10 @@ pub fn clip_preview_system(
         for mut vis in &mut clip_vis_query {
             vis.is_visible = false;
         }
-        for mut vis in &mut selection_vis_query {
-            vis.is_visible = true;
+        for entity in children {
+            if let Ok(mut vis) = vis_query.get_mut(*entity) {
+                vis.is_visible = true;
+            }
         }
     }
     clip_state.last_clip_mode = clip_state.clip_mode;

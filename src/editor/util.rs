@@ -556,8 +556,22 @@ impl<'w, 's> ClipPointQueryMut<'w, 's> {
     }
 }
 
+#[allow(clippy::type_complexity)]
 #[derive(SystemParam)]
 pub struct ClipPointQuery<'w, 's> {
+    pub clip_points_changed_query: Query<
+        'w,
+        's,
+        Entity,
+        (
+            Changed<Transform>,
+            Or<(
+                With<components::ClipPoint0>,
+                With<components::ClipPoint0>,
+                With<components::ClipPoint0>,
+            )>,
+        ),
+    >,
     pub query_clip0: Query<
         'w,
         's,
