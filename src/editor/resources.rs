@@ -333,4 +333,6 @@ pub struct ClipState {
     pub plane_points: [Vec3; 3],
     pub next_point: usize,
     pub cursor: Vec3,
+    pub clip_mode: bool,
+    pub last_clip_mode: bool,
 }

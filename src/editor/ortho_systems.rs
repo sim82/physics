@@ -661,6 +661,11 @@ pub fn clip_preview_system(
     brush_changed_query: Query<(), (With<components::Selected>, Changed<csg::Brush>)>,
     despawn_query: Query<Entity, With<components::ClipPreview>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut selection_vis_query: Query<&mut Visibility, With<components::Selected>>,
+    mut clip_vis_query: Query<
+        &mut Visibility,
+        (With<components::ClipPreview>, Without<components::Selected>),
+    >,
     clip_points: util::ClipPointQuery,
 ) {
     let update = !brush_changed_query.is_empty()
@@ -715,11 +720,11 @@ pub fn clip_preview_system(
     brush2.appearances.push(brush2.appearances.len() as i32);
 
     let brushes = [
-        (brush1, materials_res.brush_clip_red.clone()),
-        (brush2, materials_res.brush_clip_green.clone()),
+        (0, brush1, materials_res.brush_clip_red.clone()),
+        (1, brush2, materials_res.brush_clip_green.clone()),
     ];
 
-    for (brush, material) in brushes {
+    for (i, brush, material) in brushes {
         let csg: Result<csg::Csg, _> = brush.try_into();
         if let Ok(csg) = csg {
             let (mesh, origin) = (&csg).into();
@@ -733,16 +738,38 @@ pub fn clip_preview_system(
             commands.spawn((
                 PbrBundle {
                     mesh: meshes.add(mesh),
-                    material: materials_res.get_brush_2d_material(),
+                    material,
                     transform,
+                    visibility: Visibility {
+                        is_visible: clip_state.clip_mode,
+                    },
                     ..default()
                 },
                 render_layers::ortho_views(),
                 components::ClipPreview,
             ));
         } else {
-            info!("clip failed");
+            info!("clip failed {}", i);
         }
     }
-    info!("clip update");
+    // info!("clip update");
+    if clip_state.clip_mode && !clip_state.last_clip_mode {
+        info!("to clip mode");
+        for mut vis in &mut clip_vis_query {
+            vis.is_visible = true;
+        }
+        for mut vis in &mut selection_vis_query {
+            vis.is_visible = false;
+        }
+    } else if !clip_state.clip_mode && clip_state.last_clip_mode {
+        info!("from clip mode");
+
+        for mut vis in &mut clip_vis_query {
+            vis.is_visible = false;
+        }
+        for mut vis in &mut selection_vis_query {
+            vis.is_visible = true;
+        }
+    }
+    clip_state.last_clip_mode = clip_state.clip_mode;
 }

@@ -77,6 +77,7 @@ pub fn editor_input_system(
     mut edit_commands: EditCommands,
     keycodes: Res<Input<KeyCode>>,
     selection_query: Query<Entity, With<components::Selected>>,
+    mut clip_state: ResMut<resources::ClipState>,
 ) {
     let mut clear_selection = false;
     if keycodes.just_pressed(KeyCode::B) {
@@ -122,6 +123,10 @@ pub fn editor_input_system(
                 warn!("failed to remove entity: {:?}", err);
             }
         }
+    }
+
+    if keycodes.just_pressed(KeyCode::C) {
+        clip_state.clip_mode = !clip_state.clip_mode;
     }
 
     if clear_selection {
