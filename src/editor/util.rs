@@ -330,6 +330,13 @@ impl SnapToGrid for f32 {
     }
 }
 
+impl SnapToGrid for Vec3 {
+    type Param = f32;
+    fn snap(self, s: Self::Param) -> Vec3 {
+        Vec3::new(self.x.snap(s), self.y.snap(s), self.z.snap(s))
+    }
+}
+
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub enum WmMouseButton {
     #[default]

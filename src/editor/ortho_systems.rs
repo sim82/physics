@@ -477,7 +477,7 @@ pub fn edit_input_system(
                             let res = edit_commands.apply(update_point_transform::Command {
                                 entity,
                                 transform: Transform::from_translation(
-                                    *start_translation + drag_delta,
+                                    (*start_translation + drag_delta).snap(0.1),
                                 ),
                             });
                             if let Err(err) = res {
@@ -636,7 +636,10 @@ pub fn clip_input_system(
                 clip_state.cursor = ray.origin;
                 continue;
             }
-            let point = window.orientation.mix(ray.origin, clip_state.cursor);
+            let point = window
+                .orientation
+                .mix(ray.origin, clip_state.cursor)
+                .snap(0.1);
 
             match clip_state.next_point % 3 {
                 0 => clip_points.set_point0(point),
@@ -707,13 +710,11 @@ pub fn clip_preview_system(
     let plane = csg::Plane::from_points_slice(&clip_state.plane_points);
     info!("plane: {:?} {:?}", clip_state.plane_points, plane);
     let mut brush1 = brush.clone();
-    brush1.planes.push(plane.flipped());
-    brush1.appearances.push(brush1.appearances.len() as i32);
+    brush1.add_plane(plane.flipped());
 
     let mut brush2 = brush.clone();
-    brush2.planes.push(plane);
-    brush2.appearances.push(brush2.appearances.len() as i32);
-
+    let res = brush2.add_plane(plane);
+    info!("res: {:?}", res);
     let brushes = [
         (0, brush1, materials_res.brush_clip_red.clone()),
         (1, brush2, materials_res.brush_clip_green.clone()),
@@ -723,6 +724,7 @@ pub fn clip_preview_system(
         let csg: Result<csg::Csg, _> = brush.try_into();
         if let Ok(csg) = csg {
             let (mesh, origin) = (&csg).into();
+
             let transform = Transform::from_translation(origin);
             // transform.translation = origin;
             // info!("brush new");

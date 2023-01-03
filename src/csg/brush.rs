@@ -4,6 +4,8 @@ use super::{Csg, Location, Plane, Polygon, Vertex};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+const BASE_POLYGON_SIZE: f32 = 1024.0 * 8.0;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Component)]
 pub struct Brush {
     pub planes: Vec<Plane>,
@@ -42,6 +44,60 @@ impl Brush {
         }
         res
     }
+
+    pub fn add_plane(&mut self, plane: Plane) -> bool {
+        self.planes.push(plane);
+        self.appearances.push(self.appearances.len() as i32);
+        true
+    }
+
+    pub fn get_polygons(&self) -> (Vec<Polygon>, Vec<usize>) {
+        let mut polygons = Vec::new();
+        let mut degenerated = Vec::new();
+        'outer: for (i, (base_plane, appearance)) in
+            self.planes.iter().zip(self.appearances.iter()).enumerate()
+        {
+            let mut polygon = create_base_polygon(base_plane, *appearance, BASE_POLYGON_SIZE);
+
+            for (j, plane) in self.planes.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+                let mut coplanar_front = Vec::new();
+                let mut front = Vec::new();
+
+                let mut coplanar_back = Vec::new();
+                let mut back = Vec::new();
+
+                plane.split_polygon(
+                    &polygon,
+                    &mut coplanar_front,
+                    &mut coplanar_back,
+                    &mut front,
+                    &mut back,
+                );
+
+                // check degenerated cases. the split polygon must either be cut in two or must be completely behind the plane
+                // coplanar or no back result would mean the planes describe an empty volume
+
+                if !(coplanar_back.is_empty() && coplanar_front.is_empty())
+                    || back.len() != 1
+                    || front.len() > 1
+                {
+                    degenerated.push(i);
+                    continue 'outer;
+                }
+                assert!(coplanar_back.is_empty());
+                assert!(coplanar_front.is_empty());
+                assert!(back.len() == 1);
+                assert!(front.len() <= 1);
+                polygon = back.pop().unwrap();
+            }
+            polygons.push(polygon);
+        }
+        info!("degenerated: {:?} {}", degenerated, polygons.len());
+        (polygons, degenerated)
+    }
 }
 
 impl Default for Brush {
@@ -67,59 +123,9 @@ impl TryFrom<Brush> for Csg {
     type Error = BrushError;
 
     fn try_from(brush: Brush) -> Result<Self, Self::Error> {
-        let mut polygons = Vec::new();
-        for (i, (base_plane, appearance)) in brush
-            .planes
-            .iter()
-            .zip(brush.appearances.iter())
-            .enumerate()
-        {
-            const BASE_POLYGON_SIZE: f32 = 1024.0 * 8.0;
-            let mut polygon = create_base_polygon(base_plane, *appearance, BASE_POLYGON_SIZE);
-
-            for (j, plane) in brush.planes.iter().enumerate() {
-                if i == j {
-                    continue;
-                }
-                let mut coplanar_front = Vec::new();
-                let mut front = Vec::new();
-
-                let mut coplanar_back = Vec::new();
-                let mut back = Vec::new();
-
-                plane.split_polygon(
-                    &polygon,
-                    &mut coplanar_front,
-                    &mut coplanar_back,
-                    &mut front,
-                    &mut back,
-                );
-                // println!(
-                //     "{} {} {} {}",
-                //     coplanar_front.len(),
-                //     front.len(),
-                //     coplanar_back.len(),
-                //     back.len()
-                // );
-
-                // check degenerated cases. the split polygon must either be cut in two or must be completely behind the plane
-                // coplanar or no back result would mean the planes describe an empty volume
-
-                if !(coplanar_back.is_empty() && coplanar_front.is_empty())
-                    || back.len() != 1
-                    || front.len() > 1
-                {
-                    // TODO: include more info about degenrated case?
-                    return Err(BrushError::Degenerated(brush));
-                }
-                assert!(coplanar_back.is_empty());
-                assert!(coplanar_front.is_empty());
-                assert!(back.len() == 1);
-                assert!(front.len() <= 1);
-
-                polygon = back.pop().unwrap()
-            }
-            polygons.push(polygon);
+        let (polygons, _) = brush.get_polygons();
+        if polygons.len() < 4 {
+            return Err(BrushError::Degenerated(brush));
         }
         Ok(Csg::from_polygons(polygons))
     }
