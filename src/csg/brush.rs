@@ -51,6 +51,25 @@ impl Brush {
         true
     }
 
+    pub fn remove_degenerated(&mut self) -> Vec<i32> {
+        let (_, mut removed) = self.get_polygons();
+        removed.sort();
+        removed.reverse();
+
+        for r in removed {
+            self.planes.remove(r);
+            self.appearances.remove(r);
+        }
+        let mut remap = Vec::new();
+        let mut c = 0;
+        for app in &mut self.appearances {
+            remap.push(*app);
+            *app = c;
+            c += 1;
+        }
+        remap
+    }
+
     pub fn get_polygons(&self) -> (Vec<Polygon>, Vec<usize>) {
         let mut polygons = Vec::new();
         let mut degenerated = Vec::new();

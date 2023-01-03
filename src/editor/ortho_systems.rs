@@ -16,7 +16,10 @@ use super::{
 };
 use crate::{
     csg::{self, PLANE_EPSILON},
-    editor::edit_commands::{update_brush_drag, update_point_transform},
+    editor::{
+        components::BrushMaterialProperties,
+        edit_commands::{self, update_brush_drag, update_point_transform},
+    },
     render_layers,
 };
 // systems related to 2d windows
@@ -655,12 +658,38 @@ pub fn clip_input_system(
     }
 }
 
+pub fn clip_point_update_system(
+    mut commands: Commands,
+    mut clip_state: ResMut<resources::ClipState>,
+    mut clip_points: util::ClipPointQuery,
+    mut clip_plane_query: Query<&mut components::ClipPlane>,
+) {
+    if clip_points.clip_points_changed_query.is_empty() {
+        return;
+    }
+
+    let (Ok(t0), Ok(t1), Ok(t2)) = (clip_points.query_clip0.get_single(), clip_points.query_clip1.get_single(), clip_points.query_clip2.get_single()) else {
+        return;
+    };
+
+    let plane = csg::Plane::from_points(t0.1.translation, t1.1.translation, t2.1.translation);
+
+    if let Ok(mut clip_plane) = clip_plane_query.get_single_mut() {
+        clip_plane.0 = plane;
+    } else {
+        commands.spawn(components::ClipPlane(plane));
+    }
+    info!("update clip plane");
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn clip_preview_system(
     mut commands: Commands,
+    keycodes: Res<Input<KeyCode>>,
+    mut edit_commands: EditCommands,
     materials_res: Res<resources::Materials>,
     mut clip_state: ResMut<resources::ClipState>,
-    selected_query: Query<(&csg::Brush, &Children), With<components::Selected>>,
+    selected_query: Query<(Entity, &Children), With<components::Selected>>,
     brush_changed_query: Query<(), (With<components::Selected>, Changed<csg::Brush>)>,
     despawn_query: Query<Entity, With<components::ClipPreview>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -669,55 +698,97 @@ pub fn clip_preview_system(
         &mut Visibility,
         (With<components::ClipPreview>, Without<components::Selected>),
     >,
-    clip_points: util::ClipPointQuery,
+    clip_plane_query: Query<&components::ClipPlane>,
+    clip_plane_changed_query: Query<(), Changed<components::ClipPlane>>,
 ) {
-    if brush_changed_query.is_empty() && clip_points.clip_points_changed_query.is_empty() {
+    if brush_changed_query.is_empty()
+        && clip_plane_changed_query.is_empty()
+        && clip_state.clip_mode == clip_state.last_clip_mode
+        && !keycodes.just_pressed(KeyCode::R)
+        && !keycodes.just_pressed(KeyCode::G)
+    {
         return;
     }
 
-    if let Ok(Transform {
-        translation: point0,
-        ..
-    }) = clip_points.query_clip0.get_single()
-    {
-        clip_state.plane_points[0] = *point0;
+    let Ok((selected_entity, children)) = selected_query.get_single() else {
+        return;
     };
 
-    if let Ok(Transform {
-        translation: point1,
-        ..
-    }) = clip_points.query_clip1.get_single()
-    {
-        clip_state.plane_points[1] = *point1;
+    let Ok((material_props, brush)) = edit_commands.brush_query.get(selected_entity) else {
+        return;
     };
 
-    if let Ok(Transform {
-        translation: point2,
-        ..
-    }) = clip_points.query_clip2.get_single()
-    {
-        clip_state.plane_points[2] = *point2;
+    let Ok(components::ClipPlane(clip_plane)) = clip_plane_query.get_single() else {
+        return;
     };
+
+    if clip_state.clip_mode && !clip_state.last_clip_mode {
+        info!("to clip mode");
+        for mut vis in &mut clip_vis_query {
+            vis.is_visible = true;
+        }
+        for entity in children {
+            if let Ok(mut vis) = vis_query.get_mut(*entity) {
+                vis.is_visible = false;
+            }
+        }
+        clip_state.last_clip_mode = clip_state.clip_mode;
+    } else if !clip_state.clip_mode && clip_state.last_clip_mode {
+        info!("from clip mode");
+
+        for mut vis in &mut clip_vis_query {
+            vis.is_visible = false;
+        }
+        for entity in children {
+            if let Ok(mut vis) = vis_query.get_mut(*entity) {
+                vis.is_visible = true;
+            }
+        }
+        // clip_points.despawn();
+        clip_state.next_point = 0;
+        clip_state.last_clip_mode = clip_state.clip_mode;
+
+        return;
+    }
 
     for entity in &despawn_query {
         commands.entity(entity).despawn_recursive();
     }
 
-    let Ok((brush, children)) = selected_query.get_single() else {
-        return;
-    };
-
-    let plane = csg::Plane::from_points_slice(&clip_state.plane_points);
-    info!("plane: {:?} {:?}", clip_state.plane_points, plane);
+    // let plane = csg::Plane::from_points_slice(&clip_state.plane_points);
+    info!("plane: {:?} {:?}", clip_state.plane_points, clip_plane);
     let mut brush1 = brush.clone();
-    brush1.add_plane(plane.flipped());
+    brush1.add_plane(clip_plane.flipped());
+    let remap1 = brush1.remove_degenerated();
+    let materials1 = remap1
+        .iter()
+        .map(|old| {
+            material_props
+                .materials
+                .get(*old as usize)
+                .cloned()
+                .unwrap_or_else(|| "material/architecture/woodframe1".to_string())
+        })
+        .collect();
 
     let mut brush2 = brush.clone();
-    let res = brush2.add_plane(plane);
+    let res = brush2.add_plane(*clip_plane);
+    let remap2 = brush2.remove_degenerated();
+    let materials2 = remap2
+        .iter()
+        .map(|old| {
+            material_props
+                .materials
+                .get(*old as usize)
+                .cloned()
+                .unwrap_or_else(|| "material/architecture/woodframe1".to_string())
+        })
+        .collect();
+
     info!("res: {:?}", res);
     let brushes = [
-        (0, brush1, materials_res.brush_clip_red.clone()),
-        (1, brush2, materials_res.brush_clip_green.clone()),
+        (0, brush1.clone(), materials_res.brush_clip_red.clone()),
+        (1, brush2.clone(), materials_res.brush_clip_green.clone()),
     ];
 
     for (i, brush, material) in brushes {
@@ -726,12 +797,6 @@ pub fn clip_preview_system(
             let (mesh, origin) = (&csg).into();
 
             let transform = Transform::from_translation(origin);
-            // transform.translation = origin;
-            // info!("brush new");
-            // let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
-            // if let Err(err) = res {
-            // warn!("failed to generate outline normals for: {:?}", err);
-            // }
             commands.spawn((
                 PbrBundle {
                     mesh: meshes.add(mesh),
@@ -749,28 +814,43 @@ pub fn clip_preview_system(
             info!("clip failed {}", i);
         }
     }
-    // info!("clip update");
-    if clip_state.clip_mode && !clip_state.last_clip_mode {
-        info!("to clip mode");
-        for mut vis in &mut clip_vis_query {
-            vis.is_visible = true;
-        }
-        for entity in children {
-            if let Ok(mut vis) = vis_query.get_mut(*entity) {
-                vis.is_visible = false;
-            }
-        }
-    } else if !clip_state.clip_mode && clip_state.last_clip_mode {
-        info!("from clip mode");
 
-        for mut vis in &mut clip_vis_query {
-            vis.is_visible = false;
+    if keycodes.just_pressed(KeyCode::R) {
+        info!("use red: {:?} {:?} -> {:?}", brush, material_props, brush1);
+        // let mut new_material_props = material_props.clone();
+
+        let res = edit_commands.apply(edit_commands::clip_brush::Command {
+            entity: selected_entity,
+            start_brush: brush.clone(),
+            start_material_props: material_props.clone(),
+            brush: brush1,
+            material_props: BrushMaterialProperties {
+                materials: materials1,
+            },
+        });
+        if let Err(err) = res {
+            warn!("failed to update brush after clip: {:?}", err);
         }
-        for entity in children {
-            if let Ok(mut vis) = vis_query.get_mut(*entity) {
-                vis.is_visible = true;
-            }
+        clip_state.clip_mode = false;
+    } else if keycodes.just_pressed(KeyCode::G) {
+        let mut new_material_props = material_props.clone();
+        new_material_props
+            .materials
+            .push("material/architecture/woodframe1".to_string());
+
+        let res = edit_commands.apply(edit_commands::clip_brush::Command {
+            entity: selected_entity,
+            start_brush: brush.clone(),
+            start_material_props: material_props.clone(),
+            brush: brush2,
+            material_props: BrushMaterialProperties {
+                materials: materials2,
+            },
+        });
+        if let Err(err) = res {
+            warn!("failed to update brush after clip: {:?}", err);
         }
+        clip_state.clip_mode = false;
+        info!("use green");
     }
-    clip_state.last_clip_mode = clip_state.clip_mode;
 }

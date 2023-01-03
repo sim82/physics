@@ -102,7 +102,8 @@ impl Plugin for EditorPlugin {
             SystemStage::parallel()
                 .with_system(systems::update_material_refs_system)
                 .with_system(systems::track_primary_selection) // must run after track_2d_vis_system
-                .with_system(ortho_systems::clip_preview_system),
+                .with_system(ortho_systems::clip_preview_system)
+                .with_system(ortho_systems::clip_point_update_system),
         );
 
         app.register_inspectable::<components::CsgRepresentation>();

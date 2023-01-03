@@ -14,6 +14,7 @@ use thiserror::Error;
 
 pub mod add_brush;
 pub mod add_pointlight;
+pub mod clip_brush;
 pub mod duplicate_brush;
 pub mod remove_entity;
 pub mod set_brush_material;

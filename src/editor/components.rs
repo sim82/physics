@@ -256,3 +256,6 @@ pub struct ClipPoint1;
 
 #[derive(Component)]
 pub struct ClipPoint2;
+
+#[derive(Component)]
+pub struct ClipPlane(pub csg::Plane);

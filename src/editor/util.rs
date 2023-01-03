@@ -566,6 +566,7 @@ impl<'w, 's> ClipPointQueryMut<'w, 's> {
 #[allow(clippy::type_complexity)]
 #[derive(SystemParam)]
 pub struct ClipPointQuery<'w, 's> {
+    pub commands: Commands<'w, 's>,
     pub clip_points_changed_query: Query<
         'w,
         's,
@@ -574,15 +575,15 @@ pub struct ClipPointQuery<'w, 's> {
             Changed<Transform>,
             Or<(
                 With<components::ClipPoint0>,
-                With<components::ClipPoint0>,
-                With<components::ClipPoint0>,
+                With<components::ClipPoint1>,
+                With<components::ClipPoint2>,
             )>,
         ),
     >,
     pub query_clip0: Query<
         'w,
         's,
-        &'static Transform,
+        (Entity, &'static Transform),
         (
             With<components::ClipPoint0>,
             Without<components::ClipPoint1>,
@@ -592,7 +593,7 @@ pub struct ClipPointQuery<'w, 's> {
     pub query_clip1: Query<
         'w,
         's,
-        &'static Transform,
+        (Entity, &'static Transform),
         (
             With<components::ClipPoint1>,
             Without<components::ClipPoint0>,
@@ -602,11 +603,24 @@ pub struct ClipPointQuery<'w, 's> {
     pub query_clip2: Query<
         'w,
         's,
-        &'static Transform,
+        (Entity, &'static Transform),
         (
             With<components::ClipPoint2>,
             Without<components::ClipPoint0>,
             Without<components::ClipPoint1>,
         ),
     >,
+}
+
+impl<'w, 's> ClipPointQuery<'w, 's> {
+    pub fn despawn(&mut self) {
+        for (entity, _) in self
+            .query_clip0
+            .iter()
+            .chain(self.query_clip1.iter())
+            .chain(self.query_clip2.iter())
+        {
+            self.commands.entity(entity).despawn();
+        }
+    }
 }
