@@ -747,7 +747,9 @@ pub fn clip_preview_system(
         // clip_points.despawn();
         clip_state.next_point = 0;
         clip_state.last_clip_mode = clip_state.clip_mode;
+    }
 
+    if !clip_state.clip_mode {
         return;
     }
 
