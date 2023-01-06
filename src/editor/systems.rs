@@ -109,6 +109,29 @@ pub fn editor_input_system(
         clear_selection = true;
     }
 
+    if keycodes.just_pressed(KeyCode::K) {
+        commands
+            .spawn((SpatialBundle::default(), components::EditablePoint))
+            .add_children(|commands| {
+                let mut offset = Vec3::ZERO;
+                for _ in 0..20 {
+                    commands.spawn((
+                        PointLightBundle {
+                            transform: Transform::from_translation(offset),
+                            point_light: PointLight {
+                                range: 2.0,
+                                shadows_enabled: false,
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        RenderLayers::layer(render_layers::MAIN_3D),
+                    ));
+                    offset.x += 0.4;
+                }
+            });
+    }
+
     // if keycodes.just_pressed(KeyCode::K) {
     //     let entity = commands
     //         .spawn(components::EditorObjectDirectionalLightBundle::default())
@@ -537,17 +560,16 @@ pub fn track_lights_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     materials_res: Res<resources::Materials>,
+
     query: Query<
         (Entity, &components::PointLightProperties, &Transform),
-        (With<components::PointLightProperties>, Without<Children>),
+        Added<components::PointLightProperties>,
     >,
     directial_query: Query<
         (Entity, &components::DirectionalLightProperties, &Transform),
-        (
-            With<components::DirectionalLightProperties>,
-            Without<Children>,
-        ),
+        Added<components::DirectionalLightProperties>,
     >,
+    vis2d_query: Query<Entity, Added<components::EditablePoint>>,
     despawn_query: Query<
         Entity,
         (
@@ -557,28 +579,9 @@ pub fn track_lights_system(
             )>,
             With<components::Despawn>,
         ),
-    >, // query_changed: Query<(Entity, &EditorObject), Without<Handle<Mesh>>>,
+    >,
 ) {
-    for (entity, light_props, _transform) in &query {
-        // if !matches!(editor_object, EditorObject::PointLight(_)) {
-        //     continue;
-        // }
-
-        let light_entity = commands
-            .spawn((
-                PointLightBundle {
-                    point_light: PointLight {
-                        shadows_enabled: light_props.shadows_enabled,
-                        range: light_props.range,
-                        ..default()
-                    },
-                    ..default()
-                },
-                RenderLayers::layer(render_layers::MAIN_3D),
-                Name::new("bevy 3d PointLight"),
-            ))
-            .id();
-
+    for entity in &vis2d_query {
         let vis2d_entity = commands
             .spawn((
                 PbrBundle {
@@ -607,21 +610,28 @@ pub fn track_lights_system(
             ))
             .id();
 
-        commands
-            .entity(entity)
-            .add_child(light_entity)
-            .add_child(vis2d_entity);
-        // .insert(NotShadowCaster)
-        // .insert(NotShadowReceiver)
-        // .insert(EditorObjectLinkedBevyTransform(light_entity))
-        // .add_child(light_entity);
+        commands.entity(entity).add_child(vis2d_entity);
+    }
+    for (entity, light_props, _transform) in &query {
+        let light_entity = commands
+            .spawn((
+                PointLightBundle {
+                    point_light: PointLight {
+                        shadows_enabled: light_props.shadows_enabled,
+                        range: light_props.range,
+                        ..default()
+                    },
+                    ..default()
+                },
+                RenderLayers::layer(render_layers::MAIN_3D),
+                Name::new("bevy 3d PointLight"),
+            ))
+            .id();
+
+        commands.entity(entity).add_child(light_entity);
     }
 
     for (entity, light_props, _transform) in &directial_query {
-        // if !matches!(editor_object, EditorObject::PointLight(_)) {
-        //     continue;
-        // }
-
         // directional 'sun' light
         let half_size = light_props.half_size;
 
@@ -649,42 +659,7 @@ pub fn track_lights_system(
             ))
             .id();
 
-        let vis2d_entity = commands
-            .spawn((
-                PbrBundle {
-                    mesh: meshes.add(
-                        mesh::shape::Icosphere {
-                            radius: 0.1,
-                            subdivisions: 2,
-                        }
-                        .into(),
-                    ),
-                    material: materials_res.get_brush_2d_material(),
-
-                    ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
-                },
-                render_layers::ortho_views(),
-                components::SelectionHighlighByOutline,
-                bevy_mod_outline::OutlineBundle {
-                    outline: bevy_mod_outline::OutlineVolume {
-                        colour: Color::BLUE,
-                        visible: true,
-                        width: 2.0,
-                    },
-                    ..default()
-                },
-                Name::new("2dvis Mesh"),
-            ))
-            .id();
-
-        commands
-            .entity(entity)
-            .add_child(light_entity)
-            .add_child(vis2d_entity);
-        // .insert(NotShadowCaster)
-        // .insert(NotShadowReceiver)
-        // .insert(EditorObjectLinkedBevyTransform(light_entity))
-        // .add_child(light_entity);
+        commands.entity(entity).add_child(light_entity);
     }
     for entity in &despawn_query {
         commands.entity(entity).despawn_recursive();

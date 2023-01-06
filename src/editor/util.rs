@@ -1,21 +1,15 @@
+use super::components::{self, CsgOutput};
+use crate::{
+    csg::{self, Csg},
+    render_layers,
+};
 use bevy::{
-    ecs::system::SystemParam,
     pbr::wireframe::Wireframe,
     prelude::*,
     render::{mesh, view::RenderLayers},
 };
 use bevy_rapier3d::prelude::Collider;
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    csg::{self, Csg},
-    render_layers,
-};
-
-use super::{
-    components::{self, CsgOutput},
-    resources,
-};
 
 pub fn spawn_box(
     commands: &mut Commands,
@@ -468,159 +462,4 @@ pub fn raycast_moller_trumbore(
         distance: t,
         uv_coords: (u, v),
     })
-}
-
-#[derive(SystemParam)]
-pub struct ClipPointQueryMut<'w, 's> {
-    commands: Commands<'w, 's>,
-    meshes: ResMut<'w, Assets<Mesh>>,
-    materials_res: Res<'w, resources::Materials>,
-    pub query_clip0: Query<
-        'w,
-        's,
-        &'static mut Transform,
-        (
-            With<components::ClipPoint0>,
-            Without<components::ClipPoint1>,
-            Without<components::ClipPoint2>,
-        ),
-    >,
-    pub query_clip1: Query<
-        'w,
-        's,
-        &'static mut Transform,
-        (
-            With<components::ClipPoint1>,
-            Without<components::ClipPoint0>,
-            Without<components::ClipPoint2>,
-        ),
-    >,
-    pub query_clip2: Query<
-        'w,
-        's,
-        &'static mut Transform,
-        (
-            With<components::ClipPoint2>,
-            Without<components::ClipPoint0>,
-            Without<components::ClipPoint1>,
-        ),
-    >,
-}
-
-impl<'w, 's> ClipPointQueryMut<'w, 's> {
-    fn spawn_point<T: Component>(&mut self, point: Vec3, marker: T) {
-        self.commands.spawn((
-            PbrBundle {
-                mesh: self.meshes.add(
-                    bevy::render::mesh::shape::Icosphere {
-                        radius: 0.1,
-                        subdivisions: 2,
-                    }
-                    .into(),
-                ),
-                material: self.materials_res.get_brush_2d_material(),
-                transform: Transform::from_translation(point),
-                ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
-            },
-            render_layers::ortho_views(),
-            components::SelectionHighlighByOutline,
-            bevy_mod_outline::OutlineBundle {
-                outline: bevy_mod_outline::OutlineVolume {
-                    colour: Color::BLUE,
-                    visible: true,
-                    width: 2.0,
-                },
-                ..default()
-            },
-            // Name::new("clip 0"),
-            marker,
-            components::EditablePoint,
-        ));
-    }
-
-    pub fn set_point0(&mut self, pos: Vec3) {
-        if let Ok(mut transform) = self.query_clip0.get_single_mut() {
-            transform.translation = pos;
-        } else {
-            self.spawn_point(pos, components::ClipPoint0);
-        }
-    }
-
-    pub fn set_point1(&mut self, pos: Vec3) {
-        if let Ok(mut transform) = self.query_clip1.get_single_mut() {
-            transform.translation = pos;
-        } else {
-            self.spawn_point(pos, components::ClipPoint1);
-        }
-    }
-
-    pub fn set_point2(&mut self, pos: Vec3) {
-        if let Ok(mut transform) = self.query_clip2.get_single_mut() {
-            transform.translation = pos;
-        } else {
-            self.spawn_point(pos, components::ClipPoint2);
-        }
-    }
-}
-
-#[allow(clippy::type_complexity)]
-#[derive(SystemParam)]
-pub struct ClipPointQuery<'w, 's> {
-    pub commands: Commands<'w, 's>,
-    pub clip_points_changed_query: Query<
-        'w,
-        's,
-        Entity,
-        (
-            Changed<Transform>,
-            Or<(
-                With<components::ClipPoint0>,
-                With<components::ClipPoint1>,
-                With<components::ClipPoint2>,
-            )>,
-        ),
-    >,
-    pub query_clip0: Query<
-        'w,
-        's,
-        (Entity, &'static Transform),
-        (
-            With<components::ClipPoint0>,
-            Without<components::ClipPoint1>,
-            Without<components::ClipPoint2>,
-        ),
-    >,
-    pub query_clip1: Query<
-        'w,
-        's,
-        (Entity, &'static Transform),
-        (
-            With<components::ClipPoint1>,
-            Without<components::ClipPoint0>,
-            Without<components::ClipPoint2>,
-        ),
-    >,
-    pub query_clip2: Query<
-        'w,
-        's,
-        (Entity, &'static Transform),
-        (
-            With<components::ClipPoint2>,
-            Without<components::ClipPoint0>,
-            Without<components::ClipPoint1>,
-        ),
-    >,
-}
-
-impl<'w, 's> ClipPointQuery<'w, 's> {
-    pub fn despawn(&mut self) {
-        for (entity, _) in self
-            .query_clip0
-            .iter()
-            .chain(self.query_clip1.iter())
-            .chain(self.query_clip2.iter())
-        {
-            self.commands.entity(entity).despawn();
-        }
-    }
 }
