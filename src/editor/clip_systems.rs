@@ -5,10 +5,7 @@ use crate::{
 };
 
 use super::{components, edit_commands::EditCommands, resources, util};
-use bevy::{
-    prelude::*,
-    render::{mesh, view::RenderLayers},
-};
+use bevy::{prelude::*, render::mesh};
 
 pub fn clip_plane_setup_system(
     mut commands: Commands,
@@ -127,6 +124,7 @@ pub fn clip_preview_system(
     keycodes: Res<Input<KeyCode>>,
     mut edit_commands: EditCommands,
     materials_res: Res<resources::Materials>,
+    material_browser: Res<resources::MaterialBrowser>,
     mut clip_state: ResMut<resources::ClipState>,
     selected_query: Query<(Entity, &Children), With<components::Selected>>,
     brush_changed_query: Query<(), (With<components::Selected>, Changed<csg::Brush>)>,
@@ -202,13 +200,13 @@ pub fn clip_preview_system(
         brush.clone(),
         clip_plane,
         material_props,
-        "material/architecture/woodframe1",
+        &material_browser.selected_material,
     );
     let clipped2 = clipped_brush(
         brush.clone(),
         clip_plane.flipped(),
         material_props,
-        "material/architecture/woodframe1",
+        &material_browser.selected_material,
     );
 
     // info!("res: {:?}", res);
