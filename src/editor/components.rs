@@ -258,4 +258,45 @@ pub struct ClipPoint1;
 pub struct ClipPoint2;
 
 #[derive(Component)]
-pub struct ClipPlane(pub csg::Plane);
+pub struct ClipPlane {
+    pub points: [Vec3; 3],
+}
+
+impl Default for ClipPlane {
+    fn default() -> Self {
+        Self {
+            points: [
+                Vec3::new(0.0, 0.0, 0.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(1.0, 1.0, 0.0),
+            ],
+        }
+    }
+}
+
+impl ClipPlane {
+    // pub fn update_plane(&mut self) {
+    //     self.plane = csg::Plane::from_points_slice(&self.input_points);
+    // }
+
+    pub fn get_plane(&self) -> csg::Plane {
+        csg::Plane::from_points_slice(&self.points)
+    }
+}
+
+#[derive(Bundle)]
+pub struct ClipPlaneBundle {
+    pub clip_plane: ClipPlane,
+    pub spatial_bundle: SpatialBundle,
+    pub name: Name,
+}
+
+impl Default for ClipPlaneBundle {
+    fn default() -> Self {
+        Self {
+            clip_plane: Default::default(),
+            spatial_bundle: Default::default(),
+            name: Name::new("clip_plane"),
+        }
+    }
+}

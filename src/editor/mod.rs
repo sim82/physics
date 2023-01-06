@@ -3,6 +3,7 @@ use bevy_inspector_egui::RegisterInspectable;
 
 use crate::{render_layers::ortho_views, AppState};
 
+pub mod clip_systems;
 pub mod components;
 pub mod edit_commands;
 pub mod gui_systems;
@@ -37,6 +38,8 @@ impl Plugin for EditorPlugin {
             .init_resource::<resources::SelectionPickSet>()
             .init_resource::<resources::EditorWindows2d>();
 
+        app.add_startup_system(clip_systems::clip_plane_setup_system.after(systems::setup)); // uses resources::materials
+
         app.init_resource::<undo::UndoStack>();
 
         app.init_resource::<resources::Materials>();
@@ -61,7 +64,8 @@ impl Plugin for EditorPlugin {
             .add_system(ortho_systems::control_input_wm_system)
             .add_system(ortho_systems::select_input_system)
             .add_system(systems::load_save_editor_objects)
-            .add_system(ortho_systems::clip_input_system);
+            // .add_system(ortho_systems::clip_input_system)
+            .add_system(clip_systems::clip_plane_control_system);
 
         app.add_system(main3d_systems::select_input_system);
         app.add_system(undo::undo_system);
@@ -80,7 +84,8 @@ impl Plugin for EditorPlugin {
                 .with_system(systems::track_2d_vis_system)
                 .with_system(ortho_systems::adjust_clip_planes_system)
                 .with_system(systems::track_lights_system)
-                .with_system(systems::track_brush_updates),
+                .with_system(systems::track_brush_updates)
+                .with_system(clip_systems::clip_plane_vis_system),
         );
 
         // CsgStage: incremental CSG update. Deferred update with fixed timestep. Needs all 'fist order' post
@@ -102,8 +107,7 @@ impl Plugin for EditorPlugin {
             SystemStage::parallel()
                 .with_system(systems::update_material_refs_system)
                 .with_system(systems::track_primary_selection) // must run after track_2d_vis_system
-                .with_system(ortho_systems::clip_preview_system)
-                .with_system(ortho_systems::clip_point_update_system),
+                .with_system(clip_systems::clip_preview_system), // .with_system(ortho_systems::clip_point_update_system)
         );
 
         app.register_inspectable::<components::CsgRepresentation>();

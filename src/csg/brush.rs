@@ -46,6 +46,53 @@ impl Brush {
     }
 
     pub fn add_plane(&mut self, plane: Plane) -> bool {
+        let (polygons, _) = self.get_polygons();
+
+        let mut num_back = 0;
+        let mut num_front = 0;
+        for polygon in &polygons {
+            let mut coplanar_front = Vec::new();
+            let mut front = Vec::new();
+
+            let mut coplanar_back = Vec::new();
+            let mut back = Vec::new();
+
+            plane.split_polygon(
+                polygon,
+                &mut coplanar_front,
+                &mut coplanar_back,
+                &mut front,
+                &mut back,
+            );
+
+            if !back.is_empty() {
+                num_back += 1;
+            }
+
+            if !front.is_empty() {
+                num_front += 1;
+            }
+
+            if !coplanar_back.is_empty() {
+                info!("plane not added: coplanar back");
+                return true;
+            }
+
+            if !coplanar_front.is_empty() {
+                info!("degenerated after plane add: coplanar with existing polygon");
+                return false;
+            }
+        }
+
+        if num_back == 0 {
+            info!("degenerated after plane add: none on back of new plane");
+            return false;
+        }
+
+        if num_front == 0 {
+            info!("plane not added: nothing in front");
+            return true;
+        }
         self.planes.push(plane);
         self.appearances.push(self.appearances.len() as i32);
         true
@@ -53,6 +100,7 @@ impl Brush {
 
     pub fn remove_degenerated(&mut self) -> Vec<i32> {
         let (_, mut removed) = self.get_polygons();
+        info!("remove_degenerated: {:?}", removed);
         removed.sort();
         removed.reverse();
 
@@ -114,7 +162,6 @@ impl Brush {
             }
             polygons.push(polygon);
         }
-        info!("degenerated: {:?} {}", degenerated, polygons.len());
         (polygons, degenerated)
     }
 }
