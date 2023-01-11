@@ -402,7 +402,7 @@ impl Csg {
         res
     }
 
-    pub fn get_collision_polygons(&self) -> Vec<(Collider, Vec3)> {
+    pub fn get_colliders(&self) -> Vec<(Collider, Vec3)> {
         let mut colliders = Vec::new();
         for p in &self.polygons {
             let points = p.vertices.iter().map(|v| v.position).collect::<Vec<_>>();
@@ -411,13 +411,16 @@ impl Csg {
             //     *p -= origin;
             // }
             let origin = Vec3::ZERO;
+            // colliders.push((Collider::polyline(points, None), origin));
             let mut indices = Vec::new();
             // sweep over 2-windows of the remaining vertices to get 2nd and 3rd points
             for vs in 1..(points.len() as u32 - 1) {
                 indices.push([0, vs, vs + 1]);
             }
-            debug!("points: {:?}, indices: {:?}", points, indices);
-            // colliders.push(Collider::convex_mesh(points, &indices[..]).unwrap());
+            // debug!("points: {:?}, indices: {:?}", points, indices);
+            // // colliders.push(Collider::convex_mesh(points, &indices[..]).unwrap());
+
+            // // Collider::halfspace
             colliders.push((Collider::trimesh(points, indices), origin));
         }
         colliders

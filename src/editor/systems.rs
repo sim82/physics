@@ -351,14 +351,13 @@ pub fn create_brush_csg_system_inc(
         }
 
         let output_shape = csg::Csg::from_polygons(bsp.all_polygons());
-        let new_children = spawn_csg_split(
+        let mut new_children = spawn_csg_split(
             &mut commands,
             &mut meshes,
             &output_shape,
             transform.translation,
             &material_properties.materials[..],
         );
-        commands.entity(entity).push_children(&new_children);
 
         if let Ok(mut processed) = processed_csg_query.get_mut(entity) {
             processed.bsp = bsp;
@@ -368,20 +367,21 @@ pub fn create_brush_csg_system_inc(
                 .insert(components::ProcessedCsg { bsp });
         }
 
-        // const GENERATE_COLLISION_GEOMETRY: bool = true;
-        // if GENERATE_COLLISION_GEOMETRY {
-        //     for (collider, origin) in output_shape.get_collision_polygons() {
-        //         // println!("collider: {:?}", collider);
-        //         let entity = commands
-        //             .spawn(collider)
-        //             .insert(SpatialBundle::from_transform(Transform::from_translation(
-        //                 origin,
-        //             )))
-        //             .insert(CsgCollisionOutput)
-        //             .id();
-        //         csg_output.entities.push(entity);
-        //     }
-        // }
+        const GENERATE_COLLISION_GEOMETRY: bool = true;
+        if GENERATE_COLLISION_GEOMETRY {
+            for (collider, origin) in output_shape.get_colliders() {
+                // println!("collider: {:?}", collider);
+                let entity = commands
+                    .spawn(collider)
+                    .insert(SpatialBundle::from_transform(Transform::from_translation(
+                        origin,
+                    )))
+                    .insert(components::CsgOutput)
+                    .id();
+                new_children.push(entity);
+            }
+        }
+        commands.entity(entity).push_children(&new_children);
     }
 
     for (entity, _, _) in &query_changed {

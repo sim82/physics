@@ -218,7 +218,7 @@ fn player_controller_apply_output_system(
         transform.translation += controller_output.effective_translation;
         debug!("got: {:?}", controller_output.effective_translation);
 
-        // info!("collisions: {:?}", cko.collisions);
+        info!("collisions: {:?}", controller_output.collisions);
 
         // for c in &cko.collisions {
         //     info!("{:?}", c.toi.normal2);
@@ -251,7 +251,10 @@ impl Default for PlayerControllerBundle {
         Self {
             // collider: Collider::cuboid(0.2, 0.9, 0.2),
             player_state: default(),
-            character_controller: default(),
+            character_controller: KinematicCharacterController {
+                offset: CharacterLength::Absolute(0.1),
+                ..default()
+            },
             input_queue: default(),
             input_source: default(),
             // collider: Collider::cylinder(0.9, 0.3),
