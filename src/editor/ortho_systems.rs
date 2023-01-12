@@ -421,8 +421,15 @@ pub fn edit_input_system(
                 // let mut csg_updates = Vec::new();
                 for (entity, drag_action, brush, _) in &brush_drag_query {
                     let drag_delta = ray.origin - drag_action.start_ray.origin;
-
                     debug!("drag: {:?} on brush {:?}", drag_delta, entity);
+
+                    // apply grid-snapping to drag-delta
+                    let snap = if keycodes.pressed(KeyCode::LAlt) {
+                        0.5
+                    } else {
+                        0.1
+                    };
+                    let drag_delta = drag_delta.snap(snap);
 
                     match &drag_action.action {
                         components::DragActionType::Face { affected_faces }
@@ -430,18 +437,17 @@ pub fn edit_input_system(
                             let mut new_brush = brush.clone();
                             let mut relevant_change = false;
                             for (face, start_w) in affected_faces {
+                                // 'moving' a plane works by projecting the drag-delta onto the normal of the
+                                // plane to get the component of the drag relevant for the current plane.
+                                // Then we add the dot-product between the normal and its projection to the
+                                // planes w component to 'move' it in the right direction.
+                                //
+                                // Grid-snapping works by snapping the drag-delta before this whole process.
+
                                 let normal = brush.planes[*face].normal;
 
-                                let d = drag_delta.dot(normal);
-
-                                let snap = if keycodes.pressed(KeyCode::LAlt) {
-                                    0.5
-                                } else {
-                                    0.1
-                                };
-                                // let d_snap = (d / snap).round() * snap;
-
-                                let new_w = (*start_w + d).snap(snap);
+                                let projected = drag_delta.project_onto(normal);
+                                let new_w = start_w + projected.dot(normal);
 
                                 // compare to the current w of the plane, only apply new value if it changed
                                 let current_w = brush.planes[*face].w;

@@ -218,7 +218,7 @@ fn player_controller_apply_output_system(
         transform.translation += controller_output.effective_translation;
         debug!("got: {:?}", controller_output.effective_translation);
 
-        info!("collisions: {:?}", controller_output.collisions);
+        debug!("collisions: {:?}", controller_output.collisions);
 
         // for c in &cko.collisions {
         //     info!("{:?}", c.toi.normal2);
