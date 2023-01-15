@@ -264,6 +264,34 @@ mod systems {
             )))
             .insert(PlayerControllerBundle::default())
             .insert(Name::new("player"));
+
+        commands.spawn((
+            bevy_infinite_grid::InfiniteGridBundle {
+                grid: bevy_infinite_grid::InfiniteGrid {
+                    // shadow_color: None,
+                    ..Default::default()
+                },
+                transform: Transform::from_scale(Vec3::splat(10.0)),
+                ..Default::default()
+            },
+            RenderLayers::from_layers(&[render_layers::TOP_2D]),
+        ));
+
+        commands.spawn((
+            bevy_infinite_grid::InfiniteGridBundle {
+                grid: bevy_infinite_grid::InfiniteGrid {
+                    // shadow_color: None,
+                    ..Default::default()
+                },
+                transform: Transform::from_rotation(Quat::from_axis_angle(
+                    Vec3::X,
+                    90_f32.to_radians(),
+                ))
+                .with_scale(Vec3::splat(10.0)),
+                ..Default::default()
+            },
+            RenderLayers::from_layers(&[render_layers::SIDE_2D]),
+        ));
     }
 
     pub fn setup_debug_render_system(mut debug_render_context: ResMut<DebugRenderContext>) {
@@ -382,6 +410,7 @@ impl Plugin for GameplayPlugin {
             always_on_top: false,
             ..default()
         });
+        // app.insert_resource(ClearColor(Color::CYAN));
     }
 }
 
@@ -414,5 +443,6 @@ impl PluginGroup for ExternalPluginGroup {
             .add(sky::SkyPlugin)
             .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin)
             .add(bevy_mod_outline::OutlinePlugin)
+            .add(bevy_infinite_grid::InfiniteGridPlugin)
     }
 }

@@ -439,8 +439,9 @@ pub fn edit_input_system(
                             for (face, start_w) in affected_faces {
                                 // 'moving' a plane works by projecting the drag-delta onto the normal of the
                                 // plane to get the component of the drag relevant for the current plane.
-                                // Then we add the dot-product between the normal and its projection to the
-                                // planes w component to 'move' it in the right direction.
+                                // The dot-product between the normal and its projection equals the distance
+                                // we need to move the plane along its normal, so we just can add this to the
+                                // w component of the plane.
                                 //
                                 // Grid-snapping works by snapping the drag-delta before this whole process.
 

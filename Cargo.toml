@@ -16,8 +16,8 @@ default = ["inspector"]
 
 [dependencies]
 # ] }
-# bevy = { version = "0.9" }
-bevy = { version = "0.9.1", features = ["dynamic"] }
+bevy = { version = "0.9" }
+# bevy = { version = "0.9.1", features = ["dynamic"] }
 wgpu = "*"
 bevy-inspector-egui = { version = "0.15", optional = true }
 
@@ -69,6 +69,8 @@ bevy_egui = "0.18"
 arrayvec = "0.7"
 bevy_mod_outline = "0.3"
 thiserror = "1"
+
+bevy_infinite_grid = "0.6.0"
 
 [patch.crates-io]
 #bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }

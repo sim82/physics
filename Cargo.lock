@@ -236,7 +236,6 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dae99b246505811f5bc19d2de1e406ec5d2816b421d58fa223779eb576f472c9"
 dependencies = [
- "bevy_dylib",
  "bevy_internal",
 ]
 
@@ -424,15 +423,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_dylib"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d193c3d56e3bdd106596327d15dd67ddfd862f8b5aa8260677efefe3ddef736"
-dependencies = [
- "bevy_internal",
-]
-
-[[package]]
 name = "bevy_ecs"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -542,6 +532,15 @@ dependencies = [
  "bevy_reflect",
  "bevy_utils",
  "smallvec",
+]
+
+[[package]]
+name = "bevy_infinite_grid"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdcbc82c5f51351f9576a535f3b4f3398db8645d00247e74522db7eb321dded7"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
@@ -3123,6 +3122,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_atmosphere",
  "bevy_egui",
+ "bevy_infinite_grid",
  "bevy_mod_mipmap_generator",
  "bevy_mod_outline",
  "bevy_prototype_debug_lines",
