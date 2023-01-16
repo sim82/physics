@@ -30,6 +30,7 @@ pub struct EditorWindowSettings {
 
 pub struct EditorWindow2d {
     pub camera: Entity,
+    pub grid: Entity,
     pub offscreen_image: Handle<Image>,
     pub orientation: Orientation2d,
 }

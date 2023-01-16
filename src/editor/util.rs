@@ -309,6 +309,14 @@ impl Orientation2d {
             Orientation2d::Right => Vec3::new(cursor.x, origin.y, origin.z),
         }
     }
+
+    pub fn get_grid_rotation(&self) -> Quat {
+        match self {
+            Orientation2d::DownRight | Orientation2d::DownFront => Quat::IDENTITY,
+            Orientation2d::Front => Quat::from_axis_angle(Vec3::X, 90_f32.to_radians()),
+            Orientation2d::Right => Quat::from_axis_angle(Vec3::Z, 90_f32.to_radians()),
+        }
+    }
 }
 
 pub trait SnapToGrid {

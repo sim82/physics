@@ -66,7 +66,7 @@ pub fn enter_editor_state(
                 //             orientation: t,
                 //         });
 
-                let entity = commands
+                let camera = commands
                     .spawn(Camera3dBundle {
                         transform: t.get_transform(),
                         camera,
@@ -78,10 +78,26 @@ pub fn enter_editor_state(
                     })
                     .insert(render_layer)
                     .insert(components::Ortho2dCamera)
+                    // .insert(bevy::core_pipeline::fxaa::Fxaa::default())
+                    .id();
+
+                let grid = commands
+                    .spawn((
+                        bevy_infinite_grid::InfiniteGridBundle {
+                            grid: bevy_infinite_grid::InfiniteGrid {
+                                ..Default::default()
+                            },
+                            transform: Transform::from_rotation(t.get_grid_rotation()),
+                            ..Default::default()
+                        },
+                        render_layer,
+                        Name::new(format!("{} grid", name)),
+                    ))
                     .id();
 
                 e.insert(resources::EditorWindow2d {
-                    camera: entity,
+                    camera,
+                    grid,
                     offscreen_image,
                     orientation: t,
                 });
@@ -210,7 +226,6 @@ pub fn control_input_wm_system(
                         warn!("2d window camera has not ortho projection: {:?}", window.camera); 
                         continue;
                     };
-
                     if *scaling * zoom_delta > 0.0 {
                         *scaling *= zoom_delta;
                     }
@@ -226,6 +241,7 @@ pub fn adjust_clip_planes_system(
 
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
+    mut grid_query: Query<&mut Transform, Without<Camera>>,
 ) {
     let editor_windows_2d = &mut *editor_windows_2d;
 
@@ -239,13 +255,40 @@ pub fn adjust_clip_planes_system(
     let upper_orientation = &upper.orientation;
     let lower_orientation = &lower.orientation;
 
-    let Ok((upper_transform, upper_camera, _upper_projection, _)) = camera_query.get(upper.camera) else {
+    let Ok((upper_transform, upper_camera, upper_projection, _)) = camera_query.get(upper.camera) else {
         return;
     };
 
     let Ok((lower_transform, lower_camera, _lower_projection, _)) = camera_query.get(lower.camera) else {
         return;
     };
+
+    let scaling = if let Projection::Orthographic(OrthographicProjection {
+        scaling_mode: ScalingMode::FixedHorizontal(scaling),
+        ..
+    }) = upper_projection
+    {
+        *scaling
+    } else {
+        warn!("failed to get scaling factor from ortographic projection");
+        1.0
+    };
+
+    // let trunc_scaling = match scaling {
+    //     0.0..=2.0 => 1.0,
+    //     2.0..=20.0 => 10.0,
+    //     20.0..=200.0 => 100.0,
+    //     200.0..=2000.0 => 1000.0,
+    //     _ => scaling,
+    // };
+    // meh I guess there is a formula for that...
+    let mut trunc_scaling = 1.0;
+    while trunc_scaling * 2.0 < scaling {
+        trunc_scaling *= 10.0
+    }
+    // info!("scaling: {} -> {}", scaling, trunc_scaling);
+
+    let grid_scaling = 100.0 / trunc_scaling;
 
     let Some((upper_min, upper_max)) = ortho_view_bounds(upper_camera, upper_transform) else { return };
     let Some((lower_min, lower_max)) = ortho_view_bounds(lower_camera, lower_transform) else { return };
@@ -261,9 +304,15 @@ pub fn adjust_clip_planes_system(
             return;
         };
 
-        *upper_orientation.get_up_axis_mut(&mut lower_transform.translation) = max;
-        lower_ortho.far = max - min;
+        let Ok(mut lower_grid_transform) = grid_query.get_mut(lower.grid) else {
+            return
+        };
 
+        *upper_orientation.get_up_axis_mut(&mut lower_transform.translation) = max;
+        *upper_orientation.get_up_axis_mut(&mut lower_grid_transform.translation) = min + 0.1;
+        lower_grid_transform.scale.x = grid_scaling;
+        lower_ortho.far = max - min;
+        // info!("depth: {}", lower_ortho.far);
         *upper_orientation.get_up_axis_mut(&mut editor_windows_2d.view_max) = max;
         *upper_orientation.get_up_axis_mut(&mut editor_windows_2d.view_min) = min;
     }
@@ -278,10 +327,15 @@ pub fn adjust_clip_planes_system(
         let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
             return;
         };
+        let Ok(mut upper_grid_transform) = grid_query.get_mut(upper.grid) else {
+            return
+        };
 
         *lower_orientation.get_up_axis_mut(&mut upper_transform.translation) = max;
-        upper_ortho.far = max - min;
+        *lower_orientation.get_up_axis_mut(&mut upper_grid_transform.translation) = min + 0.1;
+        upper_grid_transform.scale.x = grid_scaling;
 
+        upper_ortho.far = max - min;
         *lower_orientation.get_up_axis_mut(&mut editor_windows_2d.view_max) = max;
         *lower_orientation.get_up_axis_mut(&mut editor_windows_2d.view_min) = min;
     }
