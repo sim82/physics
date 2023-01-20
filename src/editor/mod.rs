@@ -72,7 +72,7 @@ impl Plugin for EditorPlugin {
 
         // TrackUpdateStage: do 'first order' post processing based on user interaction, e.g.:
         //  - update spatial index of Editor Objects
-        //  - track 2d vis meshes
+        //  - track 2d vis meshes (note: ordered after track_brush_updates, since the all-entity origin is updated there)
         //  - derive Editor Object origin from brush geometry
         //  - despawn
 
@@ -81,11 +81,11 @@ impl Plugin for EditorPlugin {
             TrackUpdateStage,
             SystemStage::parallel()
                 .with_system(systems::update_symlinked_materials_system)
-                .with_system(systems::track_2d_vis_system)
                 .with_system(ortho_systems::adjust_clip_planes_system)
                 .with_system(systems::track_lights_system)
                 .with_system(systems::track_brush_updates)
-                .with_system(clip_systems::clip_plane_vis_system),
+                .with_system(clip_systems::clip_plane_vis_system)
+                .with_system(systems::track_2d_vis_system.after(systems::track_brush_updates)),
         );
 
         // CsgStage: incremental CSG update. Deferred update with fixed timestep. Needs all 'fist order' post

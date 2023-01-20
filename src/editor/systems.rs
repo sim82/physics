@@ -498,21 +498,21 @@ pub fn track_2d_vis_system(
     materials_res: Res<resources::Materials>,
     mut meshes: ResMut<Assets<Mesh>>,
 
-    mut changed_query: Query<
-        (Entity, &CsgRepresentation, &mut Transform),
-        Changed<CsgRepresentation>,
-    >,
+    changed_query: Query<(Entity, &CsgRepresentation, &Transform), Changed<CsgRepresentation>>,
     children_query: Query<&Children>,
-    mut mesh_query: Query<&mut Handle<Mesh>, Without<CsgOutput>>,
+    mut mesh_query: Query<
+        (&mut Handle<Mesh>, &mut Transform),
+        (Without<CsgOutput>, Without<CsgRepresentation>),
+    >,
 ) {
     // info!("track");
-    for (entity, csg_rep, mut transform) in &mut changed_query {
+    for (entity, csg_rep, transform) in &changed_query {
         if let Ok(children) = children_query.get(entity) {
             // 2d vis mesh already exists. just update.
             // info!("brush update");
 
             for child in children {
-                if let Ok(old_mesh) = mesh_query.get_mut(*child) {
+                if let Ok((old_mesh, mut mesh_transform)) = mesh_query.get_mut(*child) {
                     // meshes.remove(old_mesh.clone());
                     let (mut mesh, origin) = (&csg_rep.csg).into();
                     if let Some(old_mesh) = meshes.get_mut(&old_mesh) {
@@ -526,14 +526,15 @@ pub fn track_2d_vis_system(
                         *old_mesh = mesh;
                     }
 
-                    transform.translation = origin;
+                    // transform.translation = origin;
+                    mesh_transform.translation = origin - transform.translation;
 
                     // *old_mesh = meshes.add(mesh);
                 }
             }
         } else {
             let (mut mesh, origin) = (&csg_rep.csg).into();
-            transform.translation = origin;
+            // transform.translation = origin;
             // info!("brush new");
             let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
             if let Err(err) = res {
@@ -544,6 +545,7 @@ pub fn track_2d_vis_system(
                     PbrBundle {
                         mesh: meshes.add(mesh),
                         material: materials_res.get_brush_2d_material(),
+                        transform: Transform::from_translation(origin - transform.translation),
                         ..default()
                     },
                     render_layers::ortho_views(),
@@ -690,6 +692,7 @@ pub fn track_brush_updates(
             Entity,
             &mut csg::Brush,
             &mut components::CsgRepresentation,
+            &mut Transform,
             &components::EditUpdate,
         ),
         Without<components::Despawn>,
@@ -706,7 +709,8 @@ pub fn track_brush_updates(
     }
 
     let mut spatial_dirty_set = HashSet::new();
-    for (entity, mut old_brush, mut old_csg_repr, edit_update) in &mut query_modified {
+    for (entity, mut old_brush, mut old_csg_repr, mut transform, edit_update) in &mut query_modified
+    {
         if added_set.contains(&entity) {
             continue;
         }
@@ -717,7 +721,9 @@ pub fn track_brush_updates(
                 if let Ok(csg) = csg {
                     let (center, radius) = csg.bounding_sphere();
                     let bounds = SpatialBounds { center, radius };
-
+                    // use center of spatial bounds as center for the whole entity.
+                    // csg mesh and editor vis mesh need to be placed relative to it (ideally they use the same origin)
+                    transform.translation = bounds.center;
                     spatial_index.update(entity, Some(old_csg_repr.bounds), bounds);
                     *old_brush = brush.clone();
                     *old_csg_repr = components::CsgRepresentation { csg, bounds };
