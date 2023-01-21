@@ -7,8 +7,9 @@ use crate::{
     editor::{
         components::{BrushMaterialProperties, EditorObjectBrushBundle},
         util::spawn_csg_split,
+        wsx,
     },
-    material, render_layers, wsx,
+    material, render_layers,
 };
 use bevy::{
     prelude::*,

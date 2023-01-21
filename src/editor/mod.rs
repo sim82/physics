@@ -14,6 +14,7 @@ pub mod systems;
 pub mod undo;
 pub mod util;
 pub mod wm_systems;
+pub mod wsx;
 
 pub struct EditorPlugin;
 

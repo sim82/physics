@@ -15,7 +15,6 @@ pub mod editor;
 pub mod sky;
 pub mod slidemove;
 pub mod trace;
-pub mod wsx;
 
 pub mod debug_gui;
 pub mod norm {
