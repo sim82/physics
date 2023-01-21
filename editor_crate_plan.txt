@@ -1,0 +1,6 @@
+needed by editor:
+
+AppState -> common base lib
+render_layers -> common base lib
+material -> crate
+wsx -> move to editor

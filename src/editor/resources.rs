@@ -10,7 +10,6 @@ use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
 use super::util::Orientation2d;
-use crate::material;
 use sstree::SsTree;
 
 #[derive(Default, Resource)]

@@ -9,7 +9,7 @@ use crate::{
         util::spawn_csg_split,
         wsx,
     },
-    material, render_layers,
+    render_layers,
 };
 use bevy::{
     prelude::*,

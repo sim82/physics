@@ -52,8 +52,6 @@ pub mod norm {
     }
 }
 
-pub mod material;
-
 pub mod render_layers {
     use bevy::render::view::{Layer, RenderLayers};
 

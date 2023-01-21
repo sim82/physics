@@ -2530,6 +2530,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "material"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "matrixmultiply"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3158,6 +3167,7 @@ dependencies = [
  "gltf",
  "image 0.24.5",
  "log",
+ "material",
  "parry3d",
  "quick-xml",
  "rand",

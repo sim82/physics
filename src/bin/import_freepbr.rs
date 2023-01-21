@@ -10,7 +10,6 @@ use bevy::{prelude::Vec3, utils::HashMap};
 use clap::Parser;
 use image::{DynamicImage, ImageBuffer, Rgb};
 use log::warn;
-use physics::material;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use zip::read::ZipArchive;
 
