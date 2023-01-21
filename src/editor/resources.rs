@@ -9,8 +9,8 @@ use bevy_egui::{egui, EguiContext};
 use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
-use crate::{material, sstree::SsTree};
-
+use crate::{material };
+use sstree::SsTree;
 use super::util::Orientation2d;
 
 #[derive(Default, Resource)]

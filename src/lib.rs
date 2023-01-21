@@ -14,7 +14,6 @@ pub mod appearance;
 pub mod editor;
 pub mod sky;
 pub mod slidemove;
-pub mod sstree;
 pub mod trace;
 pub mod wsx;
 

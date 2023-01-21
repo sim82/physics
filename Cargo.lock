@@ -3166,6 +3166,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sstree",
  "thiserror",
  "wgpu",
  "zip",
@@ -3731,6 +3732,14 @@ checksum = "246bfa38fe3db3f1dfc8ca5a2cdeb7348c78be2112740cc0ec8ef18b6d94f830"
 dependencies = [
  "bitflags",
  "num-traits",
+]
+
+[[package]]
+name = "sstree"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "bevy",
 ]
 
 [[package]]

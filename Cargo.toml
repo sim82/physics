@@ -72,6 +72,7 @@ thiserror = "1"
 
 bevy_infinite_grid = "0.6.0"
 csg = { path = "csg" }
+sstree = { path = "sstree" }
 [patch.crates-io]
 #bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
 #rapier3d = { path = "ext/rapier/crates/rapier3d" }
@@ -85,4 +86,4 @@ opt-level = 1
 opt-level = 3
 
 [workspace]
-members = ["csg"]
+members = ["csg", "sstree"]

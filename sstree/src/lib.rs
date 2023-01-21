@@ -879,7 +879,7 @@ mod inner {
 #[cfg(test)]
 mod test {
     use super::Entry;
-    use crate::sstree::SsTree;
+    use super::SsTree;
 
     impl<P, K: PartialEq> PartialEq for Entry<P, K> {
         fn eq(&self, other: &Self) -> bool {
