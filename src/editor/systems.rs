@@ -4,7 +4,6 @@ use super::{
     resources::{self, SpatialBounds, SpatialIndex},
 };
 use crate::{
-    csg,
     editor::{
         components::{BrushMaterialProperties, EditorObjectBrushBundle},
         util::spawn_csg_split,

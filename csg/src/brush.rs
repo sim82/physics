@@ -1,5 +1,4 @@
-use crate::csg::PLANE_EPSILON;
-
+use super::PLANE_EPSILON;
 use super::{Csg, Location, Plane, Polygon, Vertex};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};

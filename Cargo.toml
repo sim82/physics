@@ -71,7 +71,7 @@ bevy_mod_outline = "0.3"
 thiserror = "1"
 
 bevy_infinite_grid = "0.6.0"
-
+csg = { path = "csg" }
 [patch.crates-io]
 #bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
 #rapier3d = { path = "ext/rapier/crates/rapier3d" }
@@ -83,3 +83,6 @@ opt-level = 1
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
+
+[workspace]
+members = ["csg"]

@@ -3,7 +3,6 @@ use std::{io::BufReader, path::Path};
 use bevy::{prelude::Vec3, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
-use crate::csg;
 use bevy::prelude::*;
 
 #[allow(non_snake_case)]

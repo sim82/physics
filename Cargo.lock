@@ -1471,6 +1471,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
+name = "csg"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-inspector-egui",
+ "bevy_rapier3d",
+ "bitflags",
+ "serde",
+]
+
+[[package]]
 name = "cty"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3140,6 +3151,7 @@ dependencies = [
  "bitflags",
  "clap",
  "console",
+ "csg",
  "dialoguer",
  "env_logger 0.10.0",
  "flexbuffers",

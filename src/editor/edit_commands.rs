@@ -9,7 +9,7 @@ use super::{
     components,
     undo::{UndoCommands, UndoStack},
 };
-use crate::csg;
+use csg;
 use thiserror::Error;
 
 pub mod add_brush;
@@ -54,10 +54,7 @@ pub trait EditCommand {
 
 pub mod prelude {
     pub use super::{EditCommand, EditCommandError, EditCommands, Result, UndoCommand};
-    pub use crate::{
-        csg,
-        editor::{components, undo::UndoCommands},
-    };
+    pub use crate::editor::{components, undo::UndoCommands};
     pub use anyhow::Context;
     pub use bevy::prelude::*;
 }

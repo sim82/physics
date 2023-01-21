@@ -439,6 +439,7 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
     //         points.insertAll(pointsWithinRegion(child, region))
     //   return points
 }
+
 fn find_closest_child<'a, P, K: Distance + DimIndex + PartialEq, const M: usize>(
     children: &'a [SsNode<P, K, M>],
     target: &K,

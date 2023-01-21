@@ -1,8 +1,8 @@
 use std::f32::consts::PI;
 
-use crate::csg::{self, Brush};
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
+use csg::{self, Brush};
 use serde::{Deserialize, Serialize};
 
 use super::resources::SpatialBounds;

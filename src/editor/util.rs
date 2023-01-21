@@ -1,14 +1,13 @@
 use super::components::{self, CsgOutput};
-use crate::{
-    csg::{self, Csg},
-    render_layers,
-};
+use crate::render_layers;
+
 use bevy::{
     pbr::wireframe::Wireframe,
     prelude::*,
     render::{mesh, view::RenderLayers},
 };
 use bevy_rapier3d::prelude::Collider;
+use csg::{self, Csg};
 use serde::{Deserialize, Serialize};
 
 pub fn spawn_box(

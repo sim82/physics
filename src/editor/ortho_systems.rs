@@ -14,10 +14,11 @@ use super::{
     util::{self, Orientation2d, SnapToGrid, WmMouseButton},
 };
 use crate::{
-    csg::{self, PLANE_EPSILON},
     editor::edit_commands::{update_brush_drag, update_point_transform},
     render_layers,
 };
+
+use csg::PLANE_EPSILON;
 // systems related to 2d windows
 
 pub fn setup_editor_system(mut editor_windows_2d: ResMut<resources::EditorWindows2d>) {

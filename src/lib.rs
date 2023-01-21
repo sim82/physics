@@ -11,7 +11,6 @@ use bevy_rapier3d::prelude::*;
 pub mod contact_debug;
 // pub mod debug_lines;
 pub mod appearance;
-pub mod csg;
 pub mod editor;
 pub mod sky;
 pub mod slidemove;
