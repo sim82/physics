@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use bevy::{input::mouse::MouseMotion, prelude::*};
 use bevy_rapier3d::prelude::*;
 
-use crate::AppState;
+use shared::AppState;
 
 #[derive(Component, Default, Debug)]
 pub struct PlayerState {

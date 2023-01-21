@@ -1,10 +1,8 @@
-use crate::{
-    editor::{edit_commands, util::SnapToGrid},
-    render_layers,
-};
+use crate::editor::{edit_commands, util::SnapToGrid};
 
 use super::{components, edit_commands::EditCommands, resources, util};
 use bevy::{prelude::*, render::mesh};
+use shared::render_layers;
 
 pub fn clip_plane_setup_system(
     mut commands: Commands,

@@ -7,6 +7,7 @@ use bevy::{
 use bevy_inspector_egui::WorldInspectorParams;
 
 use bevy_rapier3d::prelude::*;
+use shared::AppState;
 
 pub mod contact_debug;
 // pub mod debug_lines;
@@ -49,17 +50,6 @@ pub mod norm {
         fn extensions(&self) -> &[&str] {
             &["norm"]
         }
-    }
-}
-
-pub mod render_layers {
-    use bevy::render::view::{Layer, RenderLayers};
-
-    pub const MAIN_3D: Layer = 0;
-    pub const TOP_2D: Layer = 1;
-    pub const SIDE_2D: Layer = 2;
-    pub fn ortho_views() -> RenderLayers {
-        RenderLayers::from_layers(&[TOP_2D, SIDE_2D])
     }
 }
 
@@ -111,14 +101,6 @@ pub mod test_texture {
 
 pub mod player_controller;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum AppState {
-    // DebugMenu,
-    InGame,
-    Editor,
-    // Paused,
-}
-
 pub fn exit_on_esc_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut app_exit_events: EventWriter<AppExit>,
@@ -162,8 +144,9 @@ mod systems {
         components,
         editor::{self, resources},
         player_controller::{PlayerCamera, PlayerControllerBundle},
-        render_layers, AppState,
     };
+
+    use shared::{render_layers, AppState};
 
     pub fn update_deferred_mesh_system(
         mut commands: Commands,

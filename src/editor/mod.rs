@@ -1,7 +1,7 @@
 use bevy::{prelude::*, time::FixedTimestep};
 use bevy_inspector_egui::RegisterInspectable;
 
-use crate::AppState;
+use shared::AppState;
 
 pub mod clip_systems;
 pub mod components;

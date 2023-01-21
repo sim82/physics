@@ -1,5 +1,5 @@
 use super::components::{self, CsgOutput};
-use crate::render_layers;
+use shared::render_layers;
 
 use bevy::{
     pbr::wireframe::Wireframe,

@@ -74,6 +74,8 @@ bevy_infinite_grid = "0.6.0"
 csg = { path = "crates/csg" }
 sstree = { path = "crates/sstree" }
 material = { path = "crates/material" }
+shared = { path = "crates/shared" }
+
 [patch.crates-io]
 #bevy_rapier3d = { path = "ext/bevy_rapier/bevy_rapier3d" }
 #rapier3d = { path = "ext/rapier/crates/rapier3d" }
@@ -87,4 +89,4 @@ opt-level = 1
 opt-level = 3
 
 [workspace]
-members = ["crates/csg", "crates/sstree", "crates/material"]
+members = ["crates/csg", "crates/sstree", "crates/material", "crates/shared"]
