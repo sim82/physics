@@ -317,6 +317,20 @@ impl Orientation2d {
             Orientation2d::Right => Quat::from_axis_angle(Vec3::Z, 90_f32.to_radians()),
         }
     }
+    pub fn get_lower_x_axis_color(&self) -> Color {
+        match self {
+            Orientation2d::Front => Color::rgb(1.0, 0.2, 0.2),
+            Orientation2d::Right => Color::rgb(0.0, 1.0, 0.2),
+            _ => Color::PINK,
+        }
+    }
+    pub fn get_lower_z_axis_color(&self) -> Color {
+        match self {
+            Orientation2d::Front => Color::rgb(0.2, 1.0, 0.2),
+            Orientation2d::Right => Color::rgb(0.2, 0.2, 1.0),
+            _ => Color::PINK,
+        }
+    }
 }
 
 pub trait SnapToGrid {

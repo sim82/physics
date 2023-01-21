@@ -81,12 +81,21 @@ pub fn enter_editor_state(
                     // .insert(bevy::core_pipeline::fxaa::Fxaa::default())
                     .id();
 
-                let grid = commands
+                let grid = if name == LOWER_WINDOW {
+                    bevy_infinite_grid::InfiniteGrid {
+                        x_axis_color: t.get_lower_x_axis_color(),
+                        z_axis_color: t.get_lower_z_axis_color(),
+                        ..Default::default()
+                    }
+                } else {
+                    // upper grid uses default colors
+                    default()
+                };
+
+                let grid_entity = commands
                     .spawn((
                         bevy_infinite_grid::InfiniteGridBundle {
-                            grid: bevy_infinite_grid::InfiniteGrid {
-                                ..Default::default()
-                            },
+                            grid,
                             transform: Transform::from_rotation(t.get_grid_rotation()),
                             ..Default::default()
                         },
@@ -97,7 +106,7 @@ pub fn enter_editor_state(
 
                 e.insert(resources::EditorWindow2d {
                     camera,
-                    grid,
+                    grid: grid_entity,
                     offscreen_image,
                     orientation: t,
                 });
@@ -241,7 +250,7 @@ pub fn adjust_clip_planes_system(
 
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
-    mut grid_query: Query<&mut Transform, Without<Camera>>,
+    mut grid_query: Query<(&mut Transform, &mut bevy_infinite_grid::InfiniteGrid), Without<Camera>>,
 ) {
     let editor_windows_2d = &mut *editor_windows_2d;
 
@@ -274,13 +283,6 @@ pub fn adjust_clip_planes_system(
         1.0
     };
 
-    // let trunc_scaling = match scaling {
-    //     0.0..=2.0 => 1.0,
-    //     2.0..=20.0 => 10.0,
-    //     20.0..=200.0 => 100.0,
-    //     200.0..=2000.0 => 1000.0,
-    //     _ => scaling,
-    // };
     // meh I guess there is a formula for that...
     let mut trunc_scaling = 1.0;
     while trunc_scaling * 2.0 < scaling {
@@ -304,7 +306,7 @@ pub fn adjust_clip_planes_system(
             return;
         };
 
-        let Ok(mut lower_grid_transform) = grid_query.get_mut(lower.grid) else {
+        let Ok((mut lower_grid_transform, _)) = grid_query.get_mut(lower.grid) else {
             return
         };
 
@@ -327,7 +329,7 @@ pub fn adjust_clip_planes_system(
         let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
             return;
         };
-        let Ok(mut upper_grid_transform) = grid_query.get_mut(upper.grid) else {
+        let Ok((mut upper_grid_transform, _)) = grid_query.get_mut(upper.grid) else {
             return
         };
 
@@ -356,6 +358,13 @@ pub fn adjust_clip_planes_system(
                 *window
                     .orientation
                     .get_right_axis_mut(&mut transform.translation) = right;
+            };
+            if let Ok((mut lower_grid_transform, mut grid)) = grid_query.get_mut(window.grid) {
+                // lower_grid_transform
+                *lower_grid_transform =
+                    Transform::from_rotation(window.orientation.get_grid_rotation());
+                grid.x_axis_color = window.orientation.get_lower_x_axis_color();
+                grid.z_axis_color = window.orientation.get_lower_z_axis_color();
             };
         }
     }
