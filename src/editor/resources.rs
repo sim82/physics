@@ -9,9 +9,9 @@ use bevy_egui::{egui, EguiContext};
 use bevy_inspector_egui::Inspectable;
 use serde::{Deserialize, Serialize};
 
-use crate::{material };
-use sstree::SsTree;
 use super::util::Orientation2d;
+use crate::material;
+use sstree::SsTree;
 
 #[derive(Default, Resource)]
 pub struct SelectionPickSet {
