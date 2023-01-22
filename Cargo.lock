@@ -1582,6 +1582,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "editor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrayvec",
+ "bevy",
+ "bevy-inspector-egui",
+ "bevy_atmosphere",
+ "bevy_egui",
+ "bevy_infinite_grid",
+ "bevy_mod_mipmap_generator",
+ "bevy_mod_outline",
+ "bevy_prototype_debug_lines",
+ "bevy_rapier3d",
+ "bitflags",
+ "clap",
+ "console",
+ "csg",
+ "dialoguer",
+ "env_logger 0.10.0",
+ "flexbuffers",
+ "gltf",
+ "image 0.24.5",
+ "log",
+ "material",
+ "parry3d",
+ "quick-xml",
+ "rand",
+ "rayon",
+ "ron",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "shared",
+ "sstree",
+ "thiserror",
+ "wgpu",
+ "zip",
+]
+
+[[package]]
 name = "egui"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3162,6 +3203,7 @@ dependencies = [
  "console",
  "csg",
  "dialoguer",
+ "editor",
  "env_logger 0.10.0",
  "flexbuffers",
  "gltf",

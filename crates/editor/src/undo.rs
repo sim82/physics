@@ -1,5 +1,5 @@
 use super::edit_commands;
-use crate::editor::components;
+use crate::components;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::utils::HashMap;

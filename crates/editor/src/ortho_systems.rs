@@ -13,7 +13,7 @@ use super::{
     resources::{self, LOWER_WINDOW, UPPER_WINDOW},
     util::{self, Orientation2d, SnapToGrid, WmMouseButton},
 };
-use crate::editor::edit_commands::{update_brush_drag, update_point_transform};
+use crate::edit_commands::{update_brush_drag, update_point_transform};
 
 use shared::render_layers;
 

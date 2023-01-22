@@ -1,4 +1,4 @@
-use crate::editor::{edit_commands, util::SnapToGrid};
+use crate::{edit_commands, util::SnapToGrid};
 
 use super::{components, edit_commands::EditCommands, resources, util};
 use bevy::{prelude::*, render::mesh};

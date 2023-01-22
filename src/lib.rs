@@ -12,7 +12,6 @@ use shared::AppState;
 pub mod contact_debug;
 // pub mod debug_lines;
 pub mod appearance;
-pub mod editor;
 pub mod sky;
 pub mod slidemove;
 pub mod trace;
@@ -142,10 +141,9 @@ mod systems {
 
     use crate::{
         components,
-        editor::{self, resources},
         player_controller::{PlayerCamera, PlayerControllerBundle},
     };
-
+    use editor::{self, resources};
     use shared::{render_layers, AppState};
 
     pub fn update_deferred_mesh_system(

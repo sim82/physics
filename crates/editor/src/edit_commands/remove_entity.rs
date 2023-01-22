@@ -1,4 +1,4 @@
-use crate::editor::components::BrushMaterialProperties;
+use crate::components::BrushMaterialProperties;
 
 use super::prelude::*;
 

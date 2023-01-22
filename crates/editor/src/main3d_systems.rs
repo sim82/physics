@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::{components, edit_commands::EditCommands, resources, util};
-use crate::editor::edit_commands::set_brush_material;
+use crate::edit_commands::set_brush_material;
 
 #[allow(clippy::too_many_arguments)]
 pub fn select_input_system(

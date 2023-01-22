@@ -3,7 +3,7 @@ use super::{
     edit_commands::{add_brush, add_pointlight, duplicate_brush, remove_entity, EditCommands},
     resources::{self, SpatialBounds, SpatialIndex},
 };
-use crate::editor::{
+use crate::{
     components::{BrushMaterialProperties, EditorObjectBrushBundle},
     util::spawn_csg_split,
     wsx,
