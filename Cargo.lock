@@ -3787,6 +3787,7 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "bevy",
+ "bevy-inspector-egui",
 ]
 
 [[package]]

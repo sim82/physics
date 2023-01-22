@@ -1,15 +1,14 @@
 use super::{
     components::{self, CsgOutput, CsgRepresentation},
     edit_commands::{add_brush, add_pointlight, duplicate_brush, remove_entity, EditCommands},
-    resources::{self, SpatialBounds, SpatialIndex},
+    resources::{self},
 };
+
 use crate::{
     components::{BrushMaterialProperties, EditorObjectBrushBundle},
     util::spawn_csg_split,
     wsx,
 };
-use shared::render_layers;
-
 use bevy::{
     prelude::*,
     render::{mesh, view::RenderLayers},
@@ -17,6 +16,8 @@ use bevy::{
 };
 use bevy_mod_outline::OutlineMeshExt;
 use serde::{Deserialize, Serialize};
+use shared::render_layers;
+use sstree::{SpatialBounds, SpatialIndex};
 use std::{collections::BTreeSet, path::PathBuf};
 
 pub fn setup(
@@ -681,7 +682,7 @@ pub fn track_lights_system(
 #[allow(clippy::type_complexity)]
 pub fn track_brush_updates(
     mut commands: Commands,
-    mut spatial_index: ResMut<resources::SpatialIndex>,
+    mut spatial_index: ResMut<sstree::SpatialIndex>,
     query_added: Query<
         (Entity, &components::CsgRepresentation),
         (Added<CsgRepresentation>, Without<components::EditUpdate>),

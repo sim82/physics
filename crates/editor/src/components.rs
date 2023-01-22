@@ -5,7 +5,7 @@ use bevy_inspector_egui::Inspectable;
 use csg::{self, Brush};
 use serde::{Deserialize, Serialize};
 
-use super::resources::SpatialBounds;
+use sstree::SpatialBounds;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Component)]
 pub struct PointLightProperties {

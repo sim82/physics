@@ -193,48 +193,6 @@ impl MaterialBrowser {
     }
 }
 
-#[derive(Debug, Clone, Copy, Inspectable)]
-pub struct SpatialBounds {
-    pub center: Vec3,
-    pub radius: f32,
-}
-
-#[derive(Resource, Default)]
-pub struct SpatialIndex {
-    sstree: SsTree<Entity, Vec3, 8>,
-}
-
-impl SpatialIndex {
-    pub fn clear(&mut self) {
-        self.sstree = SsTree::default();
-    }
-    pub fn update(&mut self, entity: Entity, from: Option<SpatialBounds>, to: SpatialBounds) {
-        if let Some(SpatialBounds { center, radius }) = from {
-            if self
-                .sstree
-                .remove_if(&center, radius, |e| *e == entity)
-                .is_none()
-            {
-                error!("failed to remove brush from spatial index for update");
-                panic!("aborting");
-            }
-        }
-        self.sstree.insert(entity, to.center, to.radius);
-    }
-
-    pub fn remove(&mut self, entity: Entity, bounds: SpatialBounds) {
-        self.sstree
-            .remove_if(&bounds.center, bounds.radius, |e| *e == entity);
-    }
-
-    pub fn query(&self, bounds: SpatialBounds) -> impl Iterator<Item = Entity> + '_ {
-        let mut out = Vec::new();
-        self.sstree
-            .find_entries_within_radius(&bounds.center, bounds.radius, &mut out);
-        out.into_iter().map(|e| e.payload)
-    }
-}
-
 #[derive(Default)]
 pub struct WmSlot {
     pub offscreen_image: Handle<Image>,

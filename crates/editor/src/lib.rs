@@ -45,7 +45,7 @@ impl Plugin for EditorPlugin {
 
         app.init_resource::<resources::Materials>();
         app.init_resource::<resources::MaterialBrowser>();
-        app.init_resource::<resources::SpatialIndex>();
+        app.init_resource::<sstree::SpatialIndex>();
         app.init_resource::<resources::ClipState>();
         app.add_event::<CleanupCsgOutputEvent>();
 
