@@ -6,9 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.9.1", features = ["dynamic"] }
+# not specifying specific versions of bevy crates so that the actual version is determined by the main project
+
+bevy = { version = "0" }
 wgpu = "*"
-bevy-inspector-egui = { version = "0.15" }
+bevy-inspector-egui = { version = "0" }
 
 # TODO: bevy 0.9
 # bevy-inspector-egui-rapier = { version = "0.7", optional = true, features = [
@@ -25,7 +27,7 @@ ron = "0.8"
 # bevy_rapier3d = { version = "0.18", path = "ext/bevy_rapier/bevy_rapier3d", features = [
 #     "debug-render",
 # ] }
-bevy_rapier3d = { version = "0.19", features = ["debug-render"] }
+bevy_rapier3d = { version = "0", features = ["debug-render"] }
 
 # rapier3d = { version = "0.16.0" }
 # bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [
@@ -44,7 +46,7 @@ bitflags = "1"
 quick-xml = { version = "0.26", features = ["serialize"] }
 image = "0.24"
 rayon = "1"
-bevy_egui = "0.18"
+bevy_egui = "0"
 arrayvec = "0.7"
 bevy_mod_outline = "0.3"
 thiserror = "1"

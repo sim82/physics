@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.9.1", features = ["dynamic"] }
-bevy_rapier3d = { version = "0.19", features = ["debug-render"] }
+# not specifying specific versions of bevy crates so that the actual version is determined by the main project
+bevy = { version = "0" }                                       #, features = ["dynamic"] }
+bevy_rapier3d = { version = "0", features = ["debug-render"] }
 serde = { version = "1", features = ["derive"] }
-bevy-inspector-egui = { version = "0.15" }
+bevy-inspector-egui = { version = "0" }
 bitflags = "1"
