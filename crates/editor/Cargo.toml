@@ -17,13 +17,11 @@ bevy-inspector-egui = { version = "0.15" }
 
 log = "0.4"
 anyhow = { version = "1" }
-rand = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 serde_yaml = "0.9"
 ron = "0.8"
 
-flexbuffers = "2"
 # bevy_rapier3d = { version = "0.18", path = "ext/bevy_rapier/bevy_rapier3d", features = [
 #     "debug-render",
 # ] }
@@ -34,7 +32,6 @@ bevy_rapier3d = { version = "0.19", features = ["debug-render"] }
 #     "debug-render",
 # ] }
 gltf = "*"
-bevy_prototype_debug_lines = { version = "0.9", features = ["3d"] }
 # bevy_fps_controller = "0.1.2-dev"
 parry3d = { version = "*", features = ["serde-serialize"] }
 # nalgebra = { version = "*", features = ["serde-serialize-no-std"] }
@@ -43,16 +40,9 @@ parry3d = { version = "*", features = ["serde-serialize"] }
 # bevy_mod_raycast = { path = "bevy_mod_raycast" }
 
 # bevy_atmosphere = "0.4"
-bevy_atmosphere = { git = "https://github.com/JonahPlusPlus/bevy_atmosphere.git" }
-bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
 bitflags = "1"
 quick-xml = { version = "0.26", features = ["serialize"] }
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
-clap = { version = "4", features = ["derive"] }
 image = "0.24"
-env_logger = "0.10"
-dialoguer = "0.10"
-console = "0.15"
 rayon = "1"
 bevy_egui = "0.18"
 arrayvec = "0.7"
