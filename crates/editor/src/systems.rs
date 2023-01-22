@@ -373,7 +373,7 @@ pub fn create_brush_csg_system_inc(
                 let entity = commands
                     .spawn(collider)
                     .insert(SpatialBundle::from_transform(Transform::from_translation(
-                        origin,
+                        origin - transform.translation,
                     )))
                     .insert(components::CsgOutput)
                     .id();
