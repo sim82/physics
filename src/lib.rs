@@ -136,8 +136,11 @@ mod systems {
         render::{camera::RenderTarget, view::RenderLayers},
     };
     use bevy_atmosphere::prelude::AtmosphereCamera;
-    use bevy_rapier3d::prelude::*;
-    use parry3d::shape::{ConvexPolyhedron, SharedShape};
+    use bevy_rapier3d::{
+        prelude::*,
+        rapier::prelude::{ConvexPolyhedron, SharedShape},
+    };
+    // use parry3d::shape::{ConvexPolyhedron, SharedShape};
 
     use crate::{
         components,
