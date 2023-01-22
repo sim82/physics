@@ -108,11 +108,9 @@ impl Brush {
             self.appearances.remove(r);
         }
         let mut remap = Vec::new();
-        let mut c = 0;
-        for app in &mut self.appearances {
+        for (c, app) in &mut self.appearances.iter_mut().enumerate() {
             remap.push(*app);
-            *app = c;
-            c += 1;
+            *app = c as i32;
         }
         remap
     }
