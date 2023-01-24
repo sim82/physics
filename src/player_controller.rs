@@ -51,6 +51,8 @@ pub struct PlayerInputSource {
 
     pub up: KeyCode,
     pub down: KeyCode,
+
+    pub walk: KeyCode,
 }
 
 impl Default for PlayerInputSource {
@@ -63,6 +65,7 @@ impl Default for PlayerInputSource {
             right: KeyCode::D,
             up: KeyCode::R,
             down: KeyCode::F,
+            walk: KeyCode::LShift,
         }
     }
 }
@@ -74,6 +77,7 @@ pub fn player_controller_input_system(
     key_codes: Res<Input<KeyCode>>,
     mut mouse_motion: EventReader<MouseMotion>,
     mut query: Query<(&mut PlayerInputSource, &mut PlayerInputQueue)>,
+    app_state: Res<State<AppState>>,
 ) {
     for (mut input_source, mut queue) in &mut query {
         let mut forward = 0.0;
@@ -98,9 +102,16 @@ pub fn player_controller_input_system(
         if key_codes.pressed(input_source.down) {
             up -= 1.0;
         }
-        const WALK_SPEED: f32 = 6.0;
-        forward *= WALK_SPEED;
-        right *= WALK_SPEED;
+        const WALK_SPEED: f32 = 2.0;
+        const RUN_SPEED: f32 = 6.0;
+
+        let speed = if key_codes.pressed(input_source.walk) {
+            WALK_SPEED
+        } else {
+            RUN_SPEED
+        };
+        forward *= speed;
+        right *= speed;
 
         let mut lon = 0.0;
         let mut lat = 0.0;
@@ -109,6 +120,11 @@ pub fn player_controller_input_system(
             const SENSITIVITY: f32 = 0.5;
             lon -= event.delta.x * SENSITIVITY;
             lat -= event.delta.y * SENSITIVITY;
+        }
+
+        if *app_state.current() == AppState::Editor && !key_codes.pressed(input_source.walk) {
+            lon = 0.0;
+            lat = 0.0;
         }
 
         let player_input = PlayerInput {
@@ -193,7 +209,7 @@ pub fn player_controller_apply_system(
             // info!("{:?} {:?}", forward, right);
             // transform.translation += forward;
             // transform.translation += right;
-            character_controller.max_slope_climb_angle = std::f32::consts::PI / 2.0;
+            // character_controller.max_slope_climb_angle = std::f32::consts::PI / 2.0;
             character_controller.translation = Some(forward + right + up);
             debug!("want: {:?}", character_controller.translation);
             character_controller.autostep = Some(CharacterAutostep::default());
@@ -267,11 +283,14 @@ pub struct PlayerControllerPlugin;
 
 impl Plugin for PlayerControllerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_update(AppState::InGame).with_system(player_controller_input_system),
-        )
-        .add_system(player_controller_apply_system.after(player_controller_input_system))
-        .add_system(player_controller_apply_output_system.before(player_controller_apply_system))
-        .add_system(sync_player_camera_system.after(player_controller_apply_output_system));
+        // app.add_system_set(
+        //     SystemSet::on_update(AppState::InGame).with_system(player_controller_input_system),
+        // );
+        app.add_system(player_controller_input_system);
+        app.add_system(player_controller_apply_system.after(player_controller_input_system))
+            .add_system(
+                player_controller_apply_output_system.before(player_controller_apply_system),
+            )
+            .add_system(sync_player_camera_system.after(player_controller_apply_output_system));
     }
 }

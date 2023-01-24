@@ -236,13 +236,30 @@ mod systems {
         }
     }
 
-    pub fn setup_player_system(mut commands: Commands) {
+    pub fn setup_player_system(
+        mut commands: Commands,
+        mut meshes: ResMut<Assets<Mesh>>,
+        mut materials: ResMut<Assets<StandardMaterial>>,
+    ) {
+        let player_mesh = meshes.add(shape::Box::new(0.6, 1.8, 0.6).into());
+        let player_material = materials.add(Color::rgba(0.8, 0.8, 0.4, 0.4).into());
+
         commands
             .spawn(SpatialBundle::from_transform(Transform::from_xyz(
                 5.0, 2.01, 5.0,
             )))
             .insert(PlayerControllerBundle::default())
-            .insert(Name::new("player"));
+            .insert(Name::new("player"))
+            .with_children(|commands| {
+                commands.spawn((
+                    PbrBundle {
+                        mesh: player_mesh,
+                        material: player_material,
+                        ..default()
+                    },
+                    render_layers::ortho_views(),
+                ));
+            });
     }
 
     pub fn setup_debug_render_system(mut debug_render_context: ResMut<DebugRenderContext>) {
