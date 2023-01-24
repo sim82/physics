@@ -1,0 +1,1 @@
+Direct rust port of https://evanw.github.io/csg.js/ with support for creating bevy meshes and rapier3d collision geometries from CSG output.
