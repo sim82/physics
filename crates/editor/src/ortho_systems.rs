@@ -296,8 +296,8 @@ pub fn adjust_clip_planes_system(
     let Some((lower_min, lower_max)) = ortho_view_bounds(lower_camera, lower_transform) else { return };
 
     {
-        let min = upper_orientation.get_up_axis(upper_min);
-        let max = upper_orientation.get_up_axis(upper_max);
+        let min = upper_orientation.get_up_axis(upper_min) - 5.0;
+        let max = upper_orientation.get_up_axis(upper_max) + 5.0;
 
         let Ok((_, _, mut lower_projection, mut lower_transform)) = camera_query.get_mut(lower.camera) else {
             return;
@@ -320,8 +320,8 @@ pub fn adjust_clip_planes_system(
     }
 
     {
-        let min = lower_orientation.get_up_axis(lower_min);
-        let max = lower_orientation.get_up_axis(lower_max);
+        let min = lower_orientation.get_up_axis(lower_min) - 5.0;
+        let max = lower_orientation.get_up_axis(lower_max) + 5.0;
 
         let Ok((_, _, mut upper_projection, mut upper_transform)) = camera_query.get_mut(upper.camera) else {
             return;
