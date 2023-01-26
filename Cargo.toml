@@ -72,7 +72,6 @@ arrayvec = "0.7"
 bevy_mod_outline = "0.3"
 thiserror = "1"
 
-bevy_infinite_grid = "0.6.0"
 csg = { path = "crates/csg" }
 sstree = { path = "crates/sstree" }
 material = { path = "crates/material" }

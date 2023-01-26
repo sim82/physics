@@ -16,7 +16,6 @@ pub mod sky;
 pub mod slidemove;
 pub mod trace;
 
-pub mod debug_gui;
 pub mod norm {
     // srgb workaround from https://github.com/bevyengine/bevy/issues/6371
     use bevy::asset::{AssetLoader, Error, LoadContext, LoadedAsset};
@@ -109,6 +108,27 @@ pub fn exit_on_esc_system(
     }
 }
 
+mod resources {
+    use bevy::{core_pipeline::core_2d::graph::node::FXAA, prelude::Resource};
+
+    #[derive(Resource, Copy, Clone, Default, Debug)]
+    pub enum AaState {
+        #[default]
+        Msaa4,
+        Fxaa,
+        Disabled,
+    }
+    impl AaState {
+        pub fn next(self) -> Self {
+            match self {
+                AaState::Msaa4 => AaState::Fxaa,
+                AaState::Fxaa => AaState::Disabled,
+                AaState::Disabled => AaState::Msaa4,
+            }
+        }
+    }
+}
+
 mod components {
     use bevy::prelude::*;
     #[derive(Component)]
@@ -145,8 +165,8 @@ mod systems {
     use crate::{
         components,
         player_controller::{PlayerCamera, PlayerControllerBundle},
+        resources,
     };
-    use editor::{self, resources};
     use shared::{render_layers, AppState};
 
     pub fn update_deferred_mesh_system(
@@ -267,7 +287,7 @@ mod systems {
         debug_render_context.enabled = false;
     }
 
-    pub fn enter_editor_system(mut commands: Commands, wm_state: Res<resources::WmState>) {
+    pub fn enter_editor_system(mut commands: Commands, wm_state: Res<editor::resources::WmState>) {
         commands
             .spawn(Camera3dBundle {
                 camera: Camera {
@@ -298,7 +318,10 @@ mod systems {
             .spawn(Camera3dBundle { ..default() })
             .insert(PlayerCamera)
             .insert(AtmosphereCamera::default())
-            .insert(Fxaa::default())
+            .insert(Fxaa {
+                enabled: false,
+                ..default()
+            })
             .insert(RenderLayers::layer(render_layers::MAIN_3D))
             .insert(components::IngameCamera);
     }
@@ -308,6 +331,33 @@ mod systems {
     ) {
         for entity in &query {
             commands.entity(entity).despawn();
+        }
+    }
+    pub fn toggle_anti_aliasing(
+        mut state: ResMut<resources::AaState>,
+        key_codes: Res<Input<KeyCode>>,
+        mut msaa: ResMut<Msaa>,
+        mut query: Query<&mut Fxaa>,
+    ) {
+        if key_codes.just_pressed(KeyCode::F11) {
+            *state = state.next();
+            info!("antialias state: {:?}", state);
+            for mut fxaa in &mut query {
+                match *state {
+                    resources::AaState::Msaa4 => {
+                        msaa.samples = 4;
+                        fxaa.enabled = false
+                    }
+                    resources::AaState::Fxaa => {
+                        msaa.samples = 1;
+                        fxaa.enabled = true;
+                    }
+                    resources::AaState::Disabled => {
+                        msaa.samples = 1;
+                        fxaa.enabled = false;
+                    }
+                }
+            }
         }
     }
 }
@@ -341,6 +391,13 @@ impl Plugin for GameplayPlugin {
             color: Color::WHITE,
             brightness: 1.0 / 5.0f32,
         });
+        app.insert_resource(DebugRenderContext {
+            enabled: false,
+            always_on_top: false,
+            ..default()
+        });
+        app.insert_resource(ClearColor(Color::ALICE_BLUE));
+        app.init_resource::<resources::AaState>();
         app.add_startup_system(systems::setup_player_system);
         app.add_startup_system(systems::setup_debug_render_system);
         app.add_system(systems::update_deferred_mesh_system);
@@ -373,13 +430,7 @@ impl Plugin for GameplayPlugin {
         // FIXME: those do not really belong here (related to external plugins)
         // Add material types to be converted
         app.add_system(bevy_mod_mipmap_generator::generate_mipmaps::<StandardMaterial>);
-        app.insert_resource(DebugRenderContext {
-            enabled: false,
-            always_on_top: false,
-            ..default()
-        });
-        // app.insert_resource(Msaa { samples: 1 });
-        app.insert_resource(ClearColor(Color::ALICE_BLUE));
+        app.add_system(systems::toggle_anti_aliasing);
     }
 }
 
@@ -389,15 +440,6 @@ impl PluginGroup for GamePluginGroup {
         PluginGroupBuilder::start::<Self>()
             .add(player_controller::PlayerControllerPlugin)
             .add(GameplayPlugin)
-    }
-}
-
-pub struct EditorPluginGroup;
-impl PluginGroup for EditorPluginGroup {
-    fn build(self) -> bevy::app::PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
-            .add(editor::EditorPlugin)
-            .add(debug_gui::DebugGuiPlugin)
     }
 }
 
@@ -412,6 +454,5 @@ impl PluginGroup for ExternalPluginGroup {
             .add(sky::SkyPlugin)
             .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin)
             .add(bevy_mod_outline::OutlinePlugin)
-            .add(bevy_infinite_grid::InfiniteGridPlugin)
     }
 }

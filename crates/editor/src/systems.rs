@@ -772,10 +772,7 @@ pub fn load_save_editor_objects(
     mut spatial_index: ResMut<SpatialIndex>,
     mut materials: ResMut<resources::Materials>,
 ) {
-    if keycodes.just_pressed(KeyCode::F12)
-        || keycodes.just_pressed(KeyCode::F6)
-        || keycodes.just_pressed(KeyCode::F7)
-    {
+    if keycodes.just_pressed(KeyCode::F6) || keycodes.just_pressed(KeyCode::F7) {
         let despawn = brush_query
             .iter()
             .map(|(entity, _, _)| entity)

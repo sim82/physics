@@ -78,7 +78,10 @@ pub fn enter_editor_state(
                     })
                     .insert(render_layer)
                     .insert(components::Ortho2dCamera)
-                    // .insert(bevy::core_pipeline::fxaa::Fxaa::default())
+                    .insert(bevy::core_pipeline::fxaa::Fxaa {
+                        enabled: false,
+                        ..default()
+                    })
                     .id();
 
                 let grid = if name == LOWER_WINDOW {

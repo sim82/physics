@@ -52,6 +52,8 @@ bevy_mod_outline = "0.3"
 thiserror = "1"
 
 bevy_infinite_grid = "0.6.0"
+# bevy_infinite_grid = { path = "../../ext/bevy_infinite_grid" }
+
 csg = { path = "../csg" }
 sstree = { path = "../sstree" }
 material = { path = "../material" }

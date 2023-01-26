@@ -3200,7 +3200,6 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_atmosphere",
  "bevy_egui",
- "bevy_infinite_grid",
  "bevy_mod_mipmap_generator",
  "bevy_mod_outline",
  "bevy_prototype_debug_lines",

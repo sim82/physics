@@ -1,4 +1,4 @@
-use bevy::{prelude::*, time::FixedTimestep};
+use bevy::{app::PluginGroupBuilder, prelude::*, time::FixedTimestep};
 use bevy_inspector_egui::RegisterInspectable;
 
 use shared::AppState;
@@ -122,5 +122,15 @@ impl Plugin for EditorPlugin {
             SystemSet::on_update(AppState::Editor).with_system(wm_systems::wm_test_system),
         );
         app.add_event::<util::WmEvent>();
+    }
+}
+
+pub struct EditorPluginGroup;
+impl PluginGroup for EditorPluginGroup {
+    fn build(self) -> bevy::app::PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(EditorPlugin)
+            // .add(debug_gui::DebugGuiPlugin)
+            .add(bevy_infinite_grid::InfiniteGridPlugin)
     }
 }

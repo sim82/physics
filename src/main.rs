@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use physics::{EditorPluginGroup, ExternalPluginGroup, GamePluginGroup};
+use editor::EditorPluginGroup;
+use physics::{ExternalPluginGroup, GamePluginGroup};
 
 fn main() {
     let mut app = App::new();
