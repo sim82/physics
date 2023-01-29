@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy::{core_pipeline::core_3d::graph::input, input::mouse::MouseMotion, prelude::*};
 use bevy_rapier3d::prelude::*;
 
 use shared::AppState;
@@ -80,6 +80,13 @@ pub fn player_controller_input_system(
     app_state: Res<State<AppState>>,
 ) {
     for (mut input_source, mut queue) in &mut query {
+        let input_enabled =
+            *app_state.current() != AppState::Editor || key_codes.pressed(input_source.walk);
+
+        if !input_enabled {
+            continue;
+        }
+
         let mut forward = 0.0;
         let mut right = 0.0;
         let mut up = 0.0;
@@ -120,11 +127,6 @@ pub fn player_controller_input_system(
             const SENSITIVITY: f32 = 0.5;
             lon -= event.delta.x * SENSITIVITY;
             lat -= event.delta.y * SENSITIVITY;
-        }
-
-        if *app_state.current() == AppState::Editor && !key_codes.pressed(input_source.walk) {
-            lon = 0.0;
-            lat = 0.0;
         }
 
         let player_input = PlayerInput {

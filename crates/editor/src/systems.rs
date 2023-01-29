@@ -75,10 +75,24 @@ pub fn setup(
 pub fn editor_input_system(
     mut commands: Commands,
     mut edit_commands: EditCommands,
+    mut windows: ResMut<Windows>,
     keycodes: Res<Input<KeyCode>>,
     selection_query: Query<Entity, With<components::Selected>>,
     mut clip_state: ResMut<resources::ClipState>,
 ) {
+    {
+        let window = windows.get_primary_mut().unwrap();
+        if keycodes.just_pressed(KeyCode::LShift) {
+            window.set_cursor_grab_mode(bevy::window::CursorGrabMode::Confined)
+        }
+        if keycodes.just_released(KeyCode::LShift) {
+            window.set_cursor_grab_mode(bevy::window::CursorGrabMode::None)
+        }
+    }
+    if keycodes.pressed(KeyCode::LShift) {
+        return;
+    }
+
     let mut clear_selection = false;
     if keycodes.just_pressed(KeyCode::B) {
         let res = edit_commands.apply(add_brush::Command { brush: default() });

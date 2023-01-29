@@ -154,6 +154,7 @@ mod systems {
         core_pipeline::fxaa::Fxaa,
         prelude::*,
         render::{camera::RenderTarget, view::RenderLayers},
+        window::CursorGrabMode,
     };
     use bevy_atmosphere::prelude::AtmosphereCamera;
     use bevy_rapier3d::{
@@ -313,7 +314,7 @@ mod systems {
         }
     }
 
-    pub fn enter_ingame_system(mut commands: Commands) {
+    pub fn enter_ingame_system(mut commands: Commands, mut windows: ResMut<Windows>) {
         commands
             .spawn(Camera3dBundle { ..default() })
             .insert(PlayerCamera)
@@ -324,14 +325,21 @@ mod systems {
             })
             .insert(RenderLayers::layer(render_layers::MAIN_3D))
             .insert(components::IngameCamera);
+
+        let window = windows.get_primary_mut().unwrap();
+        window.set_cursor_grab_mode(CursorGrabMode::Locked)
     }
     pub fn leave_ingame_system(
         mut commands: Commands,
+        mut windows: ResMut<Windows>,
         query: Query<Entity, With<components::IngameCamera>>,
     ) {
         for entity in &query {
             commands.entity(entity).despawn();
         }
+
+        let window = windows.get_primary_mut().unwrap();
+        window.set_cursor_grab_mode(CursorGrabMode::None)
     }
     pub fn toggle_anti_aliasing(
         mut state: ResMut<resources::AaState>,
