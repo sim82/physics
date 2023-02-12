@@ -19,6 +19,27 @@ pub struct CenterRadius<K> {
     pub radius: f32,
 }
 
+impl<K> Distance for CenterRadius<K>
+where
+    K: Distance,
+{
+    fn distance(&self, p2: &CenterRadius<K>) -> f32 {
+        self.center.distance(&p2.center)
+    }
+}
+
+impl<K> CenterRadius<K>
+where
+    K: Distance,
+{
+    pub fn intersects_point(&self, target: &K) -> bool {
+        self.center.distance(target) <= self.radius
+    }
+    pub fn intersects(&self, target: &Self) -> bool {
+        self.center.distance(&target.center) < (self.radius + target.radius)
+    }
+}
+
 #[derive(Debug)]
 pub struct Entry<P, K> {
     pub center_radius: CenterRadius<K>,
@@ -26,14 +47,15 @@ pub struct Entry<P, K> {
 }
 
 impl<P, K: Distance> Entry<P, K> {
-    pub fn new(center: K, radius: f32, payload: P) -> Self {
+    pub fn new(center_radius: CenterRadius<K>, payload: P) -> Self {
         Self {
-            center_radius: CenterRadius { center, radius },
+            center_radius,
             payload,
         }
     }
     pub fn intersects_point(&self, target: &K) -> bool {
-        self.center_radius.center.distance(target) <= self.center_radius.radius
+        // self.center_radius.center.distance(target) <= self.center_radius.radius
+        self.center_radius.intersects_point(target)
     }
 }
 
@@ -90,37 +112,30 @@ fn test_bevy_vec3() {
 
 #[derive(Debug)]
 pub struct SsNode<P, K: Distance + DimIndex + PartialEq, const M: usize> {
-    // pub centroid: K,
-    // pub radius: f32,
     pub center_radius: CenterRadius<K>,
     pub links: SsNodeLinks<P, K, M>,
 }
 
 impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, K, M> {
     pub fn from_entries(entries: ArrayVec<Entry<P, K>, M>) -> Self {
-        let (centroid, radius) = leaf::centroid_and_radius::<P, K, M>(&entries);
+        let center_radius = leaf::centroid_and_radius::<P, K, M>(&entries);
         Self {
-            center_radius: CenterRadius {
-                center: centroid,
-                radius,
-            },
+            center_radius,
             links: SsNodeLinks::Leaf(Box::new(entries)),
         }
     }
 
     pub fn from_nodes(nodes: ArrayVec<Self, M>) -> Self {
-        let (centroid, radius) = inner::centroid_and_radius(&nodes);
+        let center_radius = inner::centroid_and_radius(&nodes);
         Self {
-            center_radius: CenterRadius {
-                center: centroid,
-                radius,
-            },
+            center_radius,
             links: SsNodeLinks::Inner(Box::new(nodes)),
         }
     }
 
     pub fn intersects_point(&self, target: &K) -> bool {
-        self.center_radius.center.distance(target) <= self.center_radius.radius
+        // self.center_radius.center.distance(target) <= self.center_radius.radius
+        self.center_radius.intersects_point(target)
     }
 
     pub fn search(&self, target: &K) -> Option<&Self> {
@@ -149,12 +164,10 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
     }
 
     pub fn update_bounding_envelope(&mut self) {
-        let (centroid, radius) = match &self.links {
+        self.center_radius = match &self.links {
             SsNodeLinks::Inner(nodes) => inner::centroid_and_radius(nodes),
             SsNodeLinks::Leaf(points) => leaf::centroid_and_radius::<P, K, M>(points),
         };
-        self.center_radius.center = centroid;
-        self.center_radius.radius = radius;
     }
     pub fn insert(&mut self, entry: Entry<P, K>, m: usize) -> Option<(Self, Self)> {
         match &mut self.links {
@@ -171,23 +184,17 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
 
                     let split_index = leaf::find_split_index::<P, K, M>(&mut nodes_to_split, m);
                     let points2: ArrayVec<_, M> = nodes_to_split.drain(split_index..).collect();
-                    let (centroid2, radius2) = leaf::centroid_and_radius::<P, K, M>(&points2);
+                    let center_radius2 = leaf::centroid_and_radius::<P, K, M>(&points2);
 
                     let points1: ArrayVec<_, M> = nodes_to_split.drain(..split_index).collect();
-                    let (centroid1, radius1) = leaf::centroid_and_radius::<P, K, M>(&points1);
+                    let center_radius1 = leaf::centroid_and_radius::<P, K, M>(&points1);
 
                     let new_node1 = Self {
-                        center_radius: CenterRadius {
-                            center: centroid1,
-                            radius: radius1,
-                        },
+                        center_radius: center_radius1,
                         links: SsNodeLinks::Leaf(Box::new(points1)),
                     };
                     let new_node2 = Self {
-                        center_radius: CenterRadius {
-                            center: centroid2,
-                            radius: radius2,
-                        },
+                        center_radius: center_radius2,
                         links: SsNodeLinks::Leaf(Box::new(points2)),
                     };
 
@@ -216,23 +223,17 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
                         let split_index = inner::find_split_index(&mut nodes_to_split, m);
 
                         let points2: ArrayVec<_, M> = nodes_to_split.drain(split_index..).collect();
-                        let (centroid2, radius2) = inner::centroid_and_radius(&points2);
+                        let center_radius2 = inner::centroid_and_radius(&points2);
 
                         let points1: ArrayVec<_, M> = nodes_to_split.drain(..split_index).collect();
-                        let (centroid1, radius1) = inner::centroid_and_radius(&points1);
+                        let center_radius1 = inner::centroid_and_radius(&points1);
 
                         let new_node1 = Self {
-                            center_radius: CenterRadius {
-                                center: centroid1,
-                                radius: radius1,
-                            },
+                            center_radius: center_radius1,
                             links: SsNodeLinks::Inner(Box::new(points1)),
                         };
                         let new_node2 = Self {
-                            center_radius: CenterRadius {
-                                center: centroid2,
-                                radius: radius2,
-                            },
+                            center_radius: center_radius2,
                             links: SsNodeLinks::Inner(Box::new(points2)),
                         };
                         return Some((new_node1, new_node2));
@@ -322,15 +323,16 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
     }
     pub fn find_entries_within_radius<'a>(
         &'a self,
-        center: &K,
-        radius: f32,
+        // center: &K,
+        // radius: f32,
+        center_radius: &CenterRadius<K>,
         out: &mut Vec<&'a Entry<P, K>>,
     ) {
         match &self.links {
             SsNodeLinks::Leaf(points) => {
                 for point in points.iter() {
-                    if point.center_radius.center.distance(center)
-                        < (radius + point.center_radius.radius)
+                    if point.center_radius.center.distance(&center_radius.center)
+                        < (center_radius.radius + point.center_radius.radius)
                     {
                         out.push(point);
                     }
@@ -338,10 +340,8 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
             }
             SsNodeLinks::Inner(nodes) => {
                 for child in nodes.iter() {
-                    if child.center_radius.center.distance(center)
-                        <= radius + child.center_radius.radius
-                    {
-                        child.find_entries_within_radius(center, radius, out);
+                    if child.center_radius.intersects(center_radius) {
+                        child.find_entries_within_radius(center_radius, out);
                     }
                 }
             }
@@ -533,12 +533,9 @@ impl<P, K: Default + Distance + DimIndex + PartialEq, const M: usize> SsTree<P, 
             let mut nodes = ArrayVec::<_, M>::new();
             nodes.push(new_child_1);
             nodes.push(new_child_2);
-            let (centroid, radius) = inner::centroid_and_radius(&nodes);
+            let center_radius = inner::centroid_and_radius(&nodes);
             self.root = SsNode {
-                center_radius: CenterRadius {
-                    center: centroid,
-                    radius,
-                },
+                center_radius,
                 links: SsNodeLinks::Inner(Box::new(nodes)),
             };
             self.height += 1;
@@ -568,11 +565,10 @@ impl<P, K: Default + Distance + DimIndex + PartialEq, const M: usize> SsTree<P, 
 
     pub fn find_entries_within_radius<'a>(
         &'a self,
-        center: &K,
-        radius: f32,
+        center_radius: &CenterRadius<K>,
         out: &mut Vec<&'a Entry<P, K>>,
     ) {
-        self.root.find_entries_within_radius(center, radius, out);
+        self.root.find_entries_within_radius(center_radius, out);
     }
 
     pub fn find_if<'a, F: Fn(&P) -> bool>(
@@ -681,7 +677,7 @@ mod util {
 mod leaf {
     use super::{
         util::{centroid, direction_of_max_variance, variance_along_direction},
-        DimIndex, Distance, Entry,
+        CenterRadius, DimIndex, Distance, Entry,
     };
 
     pub fn find_split_index<P, K: DimIndex + Distance, const M: usize>(
@@ -711,7 +707,7 @@ mod leaf {
 
     pub fn centroid_and_radius<P, K: Default + DimIndex + Distance, const M: usize>(
         entires: &[Entry<P, K>],
-    ) -> (K, f32) {
+    ) -> CenterRadius<K> {
         let centroid = centroid(entires);
 
         let radius = entires
@@ -719,7 +715,10 @@ mod leaf {
             .map(|node| centroid.distance(&node.center_radius.center) + node.center_radius.radius)
             .max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
             .unwrap();
-        (centroid, radius)
+        CenterRadius {
+            center: centroid,
+            radius,
+        }
     }
 }
 mod inner {
@@ -727,19 +726,22 @@ mod inner {
 
     use super::{
         util::{centroid, direction_of_max_variance, variance_along_direction},
-        DimIndex, Distance, SsNode, SsNodeLinks,
+        CenterRadius, DimIndex, Distance, SsNode, SsNodeLinks,
     };
 
     pub fn centroid_and_radius<P, K: DimIndex + Distance + PartialEq + Default, const M: usize>(
         nodes: &[SsNode<P, K, M>],
-    ) -> (K, f32) {
+    ) -> CenterRadius<K> {
         let centroid = centroid(nodes);
         let radius = nodes
             .iter()
             .map(|node| centroid.distance(&node.center_radius.center) + node.center_radius.radius)
             .max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
             .unwrap();
-        (centroid, radius)
+        CenterRadius {
+            center: centroid,
+            radius,
+        }
     }
 
     pub fn find_split_index<P, K: Distance + DimIndex + PartialEq, const M: usize>(
@@ -915,6 +917,8 @@ mod inner {
 
 #[cfg(test)]
 mod test {
+    use crate::indirect::CenterRadius;
+
     use super::Entry;
     use super::SsTree;
 
@@ -932,34 +936,92 @@ mod test {
 
         let mut tree = SsTree::<(), [f32; 2], UPPER_M>::new(LOWER_M);
 
-        tree.insert_entry(Entry::new([0.0, 0.0], 1.0, ()));
-        tree.insert_entry(Entry::new([5.0, 5.0], 1.0, ()));
+        tree.insert_entry(Entry::new(
+            CenterRadius {
+                center: [0.0, 0.0],
+                radius: 1.0,
+            },
+            (),
+        ));
+        tree.insert_entry(Entry::new(
+            CenterRadius {
+                center: [5.0, 5.0],
+                radius: 1.0,
+            },
+            (),
+        ));
 
         let mut out = Vec::new();
-        tree.find_entries_within_radius(&[0.5, 0.5], 1.0, &mut out);
-        assert_eq!(out, vec!(&Entry::new([0.0, 0.0], 1.0, ())));
+        tree.find_entries_within_radius(
+            &CenterRadius {
+                center: [0.5, 0.5],
+                radius: 1.0,
+            },
+            &mut out,
+        );
+        assert_eq!(
+            out,
+            vec!(&Entry::new(
+                CenterRadius {
+                    center: [0.0, 0.0],
+                    radius: 1.0,
+                },
+                ()
+            ))
+        );
 
         let mut out = Vec::new();
-        tree.find_entries_within_radius(&[4.5, 5.5], 1.0, &mut out);
-        assert_eq!(out, vec!(&Entry::new([5.0, 5.0], 1.0, ())));
+        tree.find_entries_within_radius(
+            &CenterRadius {
+                center: [4.5, 5.5],
+                radius: 1.0,
+            },
+            &mut out,
+        );
+        assert_eq!(
+            out,
+            vec!(&Entry::new(
+                CenterRadius {
+                    center: [5.0, 5.0],
+                    radius: 1.0,
+                },
+                ()
+            ))
+        );
         let mut out = Vec::new();
 
         // do search between the entries with radius big enough to just reach them
         tree.find_entries_within_radius(
-            &[2.5, 2.5],
-            (2.5 * std::f32::consts::SQRT_2 + 0.0001) - 1.0,
+            &CenterRadius {
+                center: [2.5, 2.5],
+                radius: (2.5 * std::f32::consts::SQRT_2 + 0.0001) - 1.0,
+            },
             &mut out,
         );
         assert_eq!(out.len(), 2);
-        assert!(out.contains(&&Entry::new([5.0, 5.0], 1.0, ())));
-        assert!(out.contains(&&Entry::new([0.0, 0.0], 1.0, ())));
+        assert!(out.contains(&&Entry::new(
+            CenterRadius {
+                center: [5.0, 5.0],
+                radius: 1.0,
+            },
+            ()
+        )));
+        assert!(out.contains(&&Entry::new(
+            CenterRadius {
+                center: [0.0, 0.0],
+                radius: 1.0,
+            },
+            ()
+        )));
 
         let mut out = Vec::new();
 
         // the same as befor but with radius just barely too small
         tree.find_entries_within_radius(
-            &[2.5, 2.5],
-            (2.5 * std::f32::consts::SQRT_2 - 0.0001) - 1.0,
+            &CenterRadius {
+                center: [2.5, 2.5],
+                radius: (2.5 * std::f32::consts::SQRT_2 - 0.0001) - 1.0,
+            },
             &mut out,
         );
         assert!(out.is_empty());
@@ -972,6 +1034,15 @@ use bevy::prelude::*;
 pub struct SpatialBounds {
     pub center: Vec3,
     pub radius: f32,
+}
+
+impl Into<CenterRadius<Vec3>> for SpatialBounds {
+    fn into(self) -> CenterRadius<Vec3> {
+        CenterRadius {
+            center: self.center,
+            radius: self.radius,
+        }
+    }
 }
 
 #[derive(Resource, Default)]
@@ -1005,7 +1076,7 @@ impl SpatialIndex {
     pub fn query(&self, bounds: SpatialBounds) -> impl Iterator<Item = Entity> + '_ {
         let mut out = Vec::new();
         self.sstree
-            .find_entries_within_radius(&bounds.center, bounds.radius, &mut out);
+            .find_entries_within_radius(&bounds.into(), &mut out);
         out.into_iter().map(|e| e.payload)
     }
 }
