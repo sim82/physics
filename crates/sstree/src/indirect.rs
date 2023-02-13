@@ -14,7 +14,7 @@ pub trait DimIndex:
 }
 
 pub trait CenterRadius {
-    type K: Distance + Default + DimIndex + Distance + PartialEq;
+    type K: Distance + Default + DimIndex + PartialEq;
 
     fn from_center_radius(center: Self::K, radius: f32) -> Self;
 
@@ -60,55 +60,10 @@ impl<P, C: CenterRadius> LeafLink<P, C> {
     }
 }
 
-impl<const K: usize> Distance for [f32; K] {
-    fn distance(&self, p2: &[f32; K]) -> f32 {
-        self.iter()
-            .zip(p2.iter())
-            .map(|(c1, c2)| (c1 - c2) * (c1 - c2))
-            .sum::<f32>()
-            .sqrt()
-    }
-}
-
-impl<const K: usize> DimIndex for [f32; K] {
-    const NUM_DIMENSIONS: usize = K;
-}
-
-impl Distance for Vec3 {
-    fn distance(&self, other: &Self) -> f32 {
-        (*self - *other).length()
-    }
-}
-
-impl DimIndex for Vec3 {
-    const NUM_DIMENSIONS: usize = 3;
-}
-
-#[test]
-fn test_distance() {
-    assert_eq!([0.0, 0.0].distance(&[1.0, 1.0]), 2.0f32.sqrt());
-    assert_eq!([-10.0, 1.0].distance(&[10.0, 1.0]), 20.0f32);
-    assert_eq!([1000.0, -1000.0].distance(&[1000.0, 2000.0]), 3000.0);
-}
-
 #[derive(Debug)]
 pub enum Node<P, C: CenterRadius, const M: usize> {
     Inner(ArrayVec<InnerLink<P, C, M>, M>),
     Leaf(ArrayVec<LeafLink<P, C>, M>),
-}
-
-#[test]
-fn test_bevy_vec3() {
-    let mut tree = SsTree::<u32, SpatialBounds, 8>::default();
-    let a = Vec3::ZERO;
-    println!("{}", a[0]);
-    tree.insert_entry(LeafLink {
-        payload: 1,
-        center_radius: SpatialBounds {
-            center: Vec3::ZERO,
-            radius: 1.0,
-        },
-    });
 }
 
 #[derive(Debug)]
@@ -821,6 +776,51 @@ mod inner {
             _ => panic!("inconsistent siblings"),
         }
     }
+}
+
+impl<const K: usize> Distance for [f32; K] {
+    fn distance(&self, p2: &[f32; K]) -> f32 {
+        self.iter()
+            .zip(p2.iter())
+            .map(|(c1, c2)| (c1 - c2) * (c1 - c2))
+            .sum::<f32>()
+            .sqrt()
+    }
+}
+
+impl<const K: usize> DimIndex for [f32; K] {
+    const NUM_DIMENSIONS: usize = K;
+}
+
+impl Distance for Vec3 {
+    fn distance(&self, other: &Self) -> f32 {
+        (*self - *other).length()
+    }
+}
+
+impl DimIndex for Vec3 {
+    const NUM_DIMENSIONS: usize = 3;
+}
+
+#[test]
+fn test_distance() {
+    assert_eq!([0.0, 0.0].distance(&[1.0, 1.0]), 2.0f32.sqrt());
+    assert_eq!([-10.0, 1.0].distance(&[10.0, 1.0]), 20.0f32);
+    assert_eq!([1000.0, -1000.0].distance(&[1000.0, 2000.0]), 3000.0);
+}
+
+#[test]
+fn test_bevy_vec3() {
+    let mut tree = SsTree::<u32, SpatialBounds, 8>::default();
+    let a = Vec3::ZERO;
+    println!("{}", a[0]);
+    tree.insert_entry(LeafLink {
+        payload: 1,
+        center_radius: SpatialBounds {
+            center: Vec3::ZERO,
+            radius: 1.0,
+        },
+    });
 }
 
 #[cfg(test)]
