@@ -36,9 +36,21 @@ pub trait CenterRadius {
 }
 
 #[derive(Debug)]
+pub struct InnerLink<P, C: CenterRadius, const M: usize> {
+    pub center_radius: C,
+    pub links: Box<Node<P, C, M>>,
+}
+
+#[derive(Debug)]
 pub struct LeafLink<P, C> {
     pub center_radius: C,
     pub payload: P,
+}
+
+#[derive(Debug)]
+pub enum Node<P, C: CenterRadius, const M: usize> {
+    Inner(ArrayVec<InnerLink<P, C, M>, M>),
+    Leaf(ArrayVec<LeafLink<P, C>, M>),
 }
 
 impl<P, C: CenterRadius> AsRef<C> for LeafLink<P, C> {
@@ -58,18 +70,6 @@ impl<P, C: CenterRadius> LeafLink<P, C> {
         // self.center_radius.center.distance(target) <= self.center_radius.radius
         self.center_radius.intersects_point(target)
     }
-}
-
-#[derive(Debug)]
-pub enum Node<P, C: CenterRadius, const M: usize> {
-    Inner(ArrayVec<InnerLink<P, C, M>, M>),
-    Leaf(ArrayVec<LeafLink<P, C>, M>),
-}
-
-#[derive(Debug)]
-pub struct InnerLink<P, C: CenterRadius, const M: usize> {
-    pub center_radius: C,
-    pub links: Box<Node<P, C, M>>,
 }
 
 impl<P, C: CenterRadius, const M: usize> AsRef<C> for InnerLink<P, C, M> {
@@ -116,7 +116,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
     pub fn search_parent_leaf(&self, target: &C::K) -> &Self {
         match self.links.as_ref() {
             Node::Inner(children) => {
-                let child = find_closest_child(children, target);
+                let child = Self::find_closest_child(children, target);
                 child.search_parent_leaf(target)
             }
             Node::Leaf(_) => self,
@@ -164,7 +164,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
             Node::Inner(children) => {
                 let closest_child_index =
-                    find_closest_child_index(children, entry.center_radius.center());
+                    Self::find_closest_child_index(children, entry.center_radius.center());
                 if let Some((new_child_1, new_child_2)) =
                     children[closest_child_index].insert(entry, m)
                 {
@@ -251,14 +251,14 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
                     Some(node_to_fix) => {
                         if let Some(sibling_to_borrow_from) =
-                            inner::find_sibling_to_borrow_from(nodes, node_to_fix, m)
+                            Self::find_sibling_to_borrow_from(nodes, node_to_fix, m)
                         {
-                            inner::borrow_from_sibling(nodes, node_to_fix, sibling_to_borrow_from);
+                            Self::borrow_from_sibling(nodes, node_to_fix, sibling_to_borrow_from);
                         } else if let Some(sibling_to_merge_to) =
-                            inner::find_sibling_to_merge_to(nodes, node_to_fix, m)
+                            Self::find_sibling_to_merge_to(nodes, node_to_fix, m)
                         {
                             // no sibling to borrow from -> merge
-                            inner::merge_siblings(nodes, node_to_fix, sibling_to_merge_to);
+                            Self::merge_siblings(nodes, node_to_fix, sibling_to_merge_to);
                         }
                         let num_nodes = nodes.len();
                         if num_nodes != 0 {
@@ -381,14 +381,14 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
                     Some(node_to_fix) => {
                         if let Some(sibling_to_borrow_from) =
-                            inner::find_sibling_to_borrow_from(nodes, node_to_fix, m)
+                            Self::find_sibling_to_borrow_from(nodes, node_to_fix, m)
                         {
-                            inner::borrow_from_sibling(nodes, node_to_fix, sibling_to_borrow_from);
+                            Self::borrow_from_sibling(nodes, node_to_fix, sibling_to_borrow_from);
                         } else if let Some(sibling_to_merge_to) =
-                            inner::find_sibling_to_merge_to(nodes, node_to_fix, m)
+                            Self::find_sibling_to_merge_to(nodes, node_to_fix, m)
                         {
                             // no sibling to borrow from -> merge
-                            inner::merge_siblings(nodes, node_to_fix, sibling_to_merge_to);
+                            Self::merge_siblings(nodes, node_to_fix, sibling_to_merge_to);
                         }
                         let num_nodes = nodes.len();
                         if num_nodes != 0 {
@@ -399,6 +399,157 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
                     }
                 }
             }
+        }
+    }
+
+    fn find_closest_child<'a>(children: &'a [Self], target: &C::K) -> &'a Self {
+        let mut min_dist = f32::MAX;
+        let mut cur_min = None;
+        for child in children {
+            let d = child.center_radius.distance_point(target);
+            if d < min_dist {
+                min_dist = d;
+                cur_min = Some(child);
+            }
+        }
+        cur_min.unwrap()
+    }
+    fn find_closest_child_index(children: &[Self], target: &C::K) -> usize {
+        let mut min_dist = f32::MAX;
+        let mut cur_min = None;
+        for (i, child) in children.iter().enumerate() {
+            let d = child.center_radius.distance_point(target);
+            if d < min_dist {
+                min_dist = d;
+                cur_min = Some(i);
+            }
+        }
+        cur_min.unwrap()
+    }
+
+    fn find_sibling_to_borrow_from(nodes: &[Self], node_to_fix: usize, m: usize) -> Option<usize> {
+        let siblings_to_borrow_from = nodes.iter().enumerate().filter(|(i, sibling)| match sibling
+            .links
+            .as_ref()
+        {
+            Node::Inner(nodes) => *i != node_to_fix && nodes.len() > m,
+            Node::Leaf(points) => *i != node_to_fix && points.len() > m,
+        });
+
+        let mut closest_sibling = None;
+        let mut closest_sibling_dist = f32::INFINITY;
+
+        for (i, sibling) in siblings_to_borrow_from {
+            let distance = nodes[node_to_fix]
+                .center_radius
+                .distance(&sibling.center_radius);
+            if distance < closest_sibling_dist {
+                closest_sibling = Some(i);
+                closest_sibling_dist = distance;
+            }
+        }
+        closest_sibling
+    }
+
+    fn borrow_from_sibling(nodes: &mut [Self], node_to_fix: usize, sibling_to_borrow_from: usize) {
+        // found sibling to borrow from
+        let to_fix_centroid = &nodes[node_to_fix].center_radius.center();
+        match nodes[sibling_to_borrow_from].links.as_mut() {
+            Node::Inner(nodes2) => {
+                let mut closest_node = None;
+                let mut closest_node_dist = f32::INFINITY;
+                for (i, node) in nodes2.iter().enumerate() {
+                    let distance = node.center_radius.distance_point(to_fix_centroid);
+                    if distance < closest_node_dist {
+                        closest_node = Some(i);
+                        closest_node_dist = distance;
+                    }
+                }
+                let node = nodes2.remove(closest_node.unwrap());
+                nodes[sibling_to_borrow_from].update_bounding_envelope();
+
+                match nodes[node_to_fix].links.as_mut() {
+                    Node::Inner(fix_nodes) => fix_nodes.push(node),
+                    Node::Leaf(_) => panic!("unbalanced tree"),
+                }
+                nodes[node_to_fix].update_bounding_envelope();
+            }
+            Node::Leaf(points) => {
+                let mut closest_point = None;
+                let mut closest_point_dist = f32::INFINITY;
+                for (i, point) in points.iter().enumerate() {
+                    let distance = point.center_radius.distance_point(to_fix_centroid);
+                    if distance < closest_point_dist {
+                        closest_point = Some(i);
+                        closest_point_dist = distance;
+                    }
+                }
+                // println!(
+                //     "closest point: {:?} {} {}",
+                //     closest_point, sibling_to_borrow_from, node_to_fix
+                // );
+                let point = points.remove(closest_point.unwrap());
+                nodes[sibling_to_borrow_from].update_bounding_envelope();
+                match nodes[node_to_fix].links.as_mut() {
+                    Node::Inner(_) => panic!("unbalanced tree"),
+                    Node::Leaf(fix_points) => fix_points.push(point),
+                }
+                nodes[node_to_fix].update_bounding_envelope();
+            }
+        }
+    }
+
+    fn find_sibling_to_merge_to(nodes: &[Self], node_to_fix: usize, m: usize) -> Option<usize> {
+        let siblings_to_merge_to =
+            nodes
+                .iter()
+                .enumerate()
+                .filter(|(i, sibling)| match sibling.links.as_ref() {
+                    Node::Inner(nodes) => *i != node_to_fix && nodes.len() == m,
+                    Node::Leaf(points) => *i != node_to_fix && points.len() == m,
+                });
+
+        let mut closest_sibling = None;
+        let mut closest_sibling_dist = f32::INFINITY;
+
+        for (i, sibling) in siblings_to_merge_to {
+            let distance = nodes[node_to_fix]
+                .center_radius
+                .distance(&sibling.center_radius);
+            if distance < closest_sibling_dist {
+                closest_sibling = Some(i);
+                closest_sibling_dist = distance;
+            }
+        }
+        closest_sibling
+    }
+
+    fn merge_siblings(
+        nodes: &mut ArrayVec<Self, M>,
+        mut node_index_1: usize,
+        mut node_index_2: usize,
+    ) {
+        if node_index_1 > node_index_2 {
+            // remove node with larger index first
+            std::mem::swap(&mut node_index_1, &mut node_index_2);
+        }
+        let node_2 = nodes.remove(node_index_2);
+        let node_1 = nodes.remove(node_index_1);
+        let node = Self::merge(node_1, node_2);
+        nodes.push(node);
+    }
+
+    fn merge(node_1: Self, node_2: Self) -> Self {
+        match (*node_1.links, *node_2.links) {
+            (Node::Leaf(mut points1), Node::Leaf(mut points2)) => {
+                points1.extend(points2.drain(..));
+                InnerLink::<P, C, M>::from_entries(points1)
+            }
+            (Node::Inner(mut nodes1), Node::Inner(mut nodes2)) => {
+                nodes1.extend(nodes2.drain(..));
+                InnerLink::<P, C, M>::from_nodes(nodes1)
+            }
+            _ => panic!("inconsistent siblings"),
         }
     }
 
@@ -413,37 +564,6 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
     //       if region.intersectsNode(child) then
     //         points.insertAll(pointsWithinRegion(child, region))
     //   return points
-}
-
-fn find_closest_child<'a, P, C: CenterRadius, const M: usize>(
-    children: &'a [InnerLink<P, C, M>],
-    target: &C::K,
-) -> &'a InnerLink<P, C, M> {
-    let mut min_dist = f32::MAX;
-    let mut cur_min = None;
-    for child in children {
-        let d = child.center_radius.distance_point(target);
-        if d < min_dist {
-            min_dist = d;
-            cur_min = Some(child);
-        }
-    }
-    cur_min.unwrap()
-}
-fn find_closest_child_index<P, C: CenterRadius, const M: usize>(
-    children: &[InnerLink<P, C, M>],
-    target: &C::K,
-) -> usize {
-    let mut min_dist = f32::MAX;
-    let mut cur_min = None;
-    for (i, child) in children.iter().enumerate() {
-        let d = child.center_radius.distance_point(target);
-        if d < min_dist {
-            min_dist = d;
-            cur_min = Some(i);
-        }
-    }
-    cur_min.unwrap()
 }
 
 #[derive(Debug)]
@@ -628,153 +748,6 @@ mod util {
             }
         }
         split_index
-    }
-}
-
-mod inner {
-    use super::{CenterRadius, InnerLink, Node};
-    use arrayvec::ArrayVec;
-
-    pub fn find_sibling_to_borrow_from<P, C: CenterRadius, const M: usize>(
-        nodes: &[InnerLink<P, C, M>],
-        node_to_fix: usize,
-        m: usize,
-    ) -> Option<usize> {
-        let siblings_to_borrow_from = nodes.iter().enumerate().filter(|(i, sibling)| match sibling
-            .links
-            .as_ref()
-        {
-            Node::Inner(nodes) => *i != node_to_fix && nodes.len() > m,
-            Node::Leaf(points) => *i != node_to_fix && points.len() > m,
-        });
-
-        let mut closest_sibling = None;
-        let mut closest_sibling_dist = f32::INFINITY;
-
-        for (i, sibling) in siblings_to_borrow_from {
-            let distance = nodes[node_to_fix]
-                .center_radius
-                .distance(&sibling.center_radius);
-            if distance < closest_sibling_dist {
-                closest_sibling = Some(i);
-                closest_sibling_dist = distance;
-            }
-        }
-        closest_sibling
-    }
-
-    pub fn borrow_from_sibling<P, C: CenterRadius, const M: usize>(
-        nodes: &mut [InnerLink<P, C, M>],
-        node_to_fix: usize,
-
-        sibling_to_borrow_from: usize,
-    ) {
-        // found sibling to borrow from
-        let to_fix_centroid = &nodes[node_to_fix].center_radius.center();
-        match nodes[sibling_to_borrow_from].links.as_mut() {
-            Node::Inner(nodes2) => {
-                let mut closest_node = None;
-                let mut closest_node_dist = f32::INFINITY;
-                for (i, node) in nodes2.iter().enumerate() {
-                    let distance = node.center_radius.distance_point(to_fix_centroid);
-                    if distance < closest_node_dist {
-                        closest_node = Some(i);
-                        closest_node_dist = distance;
-                    }
-                }
-                let node = nodes2.remove(closest_node.unwrap());
-                nodes[sibling_to_borrow_from].update_bounding_envelope();
-
-                match nodes[node_to_fix].links.as_mut() {
-                    Node::Inner(fix_nodes) => fix_nodes.push(node),
-                    Node::Leaf(_) => panic!("unbalanced tree"),
-                }
-                nodes[node_to_fix].update_bounding_envelope();
-            }
-            Node::Leaf(points) => {
-                let mut closest_point = None;
-                let mut closest_point_dist = f32::INFINITY;
-                for (i, point) in points.iter().enumerate() {
-                    let distance = point.center_radius.distance_point(to_fix_centroid);
-                    if distance < closest_point_dist {
-                        closest_point = Some(i);
-                        closest_point_dist = distance;
-                    }
-                }
-                // println!(
-                //     "closest point: {:?} {} {}",
-                //     closest_point, sibling_to_borrow_from, node_to_fix
-                // );
-                let point = points.remove(closest_point.unwrap());
-                nodes[sibling_to_borrow_from].update_bounding_envelope();
-                match nodes[node_to_fix].links.as_mut() {
-                    Node::Inner(_) => panic!("unbalanced tree"),
-                    Node::Leaf(fix_points) => fix_points.push(point),
-                }
-                nodes[node_to_fix].update_bounding_envelope();
-            }
-        }
-    }
-
-    pub fn find_sibling_to_merge_to<P, C: CenterRadius, const M: usize>(
-        nodes: &[InnerLink<P, C, M>],
-        node_to_fix: usize,
-        m: usize,
-    ) -> Option<usize> {
-        let siblings_to_merge_to =
-            nodes
-                .iter()
-                .enumerate()
-                .filter(|(i, sibling)| match sibling.links.as_ref() {
-                    Node::Inner(nodes) => *i != node_to_fix && nodes.len() == m,
-                    Node::Leaf(points) => *i != node_to_fix && points.len() == m,
-                });
-
-        let mut closest_sibling = None;
-        let mut closest_sibling_dist = f32::INFINITY;
-
-        for (i, sibling) in siblings_to_merge_to {
-            let distance = nodes[node_to_fix]
-                .center_radius
-                .distance(&sibling.center_radius);
-            if distance < closest_sibling_dist {
-                closest_sibling = Some(i);
-                closest_sibling_dist = distance;
-            }
-        }
-        closest_sibling
-    }
-
-    pub fn merge_siblings<P, C: CenterRadius, const M: usize>(
-        nodes: &mut ArrayVec<InnerLink<P, C, M>, M>,
-        mut node_index_1: usize,
-        mut node_index_2: usize,
-    ) {
-        if node_index_1 > node_index_2 {
-            // remove node with larger index first
-            std::mem::swap(&mut node_index_1, &mut node_index_2);
-        }
-        let node_2 = nodes.remove(node_index_2);
-        let node_1 = nodes.remove(node_index_1);
-        let node = merge(node_1, node_2);
-        nodes.push(node);
-    }
-
-    fn merge<P, C: CenterRadius, const M: usize>(
-        node_1: InnerLink<P, C, M>,
-        node_2: InnerLink<P, C, M>,
-    ) -> InnerLink<P, C, M> {
-        match (*node_1.links, *node_2.links) {
-            (Node::Leaf(mut points1), Node::Leaf(mut points2)) => {
-                points1.extend(points2.drain(..));
-                InnerLink::<P, C, M>::from_entries(points1)
-            }
-            (Node::Inner(mut nodes1), Node::Inner(mut nodes2)) => {
-                nodes1.extend(nodes2.drain(..));
-                InnerLink::<P, C, M>::from_nodes(nodes1)
-            }
-            _ => panic!("inconsistent siblings"),
-        }
     }
 }
 
