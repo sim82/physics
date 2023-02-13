@@ -9,3 +9,13 @@ edition = "2021"
 bevy = { version = "0.9.1" }               #, features = ["dynamic"] }
 bevy-inspector-egui = { version = "0.15" }
 arrayvec = "0.7"
+
+[dev-dependencies]
+draw = "^0.3"
+arrayvec = "^0.7"
+rand = "^0.8"
+getchar = "^0.1"
+egui = "^0.20"
+eframe = "^0.20"
+anyhow = "^1"
+thiserror = "^1"

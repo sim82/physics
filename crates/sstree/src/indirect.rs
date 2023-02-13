@@ -174,6 +174,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
                         children.push(new_child_1);
                         children.push(new_child_2);
                     } else {
+                        // TODO: use ArrayVec<_, M+1> when generic_const_exprs are suppported
                         let mut nodes_to_split: Vec<_> = children
                             .drain(..)
                             .chain(std::iter::once(new_child_1))
