@@ -145,7 +145,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         self.center_radius.intersects_point(target)
     }
 
-    pub fn search<'a>(&self, target: &C::K) -> Option<&Self> {
+    pub fn search(&self, target: &C::K) -> Option<&Self> {
         match self.links.as_ref() {
             Node::Inner(children) => children.iter().find(|node| node.intersects_point(target)),
             Node::Leaf(points) => {
@@ -161,7 +161,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
     pub fn search_parent_leaf(&self, target: &C::K) -> &Self {
         match self.links.as_ref() {
             Node::Inner(children) => {
-                let child = find_closest_child(&children, target);
+                let child = find_closest_child(children, target);
                 child.search_parent_leaf(target)
             }
             Node::Leaf(_) => self,
@@ -170,8 +170,8 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
     pub fn update_bounding_envelope(&mut self) {
         self.center_radius = match self.links.as_ref() {
-            Node::Inner(nodes) => util::centroid_and_radius(&nodes),
-            Node::Leaf(points) => util::centroid_and_radius(&points),
+            Node::Inner(nodes) => util::centroid_and_radius(nodes),
+            Node::Leaf(points) => util::centroid_and_radius(points),
         };
     }
     pub fn insert(&mut self, entry: LeafLink<P, C>, m: usize) -> Option<(Self, Self)> {
@@ -209,7 +209,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
             Node::Inner(children) => {
                 let closest_child_index =
-                    find_closest_child_index(&children, entry.center_radius.center());
+                    find_closest_child_index(children, entry.center_radius.center());
                 if let Some((new_child_1, new_child_2)) =
                     children[closest_child_index].insert(entry, m)
                 {
@@ -426,7 +426,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
                     Some(node_to_fix) => {
                         if let Some(sibling_to_borrow_from) =
-                            inner::find_sibling_to_borrow_from(&nodes, node_to_fix, m)
+                            inner::find_sibling_to_borrow_from(nodes, node_to_fix, m)
                         {
                             inner::borrow_from_sibling(nodes, node_to_fix, sibling_to_borrow_from);
                         } else if let Some(sibling_to_merge_to) =
@@ -590,23 +590,7 @@ impl<P, C: CenterRadius, const M: usize> Default for SsTree<P, C, M> {
 }
 
 mod util {
-    use super::{CenterRadius, DimIndex, Distance, InnerLink, LeafLink};
-
-    pub trait GetCenter<K> {
-        fn get_center(&self) -> &K;
-    }
-
-    impl<P, C: CenterRadius> GetCenter<C::K> for LeafLink<P, C> {
-        fn get_center(&self) -> &C::K {
-            self.center_radius.center()
-        }
-    }
-
-    impl<P, C: CenterRadius, const M: usize> GetCenter<C::K> for InnerLink<P, C, M> {
-        fn get_center(&self) -> &C::K {
-            self.center_radius.center()
-        }
-    }
+    use super::{CenterRadius, DimIndex, Distance};
 
     pub fn mean_along_direction<C: CenterRadius>(
         entry: &[impl AsRef<C>],
@@ -663,7 +647,7 @@ mod util {
         let centroid = centroid::<C>(nodes);
         let radius = nodes
             .iter()
-            .map(|node| centroid.distance(&node.as_ref().center()) + node.as_ref().radius())
+            .map(|node| centroid.distance(node.as_ref().center()) + node.as_ref().radius())
             .max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
             .unwrap();
         CenterRadius::from_center_radius(centroid, radius)
@@ -692,98 +676,9 @@ mod util {
     }
 }
 
-mod leaf {
-    use super::{
-        util::{centroid, direction_of_max_variance, variance_along_direction},
-        CenterRadius, Distance, LeafLink,
-    };
-
-    // pub fn find_split_index<P, C: CenterRadius, const M: usize>(
-    //     entries: &mut [LeafLink<P, C>],
-    //     m: usize,
-    // ) -> usize {
-    //     let coordinate_index = direction_of_max_variance::<C>(entries);
-    //     entries.sort_by(|p1, p2| {
-    //         p1.center_radius.center()[coordinate_index]
-    //             .partial_cmp(&p2.center_radius.center()[coordinate_index])
-    //             .unwrap()
-    //     });
-
-    //     let mut min_variance = f32::INFINITY;
-    //     let mut split_index = m;
-    //     for i in m..=(entries.len() - m) {
-    //         let variance1 = variance_along_direction(&entries[..i], coordinate_index);
-    //         let variance2 = variance_along_direction(&entries[i..], coordinate_index);
-    //         let variance = variance1 + variance2;
-    //         if variance < min_variance {
-    //             min_variance = variance;
-    //             split_index = i;
-    //         }
-    //     }
-    //     split_index
-    // }
-
-    // pub fn centroid_and_radius<P, C: CenterRadius, const M: usize>(
-    //     entires: &[LeafLink<P, C>],
-    // ) -> C {
-    //     let centroid = centroid::<C>(entires);
-
-    //     let radius = entires
-    //         .iter()
-    //         .map(|node| {
-    //             centroid.distance(node.center_radius.center()) + node.center_radius.radius()
-    //         })
-    //         .max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
-    //         .unwrap();
-    //     CenterRadius::from_center_radius(centroid, radius)
-    // }
-}
 mod inner {
+    use super::{CenterRadius, InnerLink, Node};
     use arrayvec::ArrayVec;
-
-    use super::{
-        util::{centroid, direction_of_max_variance, variance_along_direction},
-        CenterRadius, Distance, InnerLink, Node,
-    };
-
-    // pub fn centroid_and_radius<P, C: CenterRadius, const M: usize>(
-    //     nodes: &[InnerLink<P, C, M>],
-    // ) -> C {
-    //     let centroid = centroid::<C>(nodes);
-    //     let radius = nodes
-    //         .iter()
-    //         .map(|node| {
-    //             centroid.distance(node.center_radius.center()) + node.center_radius.radius()
-    //         })
-    //         .max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
-    //         .unwrap();
-    //     CenterRadius::from_center_radius(centroid, radius)
-    // }
-
-    // pub fn find_split_index<P, C: CenterRadius, const M: usize>(
-    //     nodes: &mut [InnerLink<P, C, M>],
-    //     m: usize,
-    // ) -> usize {
-    //     let coordinate_index = direction_of_max_variance::<C>(nodes);
-    //     nodes.sort_by(|p1, p2| {
-    //         p1.center_radius.center()[coordinate_index]
-    //             .partial_cmp(&p2.center_radius.center()[coordinate_index])
-    //             .unwrap()
-    //     });
-
-    //     let mut min_variance = f32::INFINITY;
-    //     let mut split_index = m;
-    //     for i in m..=(nodes.len() - m) {
-    //         let variance1 = variance_along_direction(&nodes[..i], coordinate_index);
-    //         let variance2 = variance_along_direction(&nodes[i..], coordinate_index);
-    //         let variance = variance1 + variance2;
-    //         if variance < min_variance {
-    //             min_variance = variance;
-    //             split_index = i;
-    //         }
-    //     }
-    //     split_index
-    // }
 
     pub fn find_sibling_to_borrow_from<P, C: CenterRadius, const M: usize>(
         nodes: &[InnerLink<P, C, M>],
