@@ -2,34 +2,34 @@ use std::time::Instant;
 
 use egui::{emath, Color32, Frame, Pos2, Rect, Sense, Shape, Stroke, Vec2};
 use rand::Rng;
-use sstree::indirect::{CenterRadius, DimIndex, Distance, SsTree};
+use sstree::indirect::{Bounds, DimIndex, Distance, SsTree};
 
 struct Select {
     center: Pos2,
     radius: f32,
 }
 
-#[derive(Debug, PartialEq)]
-struct CenterRadius2 {
-    center: [f32; 2],
-    radius: f32,
-}
+// #[derive(Debug, PartialEq)]
+// struct CenterRadius2 {
+//     center: [f32; 2],
+//     radius: f32,
+// }
 
-impl CenterRadius for CenterRadius2 {
-    type K = [f32; 2];
+// impl CenterRadius for CenterRadius2 {
+//     type K = [f32; 2];
 
-    fn center(&self) -> &Self::K {
-        &self.center
-    }
+//     fn center(&self) -> &Self::K {
+//         &self.center
+//     }
 
-    fn from_center_radius(center: Self::K, radius: f32) -> Self {
-        Self { center, radius }
-    }
+//     fn from_center_radius(center: Self::K, radius: f32) -> Self {
+//         Self { center, radius }
+//     }
 
-    fn radius(&self) -> f32 {
-        self.radius
-    }
-}
+//     fn radius(&self) -> f32 {
+//         self.radius
+//     }
+// }
 
 #[derive(Debug)]
 struct Drag {
@@ -55,10 +55,10 @@ impl Select {
 }
 
 impl Drag {
-    fn update<P: Clone + PartialEq, C: CenterRadius, const M: usize>(
+    fn update<P: Clone + PartialEq, const M: usize>(
         &mut self,
         pos: Pos2,
-        tree: &mut SsTree<P, C, M>,
+        tree: &mut SsTree<P, [f32; 2], M>,
     ) {
         todo!()
         // let mut element = tree.remove_by_path(&self.path);
@@ -89,7 +89,7 @@ enum Mode {
 struct MyEguiApp {
     shapes: Vec<Shape>,
 
-    tree: SsTree<u64, CenterRadius2, M>,
+    tree: SsTree<u64, [f32; 2], M>,
 
     mode: Mode,
     max_depth: usize,
@@ -166,7 +166,7 @@ impl MyEguiApp {
                 let mut selected = Vec::new();
 
                 self.tree.find_entries_within_radius(
-                    &CenterRadius2 {
+                    &Bounds {
                         center: pos2_to_array(&response.interact_pointer_pos().unwrap()),
                         radius: self.delete_radius,
                     },
@@ -183,7 +183,7 @@ impl MyEguiApp {
                 changed = !selected.is_empty();
                 let centers = selected
                     .drain(..)
-                    .map(|e| *e.as_ref().center())
+                    .map(|e| e.as_ref().center)
                     .collect::<Vec<_>>();
                 for point in centers {
                     self.tree.remove(&point); // FIXME: we probably want to delete by identity
@@ -282,7 +282,7 @@ impl MyEguiApp {
             let start = Instant::now();
             if !false {
                 self.tree.find_entries_within_radius(
-                    &CenterRadius2 {
+                    &Bounds {
                         center: [select_tool.center.x, select_tool.center.y],
                         radius: select_tool.radius,
                     },
@@ -328,7 +328,7 @@ const COLORS: [Color32; 9] = [
 fn draw_tree<const M: usize>(
     bounds: Rect,
     shapes: &mut Vec<Shape>,
-    node: &sstree::indirect::InnerLink<u64, CenterRadius2, M>,
+    node: &sstree::indirect::InnerLink<u64, [f32; 2], M>,
     max_level: usize,
     draw_points: bool,
 ) {
@@ -340,7 +340,7 @@ fn draw_tree<const M: usize>(
             continue;
         }
 
-        let CenterRadius2 { center, radius } = node.center_radius;
+        let Bounds { center, radius } = node.center_radius;
 
         if !overlaps(bounds, center, radius) {
             continue;

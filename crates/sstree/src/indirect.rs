@@ -13,73 +13,82 @@ pub trait DimIndex:
     const NUM_DIMENSIONS: usize;
 }
 
-pub trait CenterRadius {
-    type K: Distance + Default + DimIndex + PartialEq;
+pub trait Center: Distance + Default + DimIndex + PartialEq {}
+impl<K: Distance + Default + DimIndex + PartialEq> Center for K {}
 
-    fn from_center_radius(center: Self::K, radius: f32) -> Self;
+pub trait Radius: PartialEq {}
+impl<R: PartialEq> Radius for R {}
 
-    fn center(&self) -> &Self::K;
-    fn radius(&self) -> f32;
+#[derive(Debug, Default)]
+pub struct Bounds<K: Center> {
+    pub center: K,
+    pub radius: f32,
+}
 
-    fn distance_point(&self, p2: &Self::K) -> f32 {
-        self.center().distance(p2)
+impl<K: Center> Bounds<K> {
+    fn from_center_radius(center: K, radius: f32) -> Self {
+        Self { center, radius }
+    }
+
+    fn distance_point(&self, p2: &K) -> f32 {
+        self.center.distance(p2)
     }
     fn distance(&self, p2: &Self) -> f32 {
-        self.center().distance(p2.center())
+        self.center.distance(&p2.center)
     }
-    fn intersects_point(&self, target: &Self::K) -> bool {
-        self.center().distance(target) <= self.radius()
+    fn intersects_point(&self, target: &K) -> bool {
+        self.center.distance(target) <= self.radius
     }
     fn intersects(&self, target: &Self) -> bool {
-        self.center().distance(target.center()) < (self.radius() + target.radius())
+        self.center.distance(&target.center) < (self.radius + target.radius)
     }
 }
 
 #[derive(Debug)]
-pub struct InnerLink<P, C: CenterRadius, const M: usize> {
-    pub center_radius: C,
-    pub links: Box<Node<P, C, M>>,
+pub struct InnerLink<P, K: Center, const M: usize> {
+    pub center_radius: Bounds<K>,
+    pub links: Box<Node<P, K, M>>,
 }
 
 #[derive(Debug)]
-pub struct LeafLink<P, C> {
-    pub center_radius: C,
+pub struct LeafLink<P, K: Center> {
+    pub center_radius: Bounds<K>,
     pub payload: P,
 }
 
 #[derive(Debug)]
-pub enum Node<P, C: CenterRadius, const M: usize> {
-    Inner(ArrayVec<InnerLink<P, C, M>, M>),
-    Leaf(ArrayVec<LeafLink<P, C>, M>),
+pub enum Node<P, K: Center, const M: usize> {
+    Inner(ArrayVec<InnerLink<P, K, M>, M>),
+    Leaf(ArrayVec<LeafLink<P, K>, M>),
 }
 
-impl<P, C: CenterRadius> AsRef<C> for LeafLink<P, C> {
-    fn as_ref(&self) -> &C {
+impl<P, K: Center> AsRef<Bounds<K>> for LeafLink<P, K> {
+    fn as_ref(&self) -> &Bounds<K> {
         &self.center_radius
     }
 }
 
-impl<P, C: CenterRadius> LeafLink<P, C> {
-    pub fn new(center_radius: C, payload: P) -> Self {
+impl<P, K: Center> LeafLink<P, K> {
+    pub fn new(center_radius: Bounds<K>, payload: P) -> Self {
         Self {
             center_radius,
             payload,
         }
     }
-    pub fn intersects_point(&self, target: &C::K) -> bool {
+    pub fn intersects_point(&self, target: &K) -> bool {
         // self.center_radius.center.distance(target) <= self.center_radius.radius
         self.center_radius.intersects_point(target)
     }
 }
 
-impl<P, C: CenterRadius, const M: usize> AsRef<C> for InnerLink<P, C, M> {
-    fn as_ref(&self) -> &C {
+impl<P, K: Center, const M: usize> AsRef<Bounds<K>> for InnerLink<P, K, M> {
+    fn as_ref(&self) -> &Bounds<K> {
         &self.center_radius
     }
 }
 
-impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
-    pub fn from_entries(entries: ArrayVec<LeafLink<P, C>, M>) -> Self {
+impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
+    pub fn from_entries(entries: ArrayVec<LeafLink<P, K>, M>) -> Self {
         let center_radius = util::centroid_and_radius(&entries);
         Self {
             center_radius,
@@ -95,12 +104,12 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         }
     }
 
-    pub fn intersects_point(&self, target: &C::K) -> bool {
+    pub fn intersects_point(&self, target: &K) -> bool {
         // self.center_radius.center.distance(target) <= self.center_radius.radius
         self.center_radius.intersects_point(target)
     }
 
-    pub fn search(&self, target: &C::K) -> Option<&Self> {
+    pub fn search(&self, target: &K) -> Option<&Self> {
         match self.links.as_ref() {
             Node::Inner(children) => children.iter().find(|node| node.intersects_point(target)),
             Node::Leaf(points) => {
@@ -113,7 +122,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         }
     }
 
-    pub fn search_parent_leaf(&self, target: &C::K) -> &Self {
+    pub fn search_parent_leaf(&self, target: &K) -> &Self {
         match self.links.as_ref() {
             Node::Inner(children) => {
                 let child = Self::find_closest_child(children, target);
@@ -129,7 +138,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
             Node::Leaf(points) => util::centroid_and_radius(points),
         };
     }
-    pub fn insert(&mut self, entry: LeafLink<P, C>, m: usize) -> Option<(Self, Self)> {
+    pub fn insert(&mut self, entry: LeafLink<P, K>, m: usize) -> Option<(Self, Self)> {
         match self.links.as_mut() {
             Node::Leaf(points) => {
                 if points.len() < M {
@@ -164,7 +173,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
             Node::Inner(children) => {
                 let closest_child_index =
-                    Self::find_closest_child_index(children, entry.center_radius.center());
+                    Self::find_closest_child_index(children, &entry.center_radius.center);
                 if let Some((new_child_1, new_child_2)) =
                     children[closest_child_index].insert(entry, m)
                 {
@@ -207,7 +216,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         None
     }
 
-    pub fn remove(&mut self, target: &C::K, m: usize) -> (bool, bool) {
+    pub fn remove(&mut self, target: &K, m: usize) -> (bool, bool) {
         match self.links.as_mut() {
             Node::Leaf(entries) => {
                 if let Some((i, _)) = entries
@@ -286,8 +295,8 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         &'a self,
         // center: &K,
         // radius: f32,
-        center_radius: &C,
-        out: &mut Vec<&'a LeafLink<P, C>>,
+        center_radius: &Bounds<K>,
+        out: &mut Vec<&'a LeafLink<P, K>>,
     ) {
         match self.links.as_ref() {
             Node::Leaf(points) => {
@@ -307,7 +316,11 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         }
     }
 
-    pub fn find_if<F: Fn(&P) -> bool>(&self, center_radius: &C, f: &F) -> Option<&LeafLink<P, C>> {
+    pub fn find_if<F: Fn(&P) -> bool>(
+        &self,
+        center_radius: &Bounds<K>,
+        f: &F,
+    ) -> Option<&LeafLink<P, K>> {
         match self.links.as_ref() {
             Node::Leaf(points) => {
                 for (_i, point) in points.iter().enumerate() {
@@ -332,10 +345,10 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
     pub fn remove_if<F: Fn(&P) -> bool>(
         &mut self,
-        center_radius: &C,
+        center_radius: &Bounds<K>,
         m: usize,
         f: &F,
-    ) -> (bool, bool, Option<LeafLink<P, C>>) {
+    ) -> (bool, bool, Option<LeafLink<P, K>>) {
         match self.links.as_mut() {
             Node::Leaf(entries) => {
                 if let Some((i, _)) = entries
@@ -403,7 +416,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         }
     }
 
-    fn find_closest_child<'a>(children: &'a [Self], target: &C::K) -> &'a Self {
+    fn find_closest_child<'a>(children: &'a [Self], target: &K) -> &'a Self {
         let mut min_dist = f32::MAX;
         let mut cur_min = None;
         for child in children {
@@ -415,7 +428,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         }
         cur_min.unwrap()
     }
-    fn find_closest_child_index(children: &[Self], target: &C::K) -> usize {
+    fn find_closest_child_index(children: &[Self], target: &K) -> usize {
         let mut min_dist = f32::MAX;
         let mut cur_min = None;
         for (i, child) in children.iter().enumerate() {
@@ -454,7 +467,7 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 
     fn borrow_from_sibling(nodes: &mut [Self], node_to_fix: usize, sibling_to_borrow_from: usize) {
         // found sibling to borrow from
-        let to_fix_centroid = &nodes[node_to_fix].center_radius.center();
+        let to_fix_centroid = &nodes[node_to_fix].center_radius.center;
         match nodes[sibling_to_borrow_from].links.as_mut() {
             Node::Inner(nodes2) => {
                 let mut closest_node = None;
@@ -544,11 +557,11 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
         match (*node_1.links, *node_2.links) {
             (Node::Leaf(mut points1), Node::Leaf(mut points2)) => {
                 points1.extend(points2.drain(..));
-                InnerLink::<P, C, M>::from_entries(points1)
+                InnerLink::<P, K, M>::from_entries(points1)
             }
             (Node::Inner(mut nodes1), Node::Inner(mut nodes2)) => {
                 nodes1.extend(nodes2.drain(..));
-                InnerLink::<P, C, M>::from_nodes(nodes1)
+                InnerLink::<P, K, M>::from_nodes(nodes1)
             }
             _ => panic!("inconsistent siblings"),
         }
@@ -568,17 +581,17 @@ impl<P, C: CenterRadius, const M: usize> InnerLink<P, C, M> {
 }
 
 #[derive(Debug)]
-pub struct SsTree<P, C: CenterRadius, const M: usize> {
-    pub root: InnerLink<P, C, M>,
+pub struct SsTree<P, K: Center, const M: usize> {
+    pub root: InnerLink<P, K, M>,
     height: usize,
     m: usize,
 }
 
-impl<P, C: CenterRadius, const M: usize> SsTree<P, C, M> {
+impl<P, K: Center, const M: usize> SsTree<P, K, M> {
     pub fn new(m: usize) -> Self {
         Self {
             root: InnerLink {
-                center_radius: CenterRadius::from_center_radius(C::K::default(), 0f32),
+                center_radius: Bounds::from_center_radius(K::default(), 0f32),
                 links: Box::new(Node::Leaf(ArrayVec::new())),
             },
             height: 1,
@@ -586,13 +599,13 @@ impl<P, C: CenterRadius, const M: usize> SsTree<P, C, M> {
         }
     }
 
-    pub fn insert(&mut self, payload: P, center: C::K, radius: f32) {
+    pub fn insert(&mut self, payload: P, center: K, radius: f32) {
         self.insert_entry(LeafLink {
-            center_radius: CenterRadius::from_center_radius(center, radius),
+            center_radius: Bounds::from_center_radius(center, radius),
             payload,
         })
     }
-    pub fn insert_entry(&mut self, entry: LeafLink<P, C>) {
+    pub fn insert_entry(&mut self, entry: LeafLink<P, K>) {
         if let Some((new_child_1, new_child_2)) = self.root.insert(entry, self.m) {
             let mut nodes = ArrayVec::<_, M>::new();
             nodes.push(new_child_1);
@@ -607,7 +620,7 @@ impl<P, C: CenterRadius, const M: usize> SsTree<P, C, M> {
     }
 
     #[allow(clippy::overly_complex_bool_expr)]
-    pub fn remove(&mut self, point: &C::K) {
+    pub fn remove(&mut self, point: &K) {
         let (_deleted, _violiates_invariant) = self.root.remove(point, self.m);
 
         match self.root.links.as_mut() {
@@ -629,24 +642,24 @@ impl<P, C: CenterRadius, const M: usize> SsTree<P, C, M> {
 
     pub fn find_entries_within_radius<'a>(
         &'a self,
-        center_radius: &C,
-        out: &mut Vec<&'a LeafLink<P, C>>,
+        center_radius: &Bounds<K>,
+        out: &mut Vec<&'a LeafLink<P, K>>,
     ) {
         self.root.find_entries_within_radius(center_radius, out);
     }
 
     pub fn find_if<'a, F: Fn(&P) -> bool>(
         &'a self,
-        center_radius: &C,
+        center_radius: &Bounds<K>,
         f: F,
-    ) -> Option<&'a LeafLink<P, C>> {
+    ) -> Option<&'a LeafLink<P, K>> {
         self.root.find_if(center_radius, &f)
     }
     pub fn remove_if<F: Fn(&P) -> bool>(
         &mut self,
-        center_radius: &C,
+        center_radius: &Bounds<K>,
         f: F,
-    ) -> Option<LeafLink<P, C>> {
+    ) -> Option<LeafLink<P, K>> {
         let deleted_entry = self.root.remove_if(center_radius, self.m, &f).2;
         match self.root.links.as_mut() {
             Node::Inner(nodes) if nodes.len() == 1 => {
@@ -659,30 +672,30 @@ impl<P, C: CenterRadius, const M: usize> SsTree<P, C, M> {
     }
 }
 
-impl<P, C: CenterRadius, const M: usize> Default for SsTree<P, C, M> {
+impl<P, K: Center, const M: usize> Default for SsTree<P, K, M> {
     fn default() -> Self {
         Self::new(M / 2)
     }
 }
 
 mod util {
-    use super::{CenterRadius, DimIndex, Distance};
+    use super::{Bounds, Center, DimIndex, Distance};
 
-    pub fn mean_along_direction<C: CenterRadius>(
-        entry: &[impl AsRef<C>],
+    pub fn mean_along_direction<K: Center>(
+        entry: &[impl AsRef<Bounds<K>>],
         direction_index: usize,
     ) -> f32 {
         assert!(!entry.is_empty());
         let count = entry.len() as f32;
         let sum = entry
             .iter()
-            .map(|point| point.as_ref().center()[direction_index])
+            .map(|point| point.as_ref().center[direction_index])
             .sum::<f32>();
         sum / count
     }
 
-    pub fn variance_along_direction<C: CenterRadius>(
-        entries: &[impl AsRef<C>],
+    pub fn variance_along_direction<K: Center>(
+        entries: &[impl AsRef<Bounds<K>>],
         direction_index: usize,
     ) -> f32 {
         assert!(!entries.is_empty());
@@ -691,17 +704,17 @@ mod util {
         entries
             .iter()
             .map(|point| {
-                let diff = mean - point.as_ref().center()[direction_index];
+                let diff = mean - point.as_ref().center[direction_index];
                 diff * diff
             })
             .sum::<f32>()
             / count
     }
 
-    pub fn direction_of_max_variance<C: CenterRadius>(entries: &[impl AsRef<C>]) -> usize {
+    pub fn direction_of_max_variance<K: Center>(entries: &[impl AsRef<Bounds<K>>]) -> usize {
         let mut max_variance = 0.0;
         let mut direction_index = 0;
-        for i in 0..C::K::NUM_DIMENSIONS {
+        for i in 0..K::NUM_DIMENSIONS {
             let variance = variance_along_direction(entries, i);
             if variance > max_variance {
                 max_variance = variance;
@@ -711,29 +724,29 @@ mod util {
         direction_index
     }
 
-    pub fn centroid<C: CenterRadius>(entries: &[impl AsRef<C>]) -> C::K {
-        let mut centroid = C::K::default();
-        for i in 0..C::K::NUM_DIMENSIONS {
+    pub fn centroid<K: Center>(entries: &[impl AsRef<Bounds<K>>]) -> K {
+        let mut centroid = K::default();
+        for i in 0..K::NUM_DIMENSIONS {
             centroid[i] = mean_along_direction(entries, i);
         }
         centroid
     }
 
-    pub fn centroid_and_radius<C: CenterRadius>(nodes: &[impl AsRef<C>]) -> C {
-        let centroid = centroid::<C>(nodes);
+    pub fn centroid_and_radius<K: Center>(nodes: &[impl AsRef<Bounds<K>>]) -> Bounds<K> {
+        let centroid = centroid::<K>(nodes);
         let radius = nodes
             .iter()
-            .map(|node| centroid.distance(node.as_ref().center()) + node.as_ref().radius())
+            .map(|node| centroid.distance(&node.as_ref().center) + node.as_ref().radius)
             .max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
             .unwrap();
-        CenterRadius::from_center_radius(centroid, radius)
+        Bounds::from_center_radius(centroid, radius)
     }
 
-    pub fn find_split_index<C: CenterRadius>(nodes: &mut [impl AsRef<C>], m: usize) -> usize {
-        let coordinate_index = direction_of_max_variance::<C>(nodes);
+    pub fn find_split_index<K: Center>(nodes: &mut [impl AsRef<Bounds<K>>], m: usize) -> usize {
+        let coordinate_index = direction_of_max_variance::<K>(nodes);
         nodes.sort_by(|p1, p2| {
-            p1.as_ref().center()[coordinate_index]
-                .partial_cmp(&p2.as_ref().center()[coordinate_index])
+            p1.as_ref().center[coordinate_index]
+                .partial_cmp(&p2.as_ref().center[coordinate_index])
                 .unwrap()
         });
 
@@ -785,12 +798,12 @@ fn test_distance() {
 
 #[test]
 fn test_bevy_vec3() {
-    let mut tree = SsTree::<u32, SpatialBounds, 8>::default();
+    let mut tree = SsTree::<u32, Vec3, 8>::default();
     let a = Vec3::ZERO;
     println!("{}", a[0]);
     tree.insert_entry(LeafLink {
         payload: 1,
-        center_radius: SpatialBounds {
+        center_radius: Bounds {
             center: Vec3::ZERO,
             radius: 1.0,
         },
@@ -799,37 +812,37 @@ fn test_bevy_vec3() {
 
 #[cfg(test)]
 mod test {
-    use crate::indirect::CenterRadius;
+    use crate::indirect::Bounds;
 
     use super::LeafLink;
     use super::SsTree;
 
-    #[derive(Debug)]
-    struct CenterRadius2 {
-        center: [f32; 2],
-        radius: f32,
-    }
+    // #[derive(Debug)]
+    // struct CenterRadius2 {
+    //     center: [f32; 2],
+    //     radius: f32,
+    // }
 
-    impl CenterRadius for CenterRadius2 {
-        type K = [f32; 2];
+    // impl CenterRadius for CenterRadius2 {
+    //     type K = [f32; 2];
 
-        fn center(&self) -> &Self::K {
-            &self.center
-        }
+    //     fn center(&self) -> &Self::K {
+    //         &self.center
+    //     }
 
-        fn from_center_radius(center: Self::K, radius: f32) -> Self {
-            Self { center, radius }
-        }
+    //     fn from_center_radius(center: Self::K, radius: f32) -> Self {
+    //         Self { center, radius }
+    //     }
 
-        fn radius(&self) -> f32 {
-            self.radius
-        }
-    }
+    //     fn radius(&self) -> f32 {
+    //         self.radius
+    //     }
+    // }
 
-    impl<P> PartialEq for LeafLink<P, CenterRadius2> {
+    impl<P> PartialEq for LeafLink<P, [f32; 2]> {
         fn eq(&self, other: &Self) -> bool {
-            self.center_radius.center() == other.center_radius.center()
-                && self.center_radius.radius() == other.center_radius.radius()
+            self.center_radius.center == other.center_radius.center
+                && self.center_radius.radius == other.center_radius.radius
         }
     }
 
@@ -838,17 +851,17 @@ mod test {
         const UPPER_M: usize = 8;
         const LOWER_M: usize = 4;
 
-        let mut tree = SsTree::<(), CenterRadius2, UPPER_M>::new(LOWER_M);
+        let mut tree = SsTree::<(), [f32; 2], UPPER_M>::new(LOWER_M);
 
         tree.insert_entry(LeafLink::new(
-            CenterRadius2 {
+            Bounds {
                 center: [0.0, 0.0],
                 radius: 1.0,
             },
             (),
         ));
         tree.insert_entry(LeafLink::new(
-            CenterRadius2 {
+            Bounds {
                 center: [5.0, 5.0],
                 radius: 1.0,
             },
@@ -857,7 +870,7 @@ mod test {
 
         let mut out = Vec::new();
         tree.find_entries_within_radius(
-            &CenterRadius2 {
+            &Bounds {
                 center: [0.5, 0.5],
                 radius: 1.0,
             },
@@ -866,7 +879,7 @@ mod test {
         assert_eq!(
             out,
             vec!(&LeafLink::new(
-                CenterRadius2 {
+                Bounds {
                     center: [0.0, 0.0],
                     radius: 1.0,
                 },
@@ -876,7 +889,7 @@ mod test {
 
         let mut out = Vec::new();
         tree.find_entries_within_radius(
-            &CenterRadius2 {
+            &Bounds {
                 center: [4.5, 5.5],
                 radius: 1.0,
             },
@@ -885,7 +898,7 @@ mod test {
         assert_eq!(
             out,
             vec!(&LeafLink::new(
-                CenterRadius2 {
+                Bounds {
                     center: [5.0, 5.0],
                     radius: 1.0,
                 },
@@ -896,22 +909,22 @@ mod test {
 
         // do search between the entries with radius big enough to just reach them
         tree.find_entries_within_radius(
-            &CenterRadius2 {
+            &Bounds {
                 center: [2.5, 2.5],
                 radius: (2.5 * std::f32::consts::SQRT_2 + 0.0001) - 1.0,
             },
             &mut out,
         );
         assert_eq!(out.len(), 2);
-        assert!(out.contains(&&LeafLink::<(), CenterRadius2>::new(
-            CenterRadius2 {
+        assert!(out.contains(&&LeafLink::<(), _>::new(
+            Bounds {
                 center: [5.0, 5.0],
                 radius: 1.0,
             },
             ()
         )));
-        assert!(out.contains(&&LeafLink::<(), CenterRadius2>::new(
-            CenterRadius2 {
+        assert!(out.contains(&&LeafLink::<(), _>::new(
+            Bounds {
                 center: [0.0, 0.0],
                 radius: 1.0,
             },
@@ -922,7 +935,7 @@ mod test {
 
         // the same as befor but with radius just barely too small
         tree.find_entries_within_radius(
-            &CenterRadius2 {
+            &Bounds {
                 center: [2.5, 2.5],
                 radius: (2.5 * std::f32::consts::SQRT_2 - 0.0001) - 1.0,
             },
@@ -934,31 +947,11 @@ mod test {
 
 use bevy::prelude::*;
 
-#[derive(Debug, Clone, Copy, bevy_inspector_egui::Inspectable)]
-pub struct SpatialBounds {
-    pub center: Vec3,
-    pub radius: f32,
-}
-
-impl CenterRadius for SpatialBounds {
-    type K = Vec3;
-
-    fn center(&self) -> &Vec3 {
-        &self.center
-    }
-
-    fn radius(&self) -> f32 {
-        self.radius
-    }
-
-    fn from_center_radius(center: Self::K, radius: f32) -> Self {
-        Self { center, radius }
-    }
-}
+type SpatialBounds = Bounds<Vec3>;
 
 #[derive(Resource, Default)]
 pub struct SpatialIndex {
-    sstree: SsTree<Entity, SpatialBounds, 8>,
+    sstree: SsTree<Entity, Vec3, 8>,
 }
 
 impl SpatialIndex {
