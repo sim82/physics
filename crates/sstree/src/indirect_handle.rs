@@ -274,8 +274,9 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         None
     }
 
-    pub fn remove(&mut self, target: &K, m: usize) -> (bool, bool) {
-        match self.links.as_mut() {
+    pub fn remove(&mut self, target: &K, m: usize, pool: &mut NodePool<P, K, M>) -> (bool, bool) {
+        let links = pool.remove(self.links);
+        match links {
             Node::Leaf(entries) => {
                 if let Some((i, _)) = entries
                     .iter()
@@ -285,8 +286,12 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     entries.remove(i);
                     let num_entries = entries.len();
                     if num_entries != 0 {
-                        self.update_bounding_envelope();
+                        self.center_radius = util::centroid_and_radius(&entries);
+                        // update_bounding_envelope();
                     }
+                    self.links = pool.alloc();
+                    pool.put(self.links, Node::Leaf(entries));
+
                     (true, num_entries < m)
                 } else {
                     (false, false)
@@ -297,7 +302,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                 let mut deleted = false;
                 for (i, child_node) in nodes.iter_mut().enumerate() {
                     if child_node.intersects_point(target) {
-                        let res = child_node.remove(target, m);
+                        let res = child_node.remove(target, m, pool);
                         deleted = res.0;
                         let violates_invariants = res.1;
                         // println!("{:?} {:?}", deleted, violates_invariants);
@@ -312,27 +317,36 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                 match node_to_fix_index {
                     None => {
                         if deleted {
-                            self.update_bounding_envelope();
+                            //self.update_bounding_envelope();
+                            self.center_radius = util::centroid_and_radius(&nodes);
                         }
+                        self.links = pool.alloc();
+                        pool.put(self.links, Node::Inner(nodes));
                         (deleted, false)
                     }
 
                     Some(node_to_fix) => {
                         if let Some(sibling_to_borrow_from) =
-                            Self::find_sibling_to_borrow_from(nodes, node_to_fix, m)
+                            Self::find_sibling_to_borrow_from(&nodes, node_to_fix, m)
                         {
-                            Self::borrow_from_sibling(nodes, node_to_fix, sibling_to_borrow_from);
+                            Self::borrow_from_sibling(
+                                &mut nodes,
+                                node_to_fix,
+                                sibling_to_borrow_from,
+                            );
                         } else if let Some(sibling_to_merge_to) =
-                            Self::find_sibling_to_merge_to(nodes, node_to_fix, m)
+                            Self::find_sibling_to_merge_to(&nodes, node_to_fix, m)
                         {
                             // no sibling to borrow from -> merge
-                            Self::merge_siblings(nodes, node_to_fix, sibling_to_merge_to);
+                            Self::merge_siblings(&mut nodes, node_to_fix, sibling_to_merge_to);
                         }
                         let num_nodes = nodes.len();
                         if num_nodes != 0 {
-                            self.update_bounding_envelope();
+                            self.center_radius = util::centroid_and_radius(&nodes);
+                            //update_bounding_envelope();
                         }
-
+                        self.links = pool.alloc();
+                        pool.put(self.links, Node::Inner(nodes));
                         (true, num_nodes < m)
                     }
                 }
@@ -340,10 +354,11 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         }
     }
 
-    pub fn count_nodes(&self) -> (usize, usize) {
-        match self.links.as_ref() {
+    pub fn count_nodes(&self, pool: &NodePool<P, K, M>) -> (usize, usize) {
+        let links = pool.get(self.links);
+        match links {
             Node::Inner(nodes) => nodes.iter().fold((0, 1), |(a_points, a_nodes), n| {
-                let (points, nodes) = n.count_nodes();
+                let (points, nodes) = n.count_nodes(pool);
                 (a_points + points, a_nodes + nodes)
             }),
             Node::Leaf(points) => (points.len(), 1),
