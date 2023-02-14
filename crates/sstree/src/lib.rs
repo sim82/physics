@@ -2,6 +2,7 @@ use arrayvec::ArrayVec;
 use bevy::prelude::{Resource, Vec3};
 
 pub mod indirect;
+pub mod indirect_handle;
 
 pub const MAX_TREE_HEIGHT: usize = 16;
 
