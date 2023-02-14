@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use egui::{emath, Color32, Frame, Pos2, Rect, Sense, Shape, Stroke, Vec2};
 use rand::Rng;
-use sstree::indirect::{Bounds, DimIndex, Distance, SsTree};
+use sstree::indirect::{Bounds, SsTree};
 
 struct Select {
     center: Pos2,
@@ -33,6 +33,7 @@ struct Select {
 
 #[derive(Debug)]
 struct Drag {
+    id: u64,
     last_pos: Pos2,
 }
 
@@ -55,19 +56,23 @@ impl Select {
 }
 
 impl Drag {
-    fn update<P: Clone + PartialEq, const M: usize>(
-        &mut self,
-        pos: Pos2,
-        tree: &mut SsTree<P, [f32; 2], M>,
-    ) {
-        todo!()
-        // let mut element = tree.remove_by_path(&self.path);
-        // let payload = element.payload.clone();
-        // let d = pos - self.last_pos;
-        // element.center[0] += d.x;
-        // element.center[1] += d.y;
-        // self.last_pos = pos;
-        // self.path = tree.insert_get_path(element);
+    fn update<const M: usize>(&mut self, pos: Pos2, tree: &mut SsTree<u64, [f32; 2], M>) {
+        //todo!()
+        let mut element = tree
+            .remove_if(
+                &Bounds {
+                    center: [self.last_pos.x, self.last_pos.y],
+                    radius: 1.0,
+                },
+                |k| *k == self.id,
+            )
+            .expect("failed to remove on drag");
+
+        let d = pos - self.last_pos;
+        element.center_radius.center[0] += d.x;
+        element.center_radius.center[1] += d.y;
+        self.last_pos = pos;
+        tree.insert_entry(element);
         // let p = tree.get_by_path(&self.path).payload.clone();
         // assert!(p == payload);
     }
@@ -192,22 +197,28 @@ impl MyEguiApp {
             }
             Mode::Drag => {
                 if response.drag_started() {
-                    todo!()
-                    // let mut selected = Vec::new();
+                    let mut selected = Vec::new();
 
-                    // let pos2 = response.interact_pointer_pos().unwrap();
+                    let pos2 = response.interact_pointer_pos().unwrap();
+                    self.tree.find_entries_within_radius(
+                        &Bounds {
+                            center: pos2_to_array(&pos2),
+                            radius: 1.0,
+                        },
+                        &mut selected,
+                    );
                     // self.tree
                     //     .paths_within_radius(&pos2_to_array(&pos2), 1.0, &mut selected);
-                    // println!("drag start {:?}", selected);
+                    println!("drag start {:?}", selected);
 
-                    // if let Some(path) = selected.pop() {
-                    //     self.drag_tool = Some(Drag {
-                    //         path,
-                    //         last_pos: pos2,
-                    //     });
-                    //     // self.tree.remove_by_path(&path);
-                    //     changed = true;
-                    // }
+                    if let Some(path) = selected.pop() {
+                        self.drag_tool = Some(Drag {
+                            id: path.payload,
+                            last_pos: pos2,
+                        });
+                        // self.tree.remove_by_path(&path);
+                        changed = true;
+                    }
                 } else if response.drag_released() {
                     self.drag_tool = None;
                     changed = true;

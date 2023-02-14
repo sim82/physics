@@ -29,7 +29,6 @@ impl<K: Center> Bounds<K> {
     fn from_center_radius(center: K, radius: f32) -> Self {
         Self { center, radius }
     }
-
     fn distance_point(&self, p2: &K) -> f32 {
         self.center.distance(p2)
     }
@@ -679,7 +678,7 @@ impl<P, K: Center, const M: usize> Default for SsTree<P, K, M> {
 }
 
 mod util {
-    use super::{Bounds, Center, DimIndex, Distance};
+    use super::{Bounds, Center};
 
     pub fn mean_along_direction<K: Center>(
         entry: &[impl AsRef<Bounds<K>>],
