@@ -66,25 +66,44 @@ pub enum Node<P, K: Center, const M: usize> {
     Leaf(ArrayVec<LeafLink<P, K>, M>),
 }
 
-#[derive(Default)]
+#[derive(Debug)]
 pub struct NodePool<P, K: Center, const M: usize> {
     nodes: HashMap<u64, Node<P, K, M>>,
     next_id: u64,
+}
+
+impl<P, K: Center, const M: usize> Default for NodePool<P, K, M> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<P, K: Center, const M: usize> NodePool<P, K, M> {
+    pub fn new() -> Self {
+        Self {
+            nodes: HashMap::new(),
+            next_id: 0,
+        }
+    }
 }
 
 impl<P, K: Center, const M: usize> NodePool<P, K, M> {
     pub fn alloc(&mut self) -> u64 {
         let ret = self.next_id;
         self.next_id += 1;
+        println!("alloc: {}", ret);
         ret
     }
     pub fn get(&self, id: u64) -> &Node<P, K, M> {
+        println!("get: {}", id);
         self.nodes.get(&id).expect("unknown node id")
     }
     pub fn remove(&mut self, id: u64) -> Node<P, K, M> {
+        println!("remove: {}", id);
         self.nodes.remove(&id).expect("unknown node id")
     }
     pub fn put(&mut self, id: u64, n: Node<P, K, M>) {
+        println!("put: {}", id);
         let _ = self.nodes.insert(id, n);
     }
 }
@@ -145,7 +164,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         self.center_radius.intersects_point(target)
     }
 
-    pub fn search(&self, target: &K, pool: &NodePool<P, K, M>) -> Option<&Self> {
+    pub fn search<'a>(&'a self, target: &K, pool: &'a NodePool<P, K, M>) -> Option<&Self> {
         let links = pool.get(self.links);
         match links {
             Node::Inner(children) => children.iter().find(|node| node.intersects_point(target)),
@@ -159,7 +178,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         }
     }
 
-    pub fn search_parent_leaf(&self, target: &K, pool: &NodePool<P, K, M>) -> &Self {
+    pub fn search_parent_leaf<'a>(&'a self, target: &K, pool: &'a NodePool<P, K, M>) -> &Self {
         let links = pool.get(self.links);
         match links {
             Node::Inner(children) => {
@@ -170,13 +189,13 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         }
     }
 
-    pub fn update_bounding_envelope(&mut self, pool: &NodePool<P, K, M>) {
-        let links = pool.get(self.links);
-        self.center_radius = match links {
-            Node::Inner(nodes) => util::centroid_and_radius(nodes),
-            Node::Leaf(points) => util::centroid_and_radius(points),
-        };
-    }
+    // pub fn update_bounding_envelope(&mut self, pool: &NodePool<P, K, M>) {
+    //     let links = pool.get(self.links);
+    //     self.center_radius = match links {
+    //         Node::Inner(nodes) => util::centroid_and_radius(nodes),
+    //         Node::Leaf(points) => util::centroid_and_radius(points),
+    //     };
+    // }
     pub fn insert(
         &mut self,
         entry: LeafLink<P, K>,
@@ -185,10 +204,11 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
     ) -> Option<(Self, Self)> {
         let links = pool.remove(self.links);
         match links {
-            Node::Leaf(points) => {
+            Node::Leaf(mut points) => {
                 if points.len() < M {
                     points.push(entry);
-                    self.update_bounding_envelope(pool);
+                    //self.update_bounding_envelope(pool);
+                    self.center_radius = util::centroid_and_radius(&points);
                     self.links = pool.alloc();
                     pool.put(self.links, Node::Leaf(points));
                     return None;
@@ -202,8 +222,8 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     // let points2: ArrayVec<_, M> = nodes_to_split.drain(split_index..).collect();
                     // let center_radius2 = util::centroid_and_radius(&points2);
 
-                    let points1: ArrayVec<_, M> = nodes_to_split.drain(..split_index).collect();
-                    let center_radius1 = util::centroid_and_radius(&points1);
+                    // let points1: ArrayVec<_, M> = nodes_to_split.drain(..split_index).collect();
+                    // let center_radius1 = util::centroid_and_radius(&points1);
 
                     let new_node2 =
                         Self::from_entries(nodes_to_split.drain(split_index..).collect(), pool);
@@ -224,7 +244,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                 }
             }
 
-            Node::Inner(children) => {
+            Node::Inner(mut children) => {
                 let closest_child_index =
                     Self::find_closest_child_index(&children, &entry.center_radius.center);
                 if let Some((new_child_1, new_child_2)) =
@@ -267,7 +287,11 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                         return Some((new_node1, new_node2));
                     }
                 } else {
-                    self.update_bounding_envelope(pool);
+                    // TODO: in case no child split happens we would not even need to remove self.links in the first place, but doing it like this keeps everything nice and uniform...
+                    self.center_radius = util::centroid_and_radius(&children);
+                    self.links = pool.alloc();
+                    pool.put(self.links, Node::Inner(children));
+                    // self.update_bounding_envelope(pool);
                 }
             }
         }
@@ -277,7 +301,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
     pub fn remove(&mut self, target: &K, m: usize, pool: &mut NodePool<P, K, M>) -> (bool, bool) {
         let links = pool.remove(self.links);
         match links {
-            Node::Leaf(entries) => {
+            Node::Leaf(mut entries) => {
                 if let Some((i, _)) = entries
                     .iter()
                     .enumerate()
@@ -297,7 +321,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     (false, false)
                 }
             }
-            Node::Inner(nodes) => {
+            Node::Inner(mut nodes) => {
                 let mut node_to_fix_index = None;
                 let mut deleted = false;
                 for (i, child_node) in nodes.iter_mut().enumerate() {
@@ -327,18 +351,24 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
 
                     Some(node_to_fix) => {
                         if let Some(sibling_to_borrow_from) =
-                            Self::find_sibling_to_borrow_from(&nodes, node_to_fix, m)
+                            Self::find_sibling_to_borrow_from(&nodes, node_to_fix, m, pool)
                         {
                             Self::borrow_from_sibling(
                                 &mut nodes,
                                 node_to_fix,
                                 sibling_to_borrow_from,
+                                pool,
                             );
                         } else if let Some(sibling_to_merge_to) =
-                            Self::find_sibling_to_merge_to(&nodes, node_to_fix, m)
+                            Self::find_sibling_to_merge_to(&nodes, node_to_fix, m, pool)
                         {
                             // no sibling to borrow from -> merge
-                            Self::merge_siblings(&mut nodes, node_to_fix, sibling_to_merge_to);
+                            Self::merge_siblings(
+                                &mut nodes,
+                                node_to_fix,
+                                sibling_to_merge_to,
+                                pool,
+                            );
                         }
                         let num_nodes = nodes.len();
                         if num_nodes != 0 {
@@ -370,8 +400,10 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         // radius: f32,
         center_radius: &Bounds<K>,
         out: &mut Vec<&'a LeafLink<P, K>>,
+        pool: &'a NodePool<P, K, M>,
     ) {
-        match self.links.as_ref() {
+        let links = pool.get(self.links);
+        match links {
             Node::Leaf(points) => {
                 for point in points.iter() {
                     if point.center_radius.intersects(center_radius) {
@@ -382,19 +414,21 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
             Node::Inner(nodes) => {
                 for child in nodes.iter() {
                     if child.center_radius.intersects(center_radius) {
-                        child.find_entries_within_radius(center_radius, out);
+                        child.find_entries_within_radius(center_radius, out, pool);
                     }
                 }
             }
         }
     }
 
-    pub fn find_if<F: Fn(&P) -> bool>(
-        &self,
+    pub fn find_if<'a, F: Fn(&P) -> bool>(
+        &'a self,
         center_radius: &Bounds<K>,
         f: &F,
+        pool: &'a NodePool<P, K, M>,
     ) -> Option<&LeafLink<P, K>> {
-        match self.links.as_ref() {
+        let links = pool.get(self.links);
+        match links {
             Node::Leaf(points) => {
                 for (_i, point) in points.iter().enumerate() {
                     if point.center_radius.intersects(center_radius) && f(&point.payload) {
@@ -405,7 +439,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
             Node::Inner(nodes) => {
                 for (_i, child) in nodes.iter().enumerate() {
                     if child.center_radius.intersects(center_radius) {
-                        let ret = child.find_if(center_radius, f);
+                        let ret = child.find_if(center_radius, f, pool);
                         if ret.is_some() {
                             return ret;
                         }
@@ -421,9 +455,11 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         center_radius: &Bounds<K>,
         m: usize,
         f: &F,
+        pool: &mut NodePool<P, K, M>,
     ) -> (bool, bool, Option<LeafLink<P, K>>) {
-        match self.links.as_mut() {
-            Node::Leaf(entries) => {
+        let links = pool.remove(self.links);
+        match links {
+            Node::Leaf(mut entries) => {
                 if let Some((i, _)) = entries
                     .iter()
                     .enumerate()
@@ -432,20 +468,23 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     let e = entries.remove(i);
                     let num_entries = entries.len();
                     if num_entries != 0 {
-                        self.update_bounding_envelope();
+                        self.center_radius = util::centroid_and_radius(&entries);
+                        // update_bounding_envelope();
                     }
+                    self.links = pool.alloc();
+                    pool.put(self.links, Node::Leaf(entries));
                     (true, num_entries < m, Some(e))
                 } else {
                     (false, false, None)
                 }
             }
-            Node::Inner(nodes) => {
+            Node::Inner(mut nodes) => {
                 let mut node_to_fix_index = None;
                 let mut deleted = false;
                 let mut deleted_entry = None;
                 for (i, child_node) in nodes.iter_mut().enumerate() {
                     if child_node.center_radius.intersects(center_radius) {
-                        let res = child_node.remove_if(center_radius, m, f); // FIXME: ignoring radius
+                        let res = child_node.remove_if(center_radius, m, f, pool); // FIXME: ignoring radius
                         deleted = res.0;
                         let violates_invariants = res.1;
                         // println!("{:?} {:?}", deleted, violates_invariants);
@@ -461,26 +500,42 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                 match node_to_fix_index {
                     None => {
                         if deleted {
-                            self.update_bounding_envelope();
+                            self.center_radius = util::centroid_and_radius(&nodes);
+                            // update_bounding_envelope();
                         }
+                        self.links = pool.alloc();
+                        pool.put(self.links, Node::Inner(nodes));
                         (deleted, false, deleted_entry)
                     }
 
                     Some(node_to_fix) => {
                         if let Some(sibling_to_borrow_from) =
-                            Self::find_sibling_to_borrow_from(nodes, node_to_fix, m)
+                            Self::find_sibling_to_borrow_from(&nodes, node_to_fix, m, pool)
                         {
-                            Self::borrow_from_sibling(nodes, node_to_fix, sibling_to_borrow_from);
+                            Self::borrow_from_sibling(
+                                &mut nodes,
+                                node_to_fix,
+                                sibling_to_borrow_from,
+                                pool,
+                            );
                         } else if let Some(sibling_to_merge_to) =
-                            Self::find_sibling_to_merge_to(nodes, node_to_fix, m)
+                            Self::find_sibling_to_merge_to(&nodes, node_to_fix, m, pool)
                         {
                             // no sibling to borrow from -> merge
-                            Self::merge_siblings(nodes, node_to_fix, sibling_to_merge_to);
+                            Self::merge_siblings(
+                                &mut nodes,
+                                node_to_fix,
+                                sibling_to_merge_to,
+                                pool,
+                            );
                         }
                         let num_nodes = nodes.len();
                         if num_nodes != 0 {
-                            self.update_bounding_envelope();
+                            self.center_radius = util::centroid_and_radius(&nodes);
+                            //update_bounding_envelope();
                         }
+                        self.links = pool.alloc();
+                        pool.put(self.links, Node::Inner(nodes));
 
                         (true, num_nodes < m, deleted_entry)
                     }
@@ -514,13 +569,18 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         cur_min.unwrap()
     }
 
-    fn find_sibling_to_borrow_from(nodes: &[Self], node_to_fix: usize, m: usize) -> Option<usize> {
-        let siblings_to_borrow_from = nodes.iter().enumerate().filter(|(i, sibling)| match sibling
-            .links
-            .as_ref()
-        {
-            Node::Inner(nodes) => *i != node_to_fix && nodes.len() > m,
-            Node::Leaf(points) => *i != node_to_fix && points.len() > m,
+    fn find_sibling_to_borrow_from(
+        nodes: &[Self],
+        node_to_fix: usize,
+        m: usize,
+        pool: &NodePool<P, K, M>,
+    ) -> Option<usize> {
+        let siblings_to_borrow_from = nodes.iter().enumerate().filter(|(i, sibling)| {
+            let links = pool.get(sibling.links);
+            match links {
+                Node::Inner(nodes) => *i != node_to_fix && nodes.len() > m,
+                Node::Leaf(points) => *i != node_to_fix && points.len() > m,
+            }
         });
 
         let mut closest_sibling = None;
@@ -538,11 +598,17 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         closest_sibling
     }
 
-    fn borrow_from_sibling(nodes: &mut [Self], node_to_fix: usize, sibling_to_borrow_from: usize) {
+    fn borrow_from_sibling(
+        nodes: &mut [Self],
+        node_to_fix: usize,
+        sibling_to_borrow_from: usize,
+        pool: &mut NodePool<P, K, M>,
+    ) {
         // found sibling to borrow from
         let to_fix_centroid = &nodes[node_to_fix].center_radius.center;
-        match nodes[sibling_to_borrow_from].links.as_mut() {
-            Node::Inner(nodes2) => {
+        let links = pool.remove(nodes[sibling_to_borrow_from].links);
+        match links {
+            Node::Inner(mut nodes2) => {
                 let mut closest_node = None;
                 let mut closest_node_dist = f32::INFINITY;
                 for (i, node) in nodes2.iter().enumerate() {
@@ -553,15 +619,24 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     }
                 }
                 let node = nodes2.remove(closest_node.unwrap());
-                nodes[sibling_to_borrow_from].update_bounding_envelope();
+                // nodes[sibling_to_borrow_from].update_bounding_envelope(pool);
+                nodes[sibling_to_borrow_from].center_radius = util::centroid_and_radius(&nodes2);
 
-                match nodes[node_to_fix].links.as_mut() {
-                    Node::Inner(fix_nodes) => fix_nodes.push(node),
+                let links = pool.remove(nodes[node_to_fix].links);
+                match links {
+                    Node::Inner(mut fix_nodes) => {
+                        fix_nodes.push(node);
+                        nodes[node_to_fix].center_radius = util::centroid_and_radius(&fix_nodes);
+                        nodes[node_to_fix].links = pool.alloc();
+                        pool.put(nodes[node_to_fix].links, Node::Inner(fix_nodes));
+                    }
                     Node::Leaf(_) => panic!("unbalanced tree"),
                 }
-                nodes[node_to_fix].update_bounding_envelope();
+                // nodes[node_to_fix].update_bounding_envelope();
+                nodes[sibling_to_borrow_from].links = pool.alloc();
+                pool.put(nodes[sibling_to_borrow_from].links, Node::Inner(nodes2));
             }
-            Node::Leaf(points) => {
+            Node::Leaf(mut points) => {
                 let mut closest_point = None;
                 let mut closest_point_dist = f32::INFINITY;
                 for (i, point) in points.iter().enumerate() {
@@ -576,25 +651,39 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                 //     closest_point, sibling_to_borrow_from, node_to_fix
                 // );
                 let point = points.remove(closest_point.unwrap());
-                nodes[sibling_to_borrow_from].update_bounding_envelope();
-                match nodes[node_to_fix].links.as_mut() {
+                // nodes[sibling_to_borrow_from].update_bounding_envelope();
+                nodes[sibling_to_borrow_from].center_radius = util::centroid_and_radius(&points);
+                let links = pool.remove(nodes[node_to_fix].links);
+
+                match links {
                     Node::Inner(_) => panic!("unbalanced tree"),
-                    Node::Leaf(fix_points) => fix_points.push(point),
+                    Node::Leaf(mut fix_points) => {
+                        fix_points.push(point);
+                        nodes[node_to_fix].center_radius = util::centroid_and_radius(&fix_points);
+                        nodes[node_to_fix].links = pool.alloc();
+                        pool.put(nodes[node_to_fix].links, Node::Leaf(fix_points));
+                    }
                 }
-                nodes[node_to_fix].update_bounding_envelope();
+                // nodes[node_to_fix].update_bounding_envelope();
+                nodes[sibling_to_borrow_from].links = pool.alloc();
+                pool.put(nodes[sibling_to_borrow_from].links, Node::Leaf(points));
             }
         }
     }
 
-    fn find_sibling_to_merge_to(nodes: &[Self], node_to_fix: usize, m: usize) -> Option<usize> {
-        let siblings_to_merge_to =
-            nodes
-                .iter()
-                .enumerate()
-                .filter(|(i, sibling)| match sibling.links.as_ref() {
-                    Node::Inner(nodes) => *i != node_to_fix && nodes.len() == m,
-                    Node::Leaf(points) => *i != node_to_fix && points.len() == m,
-                });
+    fn find_sibling_to_merge_to(
+        nodes: &[Self],
+        node_to_fix: usize,
+        m: usize,
+        pool: &NodePool<P, K, M>,
+    ) -> Option<usize> {
+        let siblings_to_merge_to = nodes.iter().enumerate().filter(|(i, sibling)| {
+            let links = pool.get(sibling.links);
+            match links {
+                Node::Inner(nodes) => *i != node_to_fix && nodes.len() == m,
+                Node::Leaf(points) => *i != node_to_fix && points.len() == m,
+            }
+        });
 
         let mut closest_sibling = None;
         let mut closest_sibling_dist = f32::INFINITY;
@@ -615,6 +704,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         nodes: &mut ArrayVec<Self, M>,
         mut node_index_1: usize,
         mut node_index_2: usize,
+        pool: &mut NodePool<P, K, M>,
     ) {
         if node_index_1 > node_index_2 {
             // remove node with larger index first
@@ -622,19 +712,21 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         }
         let node_2 = nodes.remove(node_index_2);
         let node_1 = nodes.remove(node_index_1);
-        let node = Self::merge(node_1, node_2);
+        let node = Self::merge(node_1, node_2, pool);
         nodes.push(node);
     }
 
-    fn merge(node_1: Self, node_2: Self) -> Self {
-        match (*node_1.links, *node_2.links) {
+    fn merge(node_1: Self, node_2: Self, pool: &mut NodePool<P, K, M>) -> Self {
+        let links_1 = pool.remove(node_1.links);
+        let links_2 = pool.remove(node_2.links);
+        match (links_1, links_2) {
             (Node::Leaf(mut points1), Node::Leaf(mut points2)) => {
                 points1.extend(points2.drain(..));
-                InnerLink::<P, K, M>::from_entries(points1)
+                InnerLink::<P, K, M>::from_entries(points1, pool)
             }
             (Node::Inner(mut nodes1), Node::Inner(mut nodes2)) => {
                 nodes1.extend(nodes2.drain(..));
-                InnerLink::<P, K, M>::from_nodes(nodes1)
+                InnerLink::<P, K, M>::from_nodes(nodes1, pool)
             }
             _ => panic!("inconsistent siblings"),
         }
@@ -656,17 +748,24 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
 #[derive(Debug)]
 pub struct SsTree<P, K: Center, const M: usize> {
     pub root: InnerLink<P, K, M>,
+    pub pool: NodePool<P, K, M>,
     height: usize,
     m: usize,
 }
 
 impl<P, K: Center, const M: usize> SsTree<P, K, M> {
     pub fn new(m: usize) -> Self {
+        let mut pool = NodePool::new();
+        let links = pool.alloc();
+        pool.put(links, Node::Leaf(ArrayVec::new()));
         Self {
             root: InnerLink {
                 center_radius: Bounds::from_center_radius(K::default(), 0f32),
-                links: Box::new(Node::Leaf(ArrayVec::new())),
+                links, //: Box::new(Node::Leaf(ArrayVec::new())),
+                payload_type: PhantomData,
             },
+            pool,
+
             height: 1,
             m,
         }
@@ -679,14 +778,17 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
         })
     }
     pub fn insert_entry(&mut self, entry: LeafLink<P, K>) {
-        if let Some((new_child_1, new_child_2)) = self.root.insert(entry, self.m) {
+        if let Some((new_child_1, new_child_2)) = self.root.insert(entry, self.m, &mut self.pool) {
             let mut nodes = ArrayVec::<_, M>::new();
             nodes.push(new_child_1);
             nodes.push(new_child_2);
             let center_radius = util::centroid_and_radius(&nodes);
+            let links = self.pool.alloc();
+            self.pool.put(links, Node::Inner(nodes));
             self.root = InnerLink {
                 center_radius,
-                links: Box::new(Node::Inner(nodes)),
+                links,
+                payload_type: PhantomData,
             };
             self.height += 1;
         }
@@ -694,10 +796,14 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
 
     #[allow(clippy::overly_complex_bool_expr)]
     pub fn remove(&mut self, point: &K) {
-        let (_deleted, _violiates_invariant) = self.root.remove(point, self.m);
+        let (_deleted, _violiates_invariant) = self.root.remove(point, self.m, &mut self.pool);
 
-        match self.root.links.as_mut() {
+        let links = self.pool.get(self.root.links);
+
+        match links {
             Node::Inner(nodes) if nodes.len() == 1 => {
+                let links = self.pool.remove(self.root.links);
+                let Node::Inner(mut nodes) =  links else { panic!("expecting Node::Inner here") };
                 self.root = nodes.pop().unwrap();
                 self.height -= 1;
             }
@@ -709,7 +815,7 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
         self.height
     }
     pub fn get_fill_factor(&self) -> f32 {
-        let (num_points, num_nodes) = self.root.count_nodes();
+        let (num_points, num_nodes) = self.root.count_nodes(&self.pool);
         num_points as f32 / num_nodes as f32
     }
 
@@ -718,7 +824,8 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
         center_radius: &Bounds<K>,
         out: &mut Vec<&'a LeafLink<P, K>>,
     ) {
-        self.root.find_entries_within_radius(center_radius, out);
+        self.root
+            .find_entries_within_radius(center_radius, out, &self.pool);
     }
 
     pub fn find_if<'a, F: Fn(&P) -> bool>(
@@ -726,16 +833,22 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
         center_radius: &Bounds<K>,
         f: F,
     ) -> Option<&'a LeafLink<P, K>> {
-        self.root.find_if(center_radius, &f)
+        self.root.find_if(center_radius, &f, &self.pool)
     }
     pub fn remove_if<F: Fn(&P) -> bool>(
         &mut self,
         center_radius: &Bounds<K>,
         f: F,
     ) -> Option<LeafLink<P, K>> {
-        let deleted_entry = self.root.remove_if(center_radius, self.m, &f).2;
-        match self.root.links.as_mut() {
+        let deleted_entry = self
+            .root
+            .remove_if(center_radius, self.m, &f, &mut self.pool)
+            .2;
+        let links = self.pool.get(self.root.links);
+        match links {
             Node::Inner(nodes) if nodes.len() == 1 => {
+                let links = self.pool.remove(self.root.links);
+                let Node::Inner(mut nodes) =  links else { panic!("expecting Node::Inner here") };
                 self.root = nodes.pop().unwrap();
                 self.height -= 1;
             }
