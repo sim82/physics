@@ -91,19 +91,19 @@ impl<P, K: Center, const M: usize> NodePool<P, K, M> {
     pub fn alloc(&mut self) -> u64 {
         let ret = self.next_id;
         self.next_id += 1;
-        println!("alloc: {}", ret);
+        // println!("alloc: {}", ret);
         ret
     }
     pub fn get(&self, id: u64) -> &Node<P, K, M> {
-        println!("get: {}", id);
+        // println!("get: {}", id);
         self.nodes.get(&id).expect("unknown node id")
     }
     pub fn remove(&mut self, id: u64) -> Node<P, K, M> {
-        println!("remove: {}", id);
+        // println!("remove: {}", id);
         self.nodes.remove(&id).expect("unknown node id")
     }
     pub fn put(&mut self, id: u64, n: Node<P, K, M>) {
-        println!("put: {}", id);
+        // println!("put: {}", id);
         let _ = self.nodes.insert(id, n);
     }
 }
@@ -211,7 +211,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     self.center_radius = util::centroid_and_radius(&points);
                     self.links = pool.alloc();
                     pool.put(self.links, Node::Leaf(points));
-                    return None;
+                    None
                 } else {
                     let mut nodes_to_split = points
                         .drain(..)
@@ -240,7 +240,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     //     links: Box::new(Node::Leaf(points2)),
                     // };
 
-                    return Some((new_node1, new_node2));
+                    Some((new_node1, new_node2))
                 }
             }
 
@@ -255,6 +255,10 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     if children.len() < M - 1 {
                         children.push(new_child_1);
                         children.push(new_child_2);
+                        self.center_radius = util::centroid_and_radius(&children);
+                        self.links = pool.alloc();
+                        pool.put(self.links, Node::Inner(children));
+                        None
                     } else {
                         // TODO: use ArrayVec<_, M+1> when generic_const_exprs are suppported
                         let mut nodes_to_split: Vec<_> = children
@@ -284,18 +288,18 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                         let new_node1 =
                             Self::from_nodes(nodes_to_split.drain(..split_index).collect(), pool);
 
-                        return Some((new_node1, new_node2));
+                        Some((new_node1, new_node2))
                     }
                 } else {
                     // TODO: in case no child split happens we would not even need to remove self.links in the first place, but doing it like this keeps everything nice and uniform...
                     self.center_radius = util::centroid_and_radius(&children);
                     self.links = pool.alloc();
                     pool.put(self.links, Node::Inner(children));
+                    None
                     // self.update_bounding_envelope(pool);
                 }
             }
         }
-        None
     }
 
     pub fn remove(&mut self, target: &K, m: usize, pool: &mut NodePool<P, K, M>) -> (bool, bool) {
@@ -318,6 +322,8 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
 
                     (true, num_entries < m)
                 } else {
+                    self.links = pool.alloc();
+                    pool.put(self.links, Node::Leaf(entries));
                     (false, false)
                 }
             }
@@ -475,6 +481,8 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
                     pool.put(self.links, Node::Leaf(entries));
                     (true, num_entries < m, Some(e))
                 } else {
+                    self.links = pool.alloc();
+                    pool.put(self.links, Node::Leaf(entries));
                     (false, false, None)
                 }
             }

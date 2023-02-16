@@ -413,26 +413,26 @@ fn main() {
     let mut tree = SsTree::new(LOWER_M);
     let mut rng = rand::thread_rng();
 
-    // if !false {
-    //     for _ in 0..10 {
-    //         println!("insert ...");
-    //         for i in 0..1000000 {
-    //             tree.insert(
-    //                 i,
-    //                 [rng.gen_range(200.0..9000.0), rng.gen_range(200.0..90000.0)],
-    //                 5.0,
-    //             );
-    //         }
-    //     }
-    // } else {
-    //     for i in 0..10 {
-    //         tree.insert(
-    //             i,
-    //             [rng.gen_range(200.0..600.0), rng.gen_range(200.0..600.0)],
-    //             5.0,
-    //         );
-    //     }
-    // }
+    if !false {
+        for _ in 0..10 {
+            println!("insert ...");
+            for i in 0..100000 {
+                tree.insert(
+                    i,
+                    [rng.gen_range(200.0..9000.0), rng.gen_range(200.0..90000.0)],
+                    5.0,
+                );
+            }
+        }
+    } else {
+        for i in 0..10 {
+            tree.insert(
+                i,
+                [rng.gen_range(200.0..600.0), rng.gen_range(200.0..600.0)],
+                5.0,
+            );
+        }
+    }
     let app = MyEguiApp {
         shapes: Vec::new(),
         tree,
