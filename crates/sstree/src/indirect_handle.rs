@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::sync::Mutex;
 
 use arrayvec::ArrayVec;
 use bevy::prelude::{Resource, Vec3};
@@ -66,19 +67,26 @@ pub enum Node<P, K: Center, const M: usize> {
     Leaf(ArrayVec<LeafLink<P, K>, M>),
 }
 
+pub trait NodePool<P, K: Center, const M: usize> {
+    fn alloc(&mut self) -> u64;
+    fn get(&self, id: u64) -> &Node<P, K, M>;
+    fn remove(&mut self, id: u64) -> Node<P, K, M>;
+    fn put(&mut self, id: u64, n: Node<P, K, M>);
+}
+
 #[derive(Debug)]
-pub struct NodePool<P, K: Center, const M: usize> {
+pub struct NodePoolBaseline<P, K: Center, const M: usize> {
     nodes: HashMap<u64, Node<P, K, M>>,
     next_id: u64,
 }
 
-impl<P, K: Center, const M: usize> Default for NodePool<P, K, M> {
+impl<P, K: Center, const M: usize> Default for NodePoolBaseline<P, K, M> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<P, K: Center, const M: usize> NodePool<P, K, M> {
+impl<P, K: Center, const M: usize> NodePoolBaseline<P, K, M> {
     pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
@@ -87,22 +95,22 @@ impl<P, K: Center, const M: usize> NodePool<P, K, M> {
     }
 }
 
-impl<P, K: Center, const M: usize> NodePool<P, K, M> {
-    pub fn alloc(&mut self) -> u64 {
+impl<P, K: Center, const M: usize> NodePool<P, K, M> for NodePoolBaseline<P, K, M> {
+    fn alloc(&mut self) -> u64 {
         let ret = self.next_id;
         self.next_id += 1;
         // println!("alloc: {}", ret);
         ret
     }
-    pub fn get(&self, id: u64) -> &Node<P, K, M> {
+    fn get(&self, id: u64) -> &Node<P, K, M> {
         // println!("get: {}", id);
         self.nodes.get(&id).expect("unknown node id")
     }
-    pub fn remove(&mut self, id: u64) -> Node<P, K, M> {
+    fn remove(&mut self, id: u64) -> Node<P, K, M> {
         // println!("remove: {}", id);
         self.nodes.remove(&id).expect("unknown node id")
     }
-    pub fn put(&mut self, id: u64, n: Node<P, K, M>) {
+    fn put(&mut self, id: u64, n: Node<P, K, M>) {
         // println!("put: {}", id);
         let _ = self.nodes.insert(id, n);
     }
@@ -136,7 +144,7 @@ impl<P, K: Center, const M: usize> AsRef<Bounds<K>> for InnerLink<P, K, M> {
 impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
     pub fn from_entries(
         entries: ArrayVec<LeafLink<P, K>, M>,
-        node_pool: &mut NodePool<P, K, M>,
+        node_pool: &mut dyn NodePool<P, K, M>,
     ) -> Self {
         let center_radius = util::centroid_and_radius(&entries);
         let node_id = node_pool.alloc();
@@ -148,7 +156,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         }
     }
 
-    pub fn from_nodes(nodes: ArrayVec<Self, M>, node_pool: &mut NodePool<P, K, M>) -> Self {
+    pub fn from_nodes(nodes: ArrayVec<Self, M>, node_pool: &mut dyn NodePool<P, K, M>) -> Self {
         let center_radius = util::centroid_and_radius(&nodes);
         let node_id = node_pool.alloc();
         node_pool.put(node_id, Node::Inner(nodes));
@@ -164,7 +172,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         self.center_radius.intersects_point(target)
     }
 
-    pub fn search<'a>(&'a self, target: &K, pool: &'a NodePool<P, K, M>) -> Option<&Self> {
+    pub fn search<'a>(&'a self, target: &K, pool: &'a dyn NodePool<P, K, M>) -> Option<&Self> {
         let links = pool.get(self.links);
         match links {
             Node::Inner(children) => children.iter().find(|node| node.intersects_point(target)),
@@ -178,7 +186,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         }
     }
 
-    pub fn search_parent_leaf<'a>(&'a self, target: &K, pool: &'a NodePool<P, K, M>) -> &Self {
+    pub fn search_parent_leaf<'a>(&'a self, target: &K, pool: &'a dyn NodePool<P, K, M>) -> &Self {
         let links = pool.get(self.links);
         match links {
             Node::Inner(children) => {
@@ -200,7 +208,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         &mut self,
         entry: LeafLink<P, K>,
         m: usize,
-        pool: &mut NodePool<P, K, M>,
+        pool: &mut dyn NodePool<P, K, M>,
     ) -> Option<(Self, Self)> {
         let links = pool.remove(self.links);
         match links {
@@ -302,7 +310,12 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         }
     }
 
-    pub fn remove(&mut self, target: &K, m: usize, pool: &mut NodePool<P, K, M>) -> (bool, bool) {
+    pub fn remove(
+        &mut self,
+        target: &K,
+        m: usize,
+        pool: &mut dyn NodePool<P, K, M>,
+    ) -> (bool, bool) {
         let links = pool.remove(self.links);
         match links {
             Node::Leaf(mut entries) => {
@@ -390,7 +403,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         }
     }
 
-    pub fn count_nodes(&self, pool: &NodePool<P, K, M>) -> (usize, usize) {
+    pub fn count_nodes(&self, pool: &dyn NodePool<P, K, M>) -> (usize, usize) {
         let links = pool.get(self.links);
         match links {
             Node::Inner(nodes) => nodes.iter().fold((0, 1), |(a_points, a_nodes), n| {
@@ -406,7 +419,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         // radius: f32,
         center_radius: &Bounds<K>,
         out: &mut Vec<&'a LeafLink<P, K>>,
-        pool: &'a NodePool<P, K, M>,
+        pool: &'a dyn NodePool<P, K, M>,
     ) {
         let links = pool.get(self.links);
         match links {
@@ -431,7 +444,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         &'a self,
         center_radius: &Bounds<K>,
         f: &F,
-        pool: &'a NodePool<P, K, M>,
+        pool: &'a dyn NodePool<P, K, M>,
     ) -> Option<&LeafLink<P, K>> {
         let links = pool.get(self.links);
         match links {
@@ -461,7 +474,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         center_radius: &Bounds<K>,
         m: usize,
         f: &F,
-        pool: &mut NodePool<P, K, M>,
+        pool: &mut dyn NodePool<P, K, M>,
     ) -> (bool, bool, Option<LeafLink<P, K>>) {
         let links = pool.remove(self.links);
         match links {
@@ -581,7 +594,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         nodes: &[Self],
         node_to_fix: usize,
         m: usize,
-        pool: &NodePool<P, K, M>,
+        pool: &dyn NodePool<P, K, M>,
     ) -> Option<usize> {
         let siblings_to_borrow_from = nodes.iter().enumerate().filter(|(i, sibling)| {
             let links = pool.get(sibling.links);
@@ -610,7 +623,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         nodes: &mut [Self],
         node_to_fix: usize,
         sibling_to_borrow_from: usize,
-        pool: &mut NodePool<P, K, M>,
+        pool: &mut dyn NodePool<P, K, M>,
     ) {
         // found sibling to borrow from
         let to_fix_centroid = &nodes[node_to_fix].center_radius.center;
@@ -683,7 +696,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         nodes: &[Self],
         node_to_fix: usize,
         m: usize,
-        pool: &NodePool<P, K, M>,
+        pool: &dyn NodePool<P, K, M>,
     ) -> Option<usize> {
         let siblings_to_merge_to = nodes.iter().enumerate().filter(|(i, sibling)| {
             let links = pool.get(sibling.links);
@@ -712,7 +725,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         nodes: &mut ArrayVec<Self, M>,
         mut node_index_1: usize,
         mut node_index_2: usize,
-        pool: &mut NodePool<P, K, M>,
+        pool: &mut dyn NodePool<P, K, M>,
     ) {
         if node_index_1 > node_index_2 {
             // remove node with larger index first
@@ -724,7 +737,7 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         nodes.push(node);
     }
 
-    fn merge(node_1: Self, node_2: Self, pool: &mut NodePool<P, K, M>) -> Self {
+    fn merge(node_1: Self, node_2: Self, pool: &mut dyn NodePool<P, K, M>) -> Self {
         let links_1 = pool.remove(node_1.links);
         let links_2 = pool.remove(node_2.links);
         match (links_1, links_2) {
@@ -756,14 +769,14 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
 #[derive(Debug)]
 pub struct SsTree<P, K: Center, const M: usize> {
     pub root: InnerLink<P, K, M>,
-    pub pool: NodePool<P, K, M>,
+    pub pool: NodePoolBaseline<P, K, M>,
     height: usize,
     m: usize,
 }
 
 impl<P, K: Center, const M: usize> SsTree<P, K, M> {
     pub fn new(m: usize) -> Self {
-        let mut pool = NodePool::new();
+        let mut pool = NodePoolBaseline::new();
         let links = pool.alloc();
         pool.put(links, Node::Leaf(ArrayVec::new()));
         Self {

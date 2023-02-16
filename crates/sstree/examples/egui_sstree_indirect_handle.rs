@@ -343,7 +343,7 @@ fn draw_tree<const M: usize>(
     node: &sstree::indirect_handle::InnerLink<u64, [f32; 2], M>,
     max_level: usize,
     draw_points: bool,
-    pool: &sstree::indirect_handle::NodePool<u64, [f32; 2], M>,
+    pool: &dyn sstree::indirect_handle::NodePool<u64, [f32; 2], M>,
 ) {
     let mut stack = Vec::new();
     stack.push((node, 0));
