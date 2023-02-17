@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use egui::{emath, Color32, Frame, Pos2, Rect, Sense, Shape, Stroke, Vec2};
 use rand::Rng;
-use sstree::indirect_handle::{Bounds, SsTree};
+use sstree::indirect_handle::{Bounds, SsTree, SsTreeI};
 
 struct Select {
     center: Pos2,
@@ -56,7 +56,7 @@ impl Select {
 }
 
 impl Drag {
-    fn update<const M: usize>(&mut self, pos: Pos2, tree: &mut SsTree<u64, [f32; 2], M>) {
+    fn update<const M: usize>(&mut self, pos: Pos2, tree: &mut dyn SsTreeI<u64, [f32; 2], M>) {
         //todo!()
         let mut element = tree
             .remove_if(
@@ -64,7 +64,7 @@ impl Drag {
                     center: [self.last_pos.x, self.last_pos.y],
                     radius: 1.0,
                 },
-                |k| *k == self.id,
+                &|k| *k == self.id,
             )
             .expect("failed to remove on drag");
 
@@ -90,11 +90,10 @@ enum Mode {
     Drag,
 }
 
-#[derive(Default)]
 struct MyEguiApp {
     shapes: Vec<Shape>,
 
-    tree: SsTree<u64, [f32; 2], M>,
+    tree: Box<dyn SsTreeI<u64, [f32; 2], M>>,
 
     mode: Mode,
     max_depth: usize,
@@ -228,7 +227,7 @@ impl MyEguiApp {
                             response
                                 .interact_pointer_pos()
                                 .expect("missing pointer pos in drag"),
-                            &mut self.tree,
+                            &mut *self.tree,
                         );
                     }
                     changed = true;
@@ -266,10 +265,10 @@ impl MyEguiApp {
             draw_tree(
                 painter.clip_rect(),
                 &mut self.shapes,
-                &self.tree.root,
+                self.tree.get_root(),
                 self.max_depth,
                 self.draw_points,
-                &self.tree.pool,
+                self.tree.get_pool(),
             );
         }
 
@@ -410,7 +409,7 @@ fn overlaps(bounds: Rect, centroid: [f32; 2], radius: f32) -> bool {
 }
 
 fn main() {
-    let mut tree = SsTree::new(LOWER_M);
+    let mut tree = SsTree::<u64, [f32; 2], M>::new(LOWER_M);
     let mut rng = rand::thread_rng();
 
     if !false {
@@ -435,7 +434,7 @@ fn main() {
     }
     let app = MyEguiApp {
         shapes: Vec::new(),
-        tree,
+        tree: Box::new(tree),
         mode: Mode::Draw,
         max_depth: 2,
         draw_points: true,

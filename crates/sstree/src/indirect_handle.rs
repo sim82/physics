@@ -853,17 +853,49 @@ mod util {
     }
 }
 
+pub trait SsTreeI<P, K: Center, const M: usize> {
+    fn insert(&mut self, payload: P, center: K, radius: f32);
+    fn insert_entry(&mut self, entry: LeafLink<P, K>);
+
+    fn remove(&mut self, point: &K);
+
+    fn get_height(&self) -> usize;
+    fn get_fill_factor(&self) -> f32;
+
+    fn find_entries_within_radius<'a>(
+        &'a self,
+        center_radius: &Bounds<K>,
+        out: &mut Vec<&'a LeafLink<P, K>>,
+    );
+
+    fn find_if(&self, center_radius: &Bounds<K>, f: &dyn Fn(&P) -> bool)
+        -> Option<&LeafLink<P, K>>;
+    fn remove_if(
+        &mut self,
+        center_radius: &Bounds<K>,
+        f: &dyn Fn(&P) -> bool,
+    ) -> Option<LeafLink<P, K>>;
+
+    fn get_root(&self) -> &InnerLink<P, K, M>;
+    fn get_pool(&self) -> &dyn NodePool<P, K, M>;
+}
+
 #[derive(Debug)]
-pub struct SsTree<P, K: Center, const M: usize> {
+pub struct SsTree<P, K: Center, const M: usize, N: NodePool<P, K, M> = NodePoolBaseline<P, K, M>> {
     pub root: InnerLink<P, K, M>,
-    pub pool: NodePoolBaseline<P, K, M>,
+    pub pool: N,
     height: usize,
     m: usize,
 }
 
-impl<P, K: Center, const M: usize> SsTree<P, K, M> {
+impl<P, K: Center, const M: usize, N: NodePool<P, K, M> + Default> SsTree<P, K, M, N> {
     pub fn new(m: usize) -> Self {
-        let mut pool = NodePoolBaseline::new();
+        let pool = N::default();
+        Self::with_pool(pool, m)
+    }
+}
+impl<P, K: Center, const M: usize, N: NodePool<P, K, M>> SsTree<P, K, M, N> {
+    pub fn with_pool(mut pool: N, m: usize) -> Self {
         let links = pool.alloc();
         pool.put(links, Node::Leaf(ArrayVec::new()));
         Self {
@@ -878,14 +910,16 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
             m,
         }
     }
+}
 
-    pub fn insert(&mut self, payload: P, center: K, radius: f32) {
+impl<P, K: Center, const M: usize, N: NodePool<P, K, M>> SsTreeI<P, K, M> for SsTree<P, K, M, N> {
+    fn insert(&mut self, payload: P, center: K, radius: f32) {
         self.insert_entry(LeafLink {
             center_radius: Bounds::from_center_radius(center, radius),
             payload,
         })
     }
-    pub fn insert_entry(&mut self, entry: LeafLink<P, K>) {
+    fn insert_entry(&mut self, entry: LeafLink<P, K>) {
         if let Some((new_child_1, new_child_2)) = self.root.insert(entry, self.m, &mut self.pool) {
             let mut nodes = ArrayVec::<_, M>::new();
             nodes.push(new_child_1);
@@ -903,7 +937,7 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
     }
 
     #[allow(clippy::overly_complex_bool_expr)]
-    pub fn remove(&mut self, point: &K) {
+    fn remove(&mut self, point: &K) {
         let (_deleted, _violiates_invariant) = self.root.remove(point, self.m, &mut self.pool);
 
         let links = self.pool.get(self.root.links);
@@ -919,15 +953,15 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
         }
     }
 
-    pub fn get_height(&self) -> usize {
+    fn get_height(&self) -> usize {
         self.height
     }
-    pub fn get_fill_factor(&self) -> f32 {
+    fn get_fill_factor(&self) -> f32 {
         let (num_points, num_nodes) = self.root.count_nodes(&self.pool);
         num_points as f32 / num_nodes as f32
     }
 
-    pub fn find_entries_within_radius<'a>(
+    fn find_entries_within_radius<'a>(
         &'a self,
         center_radius: &Bounds<K>,
         out: &mut Vec<&'a LeafLink<P, K>>,
@@ -936,17 +970,17 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
             .find_entries_within_radius(center_radius, out, &self.pool);
     }
 
-    pub fn find_if<'a, F: Fn(&P) -> bool>(
-        &'a self,
+    fn find_if(
+        &self,
         center_radius: &Bounds<K>,
-        f: F,
-    ) -> Option<&'a LeafLink<P, K>> {
+        f: &dyn Fn(&P) -> bool,
+    ) -> Option<&LeafLink<P, K>> {
         self.root.find_if(center_radius, &f, &self.pool)
     }
-    pub fn remove_if<F: Fn(&P) -> bool>(
+    fn remove_if(
         &mut self,
         center_radius: &Bounds<K>,
-        f: F,
+        f: &dyn Fn(&P) -> bool,
     ) -> Option<LeafLink<P, K>> {
         let deleted_entry = self
             .root
@@ -963,6 +997,14 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
             _ => (),
         }
         deleted_entry
+    }
+
+    fn get_root(&self) -> &InnerLink<P, K, M> {
+        &self.root
+    }
+
+    fn get_pool(&self) -> &dyn NodePool<P, K, M> {
+        &self.pool
     }
 }
 
@@ -1019,6 +1061,8 @@ fn test_bevy_vec3() {
 
 #[cfg(test)]
 mod test {
+    use crate::indirect_handle::SsTreeI;
+
     use super::Bounds;
 
     use super::LeafLink;
@@ -1169,7 +1213,7 @@ impl SpatialIndex {
         if let Some(center_radius) = from {
             if self
                 .sstree
-                .remove_if(&center_radius, |e| *e == entity)
+                .remove_if(&center_radius, &|e| *e == entity)
                 .is_none()
             {
                 error!("failed to remove brush from spatial index for update");
@@ -1180,7 +1224,7 @@ impl SpatialIndex {
     }
 
     pub fn remove(&mut self, entity: Entity, bounds: SpatialBounds) {
-        self.sstree.remove_if(&bounds, |e| *e == entity);
+        self.sstree.remove_if(&bounds, &|e| *e == entity);
     }
 
     pub fn query(&self, bounds: SpatialBounds) -> impl Iterator<Item = Entity> + '_ {
