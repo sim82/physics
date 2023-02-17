@@ -766,6 +766,93 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
     //   return points
 }
 
+mod util {
+    use super::{Bounds, Center};
+
+    pub fn mean_along_direction<K: Center>(
+        entry: &[impl AsRef<Bounds<K>>],
+        direction_index: usize,
+    ) -> f32 {
+        assert!(!entry.is_empty());
+        let count = entry.len() as f32;
+        let sum = entry
+            .iter()
+            .map(|point| point.as_ref().center[direction_index])
+            .sum::<f32>();
+        sum / count
+    }
+
+    pub fn variance_along_direction<K: Center>(
+        entries: &[impl AsRef<Bounds<K>>],
+        direction_index: usize,
+    ) -> f32 {
+        assert!(!entries.is_empty());
+        let mean = mean_along_direction(entries, direction_index);
+        let count = entries.len() as f32;
+        entries
+            .iter()
+            .map(|point| {
+                let diff = mean - point.as_ref().center[direction_index];
+                diff * diff
+            })
+            .sum::<f32>()
+            / count
+    }
+
+    pub fn direction_of_max_variance<K: Center>(entries: &[impl AsRef<Bounds<K>>]) -> usize {
+        let mut max_variance = 0.0;
+        let mut direction_index = 0;
+        for i in 0..K::NUM_DIMENSIONS {
+            let variance = variance_along_direction(entries, i);
+            if variance > max_variance {
+                max_variance = variance;
+                direction_index = i;
+            }
+        }
+        direction_index
+    }
+
+    pub fn centroid<K: Center>(entries: &[impl AsRef<Bounds<K>>]) -> K {
+        let mut centroid = K::default();
+        for i in 0..K::NUM_DIMENSIONS {
+            centroid[i] = mean_along_direction(entries, i);
+        }
+        centroid
+    }
+
+    pub fn centroid_and_radius<K: Center>(nodes: &[impl AsRef<Bounds<K>>]) -> Bounds<K> {
+        let centroid = centroid::<K>(nodes);
+        let radius = nodes
+            .iter()
+            .map(|node| centroid.distance(&node.as_ref().center) + node.as_ref().radius)
+            .max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
+            .unwrap();
+        Bounds::from_center_radius(centroid, radius)
+    }
+
+    pub fn find_split_index<K: Center>(nodes: &mut [impl AsRef<Bounds<K>>], m: usize) -> usize {
+        let coordinate_index = direction_of_max_variance::<K>(nodes);
+        nodes.sort_by(|p1, p2| {
+            p1.as_ref().center[coordinate_index]
+                .partial_cmp(&p2.as_ref().center[coordinate_index])
+                .unwrap()
+        });
+
+        let mut min_variance = f32::INFINITY;
+        let mut split_index = m;
+        for i in m..=(nodes.len() - m) {
+            let variance1 = variance_along_direction(&nodes[..i], coordinate_index);
+            let variance2 = variance_along_direction(&nodes[i..], coordinate_index);
+            let variance = variance1 + variance2;
+            if variance < min_variance {
+                min_variance = variance;
+                split_index = i;
+            }
+        }
+        split_index
+    }
+}
+
 #[derive(Debug)]
 pub struct SsTree<P, K: Center, const M: usize> {
     pub root: InnerLink<P, K, M>,
@@ -882,93 +969,6 @@ impl<P, K: Center, const M: usize> SsTree<P, K, M> {
 impl<P, K: Center, const M: usize> Default for SsTree<P, K, M> {
     fn default() -> Self {
         Self::new(M / 2)
-    }
-}
-
-mod util {
-    use super::{Bounds, Center};
-
-    pub fn mean_along_direction<K: Center>(
-        entry: &[impl AsRef<Bounds<K>>],
-        direction_index: usize,
-    ) -> f32 {
-        assert!(!entry.is_empty());
-        let count = entry.len() as f32;
-        let sum = entry
-            .iter()
-            .map(|point| point.as_ref().center[direction_index])
-            .sum::<f32>();
-        sum / count
-    }
-
-    pub fn variance_along_direction<K: Center>(
-        entries: &[impl AsRef<Bounds<K>>],
-        direction_index: usize,
-    ) -> f32 {
-        assert!(!entries.is_empty());
-        let mean = mean_along_direction(entries, direction_index);
-        let count = entries.len() as f32;
-        entries
-            .iter()
-            .map(|point| {
-                let diff = mean - point.as_ref().center[direction_index];
-                diff * diff
-            })
-            .sum::<f32>()
-            / count
-    }
-
-    pub fn direction_of_max_variance<K: Center>(entries: &[impl AsRef<Bounds<K>>]) -> usize {
-        let mut max_variance = 0.0;
-        let mut direction_index = 0;
-        for i in 0..K::NUM_DIMENSIONS {
-            let variance = variance_along_direction(entries, i);
-            if variance > max_variance {
-                max_variance = variance;
-                direction_index = i;
-            }
-        }
-        direction_index
-    }
-
-    pub fn centroid<K: Center>(entries: &[impl AsRef<Bounds<K>>]) -> K {
-        let mut centroid = K::default();
-        for i in 0..K::NUM_DIMENSIONS {
-            centroid[i] = mean_along_direction(entries, i);
-        }
-        centroid
-    }
-
-    pub fn centroid_and_radius<K: Center>(nodes: &[impl AsRef<Bounds<K>>]) -> Bounds<K> {
-        let centroid = centroid::<K>(nodes);
-        let radius = nodes
-            .iter()
-            .map(|node| centroid.distance(&node.as_ref().center) + node.as_ref().radius)
-            .max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
-            .unwrap();
-        Bounds::from_center_radius(centroid, radius)
-    }
-
-    pub fn find_split_index<K: Center>(nodes: &mut [impl AsRef<Bounds<K>>], m: usize) -> usize {
-        let coordinate_index = direction_of_max_variance::<K>(nodes);
-        nodes.sort_by(|p1, p2| {
-            p1.as_ref().center[coordinate_index]
-                .partial_cmp(&p2.as_ref().center[coordinate_index])
-                .unwrap()
-        });
-
-        let mut min_variance = f32::INFINITY;
-        let mut split_index = m;
-        for i in m..=(nodes.len() - m) {
-            let variance1 = variance_along_direction(&nodes[..i], coordinate_index);
-            let variance2 = variance_along_direction(&nodes[i..], coordinate_index);
-            let variance = variance1 + variance2;
-            if variance < min_variance {
-                min_variance = variance;
-                split_index = i;
-            }
-        }
-        split_index
     }
 }
 
