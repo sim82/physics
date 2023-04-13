@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 # not specifying specific versions of bevy crates so that the actual version is determined by the main project
-bevy = { version = "0.9" }                       #, features = ["dynamic"] }
-bevy_rapier3d = { version = "0.20" }             #, features = ["debug-render"] }
-serde = { version = "1", features = ["derive"] }
-bevy-inspector-egui = { version = "0.15" }
-bitflags = "1"
+bevy = { workspace = true }
+bevy_rapier3d = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+bevy-inspector-egui = { workspace = true }
+bitflags = { workspace = true }

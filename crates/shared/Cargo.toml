@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 # not specifying specific versions of bevy crates so that the actual version is determined by the main project
 
-bevy = { version = "0.9" } #, features = ["dynamic"] }
+bevy = { workspace = true } #, features = ["dynamic"] }

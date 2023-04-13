@@ -14,17 +14,10 @@ default = ["inspector"]
 # default = []
 
 
-[dependencies]
-# ] }
-# bevy = { version = "0.9" }
-bevy = { version = "0.9.1", features = ["dynamic"] }
+[workspace.dependencies]
+bevy = { version = "0.10", features = ["dynamic_linking"] }
 wgpu = "*"
-bevy-inspector-egui = { version = "0.15", optional = true }
-
-# TODO: bevy 0.9
-# bevy-inspector-egui-rapier = { version = "0.7", optional = true, features = [
-#     "rapier3d",
-# ] }
+bevy-inspector-egui = { version = "0.18" }
 
 log = "0.4"
 anyhow = { version = "1" }
@@ -34,28 +27,13 @@ serde_yaml = "0.9"
 ron = "0.8"
 
 flexbuffers = "2"
-# bevy_rapier3d = { version = "0.18", path = "ext/bevy_rapier/bevy_rapier3d", features = [
-#     "debug-render",
-# ] }
-bevy_rapier3d = { version = "0.20", features = [
+bevy_rapier3d = { version = "0.21", features = [
     "debug-render",
     "serde-serialize",
 ] }
 
-# rapier3d = { version = "0.16.0" }
-# bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [
-#     "debug-render",
-# ] }
 gltf = "*"
-bevy_prototype_debug_lines = { version = "0.9", features = ["3d"] }
-# bevy_fps_controller = "0.1.2-dev"
-# parry3d = { version = "*", features = ["serde-serialize"] }
-# nalgebra = { version = "*", features = ["serde-serialize-no-std"] }
-# bevy_ecs_ldtk = "0.4"
-# [patch.crates-io]
-# bevy_mod_raycast = { path = "bevy_mod_raycast" }
-
-# bevy_atmosphere = "0.4"
+bevy_prototype_debug_lines = { version = "0.10", features = ["3d"] }
 bevy_atmosphere = { git = "https://github.com/JonahPlusPlus/bevy_atmosphere.git" }
 bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
 bitflags = "1"
@@ -67,10 +45,49 @@ env_logger = "0.10"
 dialoguer = "0.10"
 console = "0.15"
 rayon = "1"
-bevy_egui = "0.18"
+bevy_egui = "0.20"
 arrayvec = "0.7"
-bevy_mod_outline = "0.3"
+bevy_mod_outline = "0.4"
 thiserror = "1"
+#bevy_infinite_grid = "0.6.0"
+bevy_infinite_grid = {git="https://github.com/PikminGuts92/bevy_infinite_grid.git", branch="bevy-0.10"}
+parry3d = "0.13"
+
+[dependencies]
+bevy = { workspace = true, features = ["dynamic_linking"] }
+wgpu = {workspace = true}
+bevy-inspector-egui = { workspace = true, optional = true }
+
+log = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+ron = { workspace = true }
+
+flexbuffers = { workspace = true }
+bevy_rapier3d = { workspace = true, features = [
+    "debug-render",
+    "serde-serialize",
+] }
+
+gltf = { workspace = true }
+bevy_prototype_debug_lines = { workspace = true, features = ["3d"] }
+bevy_atmosphere = { workspace = true }
+bevy_mod_mipmap_generator = { workspace = true }
+bitflags = { workspace = true }
+quick-xml = { workspace = true, features = ["serialize"] }
+zip = { workspace = true, default-features = false, features = ["deflate"] }
+clap = { workspace = true, features = ["derive"] }
+image = { workspace = true }
+env_logger = { workspace = true }
+dialoguer = { workspace = true }
+console = { workspace = true }
+rayon = { workspace = true }
+bevy_egui = { workspace = true }
+arrayvec = { workspace = true }
+bevy_mod_outline = { workspace = true }
+thiserror = { workspace = true }
 
 csg = { path = "crates/csg" }
 sstree = { path = "crates/sstree" }

@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.9.1" }               #, features = ["dynamic"] }
-bevy-inspector-egui = { version = "0.15" }
-arrayvec = "0.7"
+bevy = { workspace = true }               #, features = ["dynamic"] }
+bevy-inspector-egui = { workspace = true }
+arrayvec = { workspace = true }
 
 [dev-dependencies]
 draw = "^0.3"
