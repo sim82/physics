@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use bevy_egui::EguiContext;
+use bevy_egui::{EguiContext, EguiContexts};
 use bevy_inspector_egui::egui;
 use bevy_rapier3d::render::DebugRenderContext;
 
@@ -13,7 +13,7 @@ use super::{
 };
 
 pub fn wm_test_setup_system(
-    mut egui_context: ResMut<EguiContext>,
+    mut egui_context: EguiContexts,
     mut wm_state: ResMut<resources::WmState>,
     mut image_assets: ResMut<Assets<Image>>,
 ) {
@@ -29,7 +29,7 @@ pub fn wm_test_setup_system(
 }
 
 pub fn wm_test_system(
-    mut egui_context: ResMut<EguiContext>,
+    mut egui_context: EguiContexts,
     mut wm_state: ResMut<resources::WmState>,
     mut image_assets: ResMut<Assets<Image>>,
     mut event_writer: EventWriter<WmEvent>,
@@ -151,7 +151,7 @@ pub fn wm_test_system(
                 );
             });
 
-        let zoom_delta = ui.input().zoom_delta();
+        let zoom_delta = ui.input(|i| i.zoom_delta());
         if zoom_delta != 1.0 {
             event_writer.send(WmEvent::ZoomDelta(zoom_delta)); // uhm yeah, why not...
         }
@@ -196,8 +196,8 @@ fn send_wm_events_for_egui_response(
     event_writer: &mut EventWriter<WmEvent>,
     name: &'static str,
 ) {
-    let pointer_state = &response.ctx.input().pointer;
-    let modifiers = response.ctx.input().modifiers.into();
+    let pointer_state = &response.ctx.input(|i| i.pointer); // FIXME: do all in one input block
+    let modifiers = response.ctx.input(|i| i.modifiers.into());
     let button = if pointer_state.button_down(egui::PointerButton::Primary) {
         WmMouseButton::Left
     } else if pointer_state.button_down(egui::PointerButton::Middle) {
@@ -221,7 +221,7 @@ fn send_wm_events_for_egui_response(
 
         let drag_allowed = button == WmMouseButton::Middle
             || button == WmMouseButton::Right
-            || response.ctx.input().modifiers.ctrl
+            || response.ctx.input(|i| i.modifiers.ctrl)
             || slot.drag_active;
 
         if drag_allowed {

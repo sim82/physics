@@ -13,7 +13,9 @@ use bevy::{
     prelude::*,
     render::{mesh, view::RenderLayers},
     utils::{HashSet, Instant},
+    window::PrimaryWindow,
 };
+use bevy_egui::EguiContexts;
 use bevy_mod_outline::OutlineMeshExt;
 use serde::{Deserialize, Serialize};
 use shared::render_layers;
@@ -24,7 +26,7 @@ pub fn setup(
     mut materials_res: ResMut<resources::Materials>,
     mut material_browser: ResMut<resources::MaterialBrowser>,
     mut asset_server: ResMut<AssetServer>,
-    mut egui_context: ResMut<bevy_egui::EguiContext>,
+    mut egui_context: EguiContexts,
     mut material_assets: ResMut<Assets<StandardMaterial>>,
 ) {
     materials_res.material_defs =
@@ -75,18 +77,19 @@ pub fn setup(
 pub fn editor_input_system(
     mut commands: Commands,
     mut edit_commands: EditCommands,
-    mut windows: ResMut<Windows>,
+    // mut windows: ResMut<Windows>,
+    primary_query: Query<&Window, With<PrimaryWindow>>,
     keycodes: Res<Input<KeyCode>>,
     selection_query: Query<Entity, With<components::Selected>>,
     mut clip_state: ResMut<resources::ClipState>,
 ) {
     {
-        let window = windows.get_primary_mut().unwrap();
+        let Ok(window) = primary_query.get_single_mut() else { return };
         if keycodes.just_pressed(KeyCode::LShift) {
-            window.set_cursor_grab_mode(bevy::window::CursorGrabMode::Confined)
+            window.cursor.grab_mode = bevy::window::CursorGrabMode::Confined;
         }
         if keycodes.just_released(KeyCode::LShift) {
-            window.set_cursor_grab_mode(bevy::window::CursorGrabMode::None)
+            window.cursor.grab_mode = bevy::window::CursorGrabMode::None;
         }
     }
     if keycodes.pressed(KeyCode::LShift) {
@@ -126,7 +129,7 @@ pub fn editor_input_system(
     if keycodes.just_pressed(KeyCode::K) {
         commands
             .spawn((SpatialBundle::default(), components::EditablePoint))
-            .add_children(|commands| {
+            .with_children(|commands| {
                 let mut offset = Vec3::ZERO;
                 for _ in 0..20 {
                     commands.spawn((
@@ -606,7 +609,8 @@ pub fn track_lights_system(
                             radius: 0.1,
                             subdivisions: 2,
                         }
-                        .into(),
+                        .try_into()
+                        .expect("Icosphere to mesh failed"), // FIXME: handle?
                     ),
                     material: materials_res.get_brush_2d_material(),
 
@@ -655,17 +659,18 @@ pub fn track_lights_system(
             .spawn((
                 DirectionalLightBundle {
                     directional_light: DirectionalLight {
-                        shadow_projection: OrthographicProjection {
-                            left: -half_size,
-                            right: half_size,
-                            bottom: -half_size,
-                            top: half_size,
-                            near: -10.0 * half_size,
-                            far: 10.0 * half_size,
-                            ..default()
-                        },
+                        // shadow_projection: OrthographicProjection {
+                        //     left: -half_size,
+                        //     right: half_size,
+                        //     bottom: -half_size,
+                        //     top: half_size,
+                        //     near: -10.0 * half_size,
+                        //     far: 10.0 * half_size,
+                        //     ..default()
+                        // },
 
-                        shadows_enabled: true,
+                        // shadows_enabled: true,
+                        shadows_enabled: false,
                         ..default()
                     },
                     ..default()

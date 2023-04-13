@@ -5,8 +5,7 @@ use bevy::{
     utils::{hashbrown::hash_map, HashMap, HashSet},
     window::WindowId,
 };
-use bevy_egui::{egui, EguiContext};
-use bevy_inspector_egui::Inspectable;
+use bevy_egui::{egui, EguiContext, EguiContexts};
 use serde::{Deserialize, Serialize};
 
 use super::util::Orientation2d;
@@ -175,7 +174,7 @@ impl MaterialBrowser {
         &mut self,
         materials: I,
         asset_server: &mut AssetServer,
-        egui_context: &mut bevy_egui::EguiContext,
+        egui_context: &mut bevy_egui::EguiContexts,
     ) where
         I: IntoIterator<Item = &'a material::Material>,
     {
@@ -204,7 +203,7 @@ pub struct WmSlot {
 }
 
 impl WmSlot {
-    pub fn new(image_assets: &mut Assets<Image>, egui_context: &mut EguiContext) -> Self {
+    pub fn new(image_assets: &mut Assets<Image>, egui_context: &mut EguiContexts) -> Self {
         let size = wgpu::Extent3d {
             width: 32,
             height: 32,

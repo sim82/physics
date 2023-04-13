@@ -1,12 +1,12 @@
 use bevy::{prelude::*, utils::Instant};
-use bevy_egui::EguiContext;
+use bevy_egui::EguiContexts;
 use bevy_inspector_egui::egui;
 
 use super::resources;
 // use bevy_
 
 pub fn materials_egui_system(
-    mut egui_context: ResMut<EguiContext>,
+    mut egui_context: EguiContexts,
     mut materials_res: ResMut<resources::Materials>,
     mut material_browser: ResMut<resources::MaterialBrowser>,
     // images: Res<Assets<Image>>,

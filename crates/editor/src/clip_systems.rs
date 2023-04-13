@@ -14,7 +14,7 @@ pub fn clip_plane_setup_system(
 
     commands
         .spawn(components::ClipPlaneBundle::default())
-        .add_children(|commands| {
+        .with_children(|commands| {
             commands.spawn((
                 PbrBundle {
                     mesh: meshes.add(mesh),
@@ -159,11 +159,11 @@ pub fn clip_preview_system(
     if clip_state.clip_mode && !clip_state.last_clip_mode {
         info!("to clip mode");
         for mut vis in &mut clip_vis_query {
-            vis.is_visible = true;
+            *vis = Visibility::Inherited;
         }
         for entity in children {
             if let Ok(mut vis) = vis_query.get_mut(*entity) {
-                vis.is_visible = false;
+                *vis = Visibility::Hidden;
             }
         }
         clip_state.last_clip_mode = clip_state.clip_mode;
@@ -171,11 +171,11 @@ pub fn clip_preview_system(
         info!("from clip mode");
 
         for mut vis in &mut clip_vis_query {
-            vis.is_visible = false;
+            *vis = Visibility::Hidden;
         }
         for entity in children {
             if let Ok(mut vis) = vis_query.get_mut(*entity) {
-                vis.is_visible = true;
+                *vis = Visibility::Inherited;
             }
         }
         // clip_points.despawn();
@@ -224,8 +224,10 @@ pub fn clip_preview_system(
                     mesh: meshes.add(mesh),
                     material,
                     transform,
-                    visibility: Visibility {
-                        is_visible: clip_state.clip_mode,
+                    visibility: if clip_state.clip_mode {
+                        Visibility::Inherited
+                    } else {
+                        Visibility::Hidden
                     },
                     ..default()
                 },
