@@ -1,7 +1,6 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use bevy_inspector_egui::Inspectable;
 use csg::{self, Brush};
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +36,7 @@ impl Default for DirectionalLightProperties {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Component, Inspectable, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Component, Reflect, Default)]
 // #[reflect(Component)]
 pub struct BrushMaterialProperties {
     pub materials: Vec<String>,
@@ -206,7 +205,7 @@ pub struct MaterialRef {
 #[derive(Component)]
 pub struct CsgCollisionOutput;
 
-#[derive(Component, Inspectable, Clone)]
+#[derive(Component, Reflect, Clone)]
 pub struct CsgRepresentation {
     pub bounds: SpatialBounds,
     pub csg: csg::Csg,

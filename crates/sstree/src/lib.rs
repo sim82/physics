@@ -932,7 +932,7 @@ mod test {
 
 use bevy::prelude::*;
 
-#[derive(Debug, Clone, Copy, bevy_inspector_egui::Inspectable)]
+#[derive(Debug, Clone, Copy, bevy::reflect::Reflect)]
 pub struct SpatialBounds {
     pub center: Vec3,
     pub radius: f32,
