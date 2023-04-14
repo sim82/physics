@@ -18,16 +18,20 @@ pub mod wsx;
 
 pub struct EditorPlugin;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+#[system_set(base)]
 struct FixedUpdateStage;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+#[system_set(base)]
 struct TrackUpdateStage;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+#[system_set(base)]
 struct CsgStage;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+#[system_set(base)]
 struct PostCsgStage;
 
 pub struct CleanupCsgOutputEvent;
@@ -51,15 +55,18 @@ impl Plugin for EditorPlugin {
 
         // system order is relatively important, since brush csg depends on some derived data to be up to date.
         // Update stage: systems that directly receive user imput and / or only manupulate 'Editor Objects'
-        app.add_system_set(
-            SystemSet::on_update(AppState::Editor).with_system(systems::editor_input_system),
-        );
-        app.add_system_set(
-            SystemSet::on_enter(AppState::Editor).with_system(ortho_systems::enter_editor_state),
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Editor).with_system(ortho_systems::leave_editor_state),
-        );
+        // app.add_system_set(
+        //     SystemSet::on_update(AppState::Editor).with_system(systems::editor_input_system),
+        // );
+        app.add_system(systems::editor_input_system.in_set(OnUpdate(AppState::Editor)));
+        // app.add_system_set(
+        //     SystemSet::on_enter(AppState::Editor).with_system(ortho_systems::enter_editor_state),
+        // );
+        app.add_system(ortho_systems::enter_editor_state.in_schedule(OnEnter(AppState::Editor)));
+        // app.add_system_set(
+        //     SystemSet::on_exit(AppState::Editor).with_system(ortho_systems::leave_editor_state),
+        // );
+        app.add_system(ortho_systems::leave_editor_state.in_schedule(OnExit(AppState::Editor)));
 
         app.add_system(ortho_systems::edit_input_system)
             .add_system(ortho_systems::control_input_wm_system)
@@ -77,50 +84,85 @@ impl Plugin for EditorPlugin {
         //  - derive Editor Object origin from brush geometry
         //  - despawn
 
-        app.add_stage_after(
-            CoreStage::Update,
-            TrackUpdateStage,
-            SystemStage::parallel()
-                .with_system(systems::update_symlinked_materials_system)
-                .with_system(ortho_systems::adjust_clip_planes_system)
-                .with_system(systems::track_lights_system)
-                .with_system(systems::track_brush_updates)
-                .with_system(clip_systems::clip_plane_vis_system)
-                .with_system(systems::track_2d_vis_system.after(systems::track_brush_updates)),
+        // app.add_stage_after(
+        //     CoreStage::Update,
+        //     TrackUpdateStage,
+        //     SystemStage::parallel()
+        //         .with_system(systems::update_symlinked_materials_system)
+        //         .with_system(ortho_systems::adjust_clip_planes_system)
+        //         .with_system(systems::track_lights_system)
+        //         .with_system(systems::track_brush_updates)
+        //         .with_system(clip_systems::clip_plane_vis_system)
+        //         .with_system(systems::track_2d_vis_system.after(systems::track_brush_updates)),
+        // );
+        app.configure_set(
+            TrackUpdateStage
+                .after(CoreSet::UpdateFlush)
+                .before(CoreSet::PostUpdate),
+        );
+        app.add_systems(
+            (
+                systems::update_symlinked_materials_system,
+                ortho_systems::adjust_clip_planes_system,
+                systems::track_lights_system,
+                systems::track_brush_updates,
+                clip_systems::clip_plane_vis_system,
+                systems::track_2d_vis_system.after(systems::track_brush_updates),
+            )
+                .in_base_set(TrackUpdateStage),
         );
 
         // CsgStage: incremental CSG update. Deferred update with fixed timestep. Needs all 'fist order' post
         // procesing data to be up to date (especially derived translation for brushed, since output mesh is
         // attached to Editor Object and needs the correct origin. Also the spatial index should better be up to date...)
-        app.add_stage_after(
-            TrackUpdateStage,
-            CsgStage,
-            SystemStage::parallel()
-                .with_run_criteria(FixedTimestep::step(0.1))
-                .with_system(wm_systems::write_view_settings) // running as guest, just for fixed timestep...
-                .with_system(systems::create_brush_csg_system_inc),
+        // app.add_stage_after(
+        //     TrackUpdateStage,
+        //     CsgStage,
+        //     SystemStage::parallel()
+        //         .with_run_criteria(FixedTimestep::step(0.1))
+        //         .with_system(wm_systems::write_view_settings) // running as guest, just for fixed timestep...
+        //         .with_system(systems::create_brush_csg_system_inc),
+        // );
+        app.configure_set(CsgStage.after(TrackUpdateStage));
+        app.add_systems(
+            (
+                wm_systems::write_view_settings, // running as guest, just for fixed timestep...
+                systems::create_brush_csg_system_inc,
+            )
+                .in_base_set(CsgStage),
         );
-
+        // add.
         // PostCsgStage: update stuff that depends on Csg output, e.g. resolve material refs to bevy material
-        app.add_stage_after(
-            CsgStage,
-            PostCsgStage,
-            SystemStage::parallel()
-                .with_system(systems::update_material_refs_system)
-                .with_system(systems::track_primary_selection) // must run after track_2d_vis_system
-                .with_system(clip_systems::clip_preview_system), // .with_system(ortho_systems::clip_point_update_system)
+        // app.add_stage_after(
+        //     CsgStage,
+        //     PostCsgStage,
+        //     SystemStage::parallel()
+        //         .with_system(systems::update_material_refs_system)
+        //         .with_system(systems::track_primary_selection) // must run after track_2d_vis_system
+        //         .with_system(clip_systems::clip_preview_system), // .with_system(ortho_systems::clip_point_update_system)
+        // );
+        app.configure_set(PostCsgStage.after(CsgStage));
+        app.add_systems(
+            (
+                systems::update_material_refs_system,
+                systems::track_primary_selection, // must run after track_2d_vis_system
+                clip_systems::clip_preview_system, // .with_system(ortho_systems::clip_point_update_system)
+            )
+                .in_base_set(PostCsgStage),
         );
-
-        app.register_inspectable::<components::CsgRepresentation>();
-        app.register_inspectable::<components::BrushMaterialProperties>();
+        // app.register_inspectable::<components::CsgRepresentation>();
+        // app.register_inspectable::<components::BrushMaterialProperties>();
 
         // Wm test
         app.init_resource::<resources::WmState>();
-        app.add_startup_system_to_stage(StartupStage::PreStartup, wm_systems::wm_test_setup_system);
-
-        app.add_system_set(
-            SystemSet::on_update(AppState::Editor).with_system(wm_systems::wm_test_system),
+        app.add_startup_system(
+            wm_systems::wm_test_setup_system.in_base_set(StartupSet::PreStartup),
         );
+
+        // app.add_system_set(
+        //     SystemSet::on_update(AppState::Editor).with_system(wm_systems::wm_test_system),
+        // );
+        app.add_system(wm_systems::wm_test_system.in_set(OnUpdate(AppState::Editor)));
         app.add_event::<util::WmEvent>();
     }
 }

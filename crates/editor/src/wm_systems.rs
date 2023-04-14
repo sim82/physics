@@ -196,7 +196,7 @@ fn send_wm_events_for_egui_response(
     event_writer: &mut EventWriter<WmEvent>,
     name: &'static str,
 ) {
-    let pointer_state = &response.ctx.input(|i| i.pointer); // FIXME: do all in one input block
+    let pointer_state = response.ctx.input(|i| i.pointer.clone()); // FIXME: do all in one input block
     let modifiers = response.ctx.input(|i| i.modifiers.into());
     let button = if pointer_state.button_down(egui::PointerButton::Primary) {
         WmMouseButton::Left

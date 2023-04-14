@@ -78,13 +78,13 @@ pub fn editor_input_system(
     mut commands: Commands,
     mut edit_commands: EditCommands,
     // mut windows: ResMut<Windows>,
-    primary_query: Query<&Window, With<PrimaryWindow>>,
+    mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
     keycodes: Res<Input<KeyCode>>,
     selection_query: Query<Entity, With<components::Selected>>,
     mut clip_state: ResMut<resources::ClipState>,
 ) {
     {
-        let Ok(window) = primary_query.get_single_mut() else { return };
+        let Ok(mut window) = primary_query.get_single_mut() else { return };
         if keycodes.just_pressed(KeyCode::LShift) {
             window.cursor.grab_mode = bevy::window::CursorGrabMode::Confined;
         }
