@@ -48,7 +48,7 @@ pub fn enter_editor_state(
         let camera = Camera {
             // target: RenderTarget::Window(window_id),
             target: RenderTarget::Image(offscreen_image.clone()),
-            priority: -1,
+            order: -1,
             ..default()
         };
         // lazy create camera entities

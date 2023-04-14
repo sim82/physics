@@ -1,5 +1,5 @@
-use bevy::{app::PluginGroupBuilder, prelude::*, time::FixedTimestep};
-use bevy_inspector_egui::RegisterInspectable;
+use bevy::app::PluginGroupBuilder;
+use bevy::prelude::*;
 
 use shared::AppState;
 

@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use bevy::{
     prelude::*,
     utils::{hashbrown::hash_map, HashMap, HashSet},
-    window::WindowId,
 };
 use bevy_egui::{egui, EguiContext, EguiContexts};
 use serde::{Deserialize, Serialize};
@@ -47,7 +46,7 @@ pub const LOWER_WINDOW: &str = "lower";
 #[derive(Default, Resource)]
 pub struct EditorWindows2d {
     pub windows: HashMap<String, EditorWindow2d>,
-    pub focused: Option<(String, WindowId)>,
+    // pub focused: Option<(String, WindowId)>,
     pub cursor_pos: Vec2,
     pub translate_drag: Option<TranslateDrag>,
     pub view_min: Vec3,
@@ -222,6 +221,7 @@ impl WmSlot {
                 usage: wgpu::TextureUsages::TEXTURE_BINDING
                     | wgpu::TextureUsages::COPY_DST
                     | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: default(),
             },
             ..default()
         };
