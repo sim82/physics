@@ -31,7 +31,10 @@ struct TrackUpdateStage;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 #[system_set(base)]
-struct CsgStage;
+enum CsgStage {
+    Parallel,
+    CommandFlush,
+}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 #[system_set(base)]
@@ -126,11 +129,13 @@ impl Plugin for EditorPlugin {
         //         .with_system(wm_systems::write_view_settings) // running as guest, just for fixed timestep...
         //         .with_system(systems::create_brush_csg_system_inc),
         // )l
-        app.configure_set(CsgStage.after(TrackUpdateStage));
+        // app.configure_sets(CsgStage.after(TrackUpdateStage));
+        app.configure_sets((CsgStage::Parallel, CsgStage::CommandFlush).chain())
+            .add_system(apply_system_buffers.in_base_set(CsgStage::CommandFlush));
         app.add_system(
             systems::create_brush_csg_system_inc
-                .run_if(on_timer(Duration::from_millis(100)))
-                .in_base_set(CsgStage),
+                // .run_if(on_timer(Duration::from_millis(100)))
+                .in_base_set(CsgStage::Parallel),
         );
         // add.
         // PostCsgStage: update stuff that depends on Csg output, e.g. resolve material refs to bevy material
@@ -142,7 +147,7 @@ impl Plugin for EditorPlugin {
         //         .with_system(systems::track_primary_selection) // must run after track_2d_vis_system
         //         .with_system(clip_systems::clip_preview_system), // .with_system(ortho_systems::clip_point_update_system)
         // );
-        app.configure_set(PostCsgStage.after(CsgStage));
+        app.configure_set(PostCsgStage.after(CsgStage::CommandFlush));
         app.add_systems(
             (
                 systems::update_material_refs_system,
