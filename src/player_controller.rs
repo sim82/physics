@@ -80,8 +80,7 @@ pub fn player_controller_input_system(
     app_state: Res<State<AppState>>,
 ) {
     for (mut input_source, mut queue) in &mut query {
-        let input_enabled =
-            *app_state.current() != AppState::Editor || key_codes.pressed(input_source.walk);
+        let input_enabled = app_state.0 != AppState::Editor || key_codes.pressed(input_source.walk);
 
         if !input_enabled {
             continue;

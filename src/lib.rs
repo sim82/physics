@@ -4,8 +4,7 @@ use bevy::{
     prelude::*,
 };
 #[cfg(feature = "inspector")]
-use bevy_inspector_egui::WorldInspectorParams;
-
+// use bevy_inspector_egui::WorldInspectorParams;
 use bevy_rapier3d::prelude::*;
 use shared::AppState;
 
@@ -109,7 +108,7 @@ pub fn exit_on_esc_system(
 }
 
 mod resources {
-    use bevy::{core_pipeline::core_2d::graph::node::FXAA, prelude::Resource};
+    use bevy::prelude::Resource;
 
     #[derive(Resource, Copy, Clone, Default, Debug)]
     pub enum AaState {
@@ -154,7 +153,7 @@ mod systems {
         core_pipeline::fxaa::Fxaa,
         prelude::*,
         render::{camera::RenderTarget, view::RenderLayers},
-        window::CursorGrabMode,
+        window::{CursorGrabMode, PrimaryWindow},
     };
     use bevy_atmosphere::prelude::AtmosphereCamera;
     use bevy_rapier3d::{
@@ -247,12 +246,13 @@ mod systems {
 
     pub fn toggle_debug_menu_system(
         key_codes: Res<Input<KeyCode>>,
-        mut app_state: ResMut<State<AppState>>,
+        app_state: Res<State<AppState>>,
+        mut next_state: ResMut<NextState<AppState>>,
     ) {
         if key_codes.just_pressed(KeyCode::F3) {
-            match app_state.current() {
-                AppState::Editor => app_state.set(AppState::InGame).unwrap(),
-                AppState::InGame => app_state.set(AppState::Editor).unwrap(),
+            match app_state.0 {
+                AppState::Editor => next_state.set(AppState::InGame),
+                AppState::InGame => next_state.set(AppState::Editor),
             }
         }
     }
@@ -314,7 +314,10 @@ mod systems {
         }
     }
 
-    pub fn enter_ingame_system(mut commands: Commands, mut windows: ResMut<Windows>) {
+    pub fn enter_ingame_system(
+        mut commands: Commands,
+        mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
+    ) {
         commands
             .spawn(Camera3dBundle { ..default() })
             .insert(PlayerCamera)
@@ -325,21 +328,28 @@ mod systems {
             })
             .insert(RenderLayers::layer(render_layers::MAIN_3D))
             .insert(components::IngameCamera);
+        let Ok(mut window) = primary_query.get_single_mut() else {
 
-        let window = windows.get_primary_mut().unwrap();
-        window.set_cursor_grab_mode(CursorGrabMode::Locked)
+            
+                        return;
+        };
+        window.cursor.grab_mode = CursorGrabMode::Locked;
     }
     pub fn leave_ingame_system(
         mut commands: Commands,
-        mut windows: ResMut<Windows>,
+        mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
         query: Query<Entity, With<components::IngameCamera>>,
     ) {
         for entity in &query {
             commands.entity(entity).despawn();
         }
+        let Ok(mut window) = primary_query.get_single_mut() else {
 
-        let window = windows.get_primary_mut().unwrap();
-        window.set_cursor_grab_mode(CursorGrabMode::None)
+            
+                        return;
+        };
+
+        window.cursor.grab_mode = CursorGrabMode::None;
     }
     pub fn toggle_anti_aliasing(
         mut state: ResMut<resources::AaState>,
@@ -353,15 +363,15 @@ mod systems {
             for mut fxaa in &mut query {
                 match *state {
                     resources::AaState::Msaa4 => {
-                        msaa.samples = 4;
+                        *msaa = Msaa::Sample4;
                         fxaa.enabled = false
                     }
                     resources::AaState::Fxaa => {
-                        msaa.samples = 1;
+                        *msaa = Msaa::Off;
                         fxaa.enabled = true;
                     }
                     resources::AaState::Disabled => {
-                        msaa.samples = 1;
+                        *msaa = Msaa::Off;
                         fxaa.enabled = false;
                     }
                 }
@@ -409,31 +419,35 @@ impl Plugin for GameplayPlugin {
         app.add_startup_system(systems::setup_player_system);
         app.add_startup_system(systems::setup_debug_render_system);
         app.add_system(systems::update_deferred_mesh_system);
-        app.add_state(AppState::InGame);
+        app.add_state::<AppState>();
         app.add_system(systems::toggle_debug_menu_system);
         app.add_asset_loader(norm::NormalMappedImageTextureLoader);
         #[cfg(feature = "inspector")]
         {
-            app.insert_resource(WorldInspectorParams {
-                enabled: true,
-                ..default()
-            });
-            app.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
+            // app.insert_resource(WorldInspectorParams {
+            //     enabled: true,
+            //     ..default()
+            // });
+            app.add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::default());
             // app.add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin);
         }
-        app.add_system_set(
-            SystemSet::on_enter(AppState::Editor).with_system(systems::enter_editor_system),
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Editor).with_system(systems::leave_editor_system),
-        );
-
-        app.add_system_set(
-            SystemSet::on_enter(AppState::InGame).with_system(systems::enter_ingame_system),
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::InGame).with_system(systems::leave_ingame_system),
-        );
+        app.add_system(systems::enter_editor_system.in_schedule(OnEnter(AppState::Editor)));
+        // app.add_system_set(
+        //     SystemSet::on_enter(AppState::Editor).with_system(systems::enter_editor_system),
+        // );
+        
+        app.add_system(systems::leave_editor_system.in_schedule(OnExit(AppState::Editor)));
+        // app.add_system_set(
+        //     SystemSet::on_exit(AppState::Editor).with_system(systems::leave_editor_system),
+        // );
+        app.add_system(systems::enter_ingame_system.in_schedule(OnEnter(AppState::InGame)));
+        // app.add_system_set(
+        //     SystemSet::on_enter(AppState::InGame).with_system(systems::enter_ingame_system),
+        // );
+        app.add_system(systems::leave_ingame_system.in_schedule(OnExit(AppState::InGame)));
+        // app.add_system_set(
+        //     SystemSet::on_exit(AppState::InGame).with_system(systems::leave_ingame_system),
+        // );
 
         // FIXME: those do not really belong here (related to external plugins)
         // Add material types to be converted
