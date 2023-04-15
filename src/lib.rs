@@ -417,33 +417,13 @@ impl Plugin for GameplayPlugin {
         app.add_asset_loader(norm::NormalMappedImageTextureLoader);
         #[cfg(feature = "inspector")]
         {
-            // app.insert_resource(WorldInspectorParams {
-            //     enabled: true,
-            //     ..default()
-            // });
             app.add_plugin(bevy_inspector_egui::DefaultInspectorConfigPlugin);
-            app.add_plugin(bevy_egui::EguiPlugin);
-            // app.add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::default());
-            // app.add_plugin(bevy_inspector_egui::quick::AssetInspectorPlugin::<Mesh>::default());
-            // app.add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin);
         }
+        app.add_plugin(bevy_egui::EguiPlugin);
         app.add_system(systems::enter_editor_system.in_schedule(OnEnter(AppState::Editor)));
-        // app.add_system_set(
-        //     SystemSet::on_enter(AppState::Editor).with_system(systems::enter_editor_system),
-        // );
-
         app.add_system(systems::leave_editor_system.in_schedule(OnExit(AppState::Editor)));
-        // app.add_system_set(
-        //     SystemSet::on_exit(AppState::Editor).with_system(systems::leave_editor_system),
-        // );
         app.add_system(systems::enter_ingame_system.in_schedule(OnEnter(AppState::InGame)));
-        // app.add_system_set(
-        //     SystemSet::on_enter(AppState::InGame).with_system(systems::enter_ingame_system),
-        // );
         app.add_system(systems::leave_ingame_system.in_schedule(OnExit(AppState::InGame)));
-        // app.add_system_set(
-        //     SystemSet::on_exit(AppState::InGame).with_system(systems::leave_ingame_system),
-        // );
 
         // FIXME: those do not really belong here (related to external plugins)
         // Add material types to be converted

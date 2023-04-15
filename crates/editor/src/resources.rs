@@ -1,14 +1,12 @@
 use std::collections::BTreeMap;
 
+use super::util::Orientation2d;
 use bevy::{
     prelude::*,
     utils::{hashbrown::hash_map, HashMap, HashSet},
 };
-use bevy_egui::{egui, EguiContext, EguiContexts};
+use bevy_egui::{egui, EguiContexts};
 use serde::{Deserialize, Serialize};
-
-use super::util::Orientation2d;
-use sstree::SsTree;
 
 #[derive(Default, Resource)]
 pub struct SelectionPickSet {

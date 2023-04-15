@@ -1,6 +1,6 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
-use bevy_egui::{EguiContext, EguiContexts};
+use bevy_egui::EguiContexts;
 use bevy_inspector_egui::egui;
 use bevy_rapier3d::render::DebugRenderContext;
 
@@ -126,7 +126,8 @@ pub fn wm_test_system(world: &mut World) {
                             });
                         }
                     }
-                    WmSidpanelContent::Entities => {}
+                    WmSidpanelContent::Entities => { // meh, it is not really possible to integrate the world inspector here...
+                    }
                 }
 
                 // ui.allocate_space(ui.available_size());
@@ -175,17 +176,20 @@ pub fn wm_test_system(world: &mut World) {
     wm_state.slot_upper2d.check_resize(&mut image_assets);
     wm_state.slot_lower2d.check_resize(&mut image_assets);
 
-    // needs to be last dur to exclusive world access
-    egui::SidePanel::right("right side panel")
-        .resizable(true)
-        // .default_width(wm_state.settings.sidepanel_separator)
-        .show(&egui_context.ctx_mut().clone(), |ui| {
-            egui::ScrollArea::vertical()
-                .id_source("entity_browser")
-                .show(ui, |ui| {
-                    bevy_inspector_egui::bevy_inspector::ui_for_world_entities(world, ui);
-                })
-        });
+    #[cfg(feature = "inspector")]
+    {
+        // needs to be last due to exclusive world access
+        egui::SidePanel::right("right side panel")
+            .resizable(true)
+            // .default_width(wm_state.settings.sidepanel_separator)
+            .show(&egui_context.ctx_mut().clone(), |ui| {
+                egui::ScrollArea::vertical()
+                    .id_source("entity_browser")
+                    .show(ui, |ui| {
+                        bevy_inspector_egui::bevy_inspector::ui_for_world_entities(world, ui);
+                    })
+            });
+    }
 }
 
 fn show_2d_view(

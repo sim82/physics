@@ -39,7 +39,7 @@ fn test_system(
     time: Res<Time>,
     mut state: ResMut<State>,
     mut commands: Commands,
-    mut query2: Query<&A, Without<B>>,
+    _query2: Query<&A, Without<B>>,
     mut query: Query<(Entity, &mut A), With<B>>,
 ) {
     state.timer.tick(time.delta());
@@ -60,7 +60,7 @@ fn test_system(
     }
 }
 
-fn change_system(query2: Query<&A>, query: Query<(Entity, &A), Changed<A>>) {
+fn change_system(_query2: Query<&A>, query: Query<(Entity, &A), Changed<A>>) {
     for (entity, a) in &query {
         info!("changed: {:?} {}", entity, a.i);
     }

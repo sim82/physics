@@ -10,6 +10,7 @@ struct Select {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Drag {
     last_pos: Pos2,
 }
@@ -39,8 +40,8 @@ impl Drag {
         const M: usize,
     >(
         &mut self,
-        pos: Pos2,
-        tree: &mut SsTree<P, K, M>,
+        _pos: Pos2,
+        _tree: &mut SsTree<P, K, M>,
     ) {
         todo!()
         // let mut element = tree.remove_by_path(&self.path);

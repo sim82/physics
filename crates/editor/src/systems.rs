@@ -1,7 +1,7 @@
 use super::{
     components::{self, CsgOutput, CsgRepresentation},
     edit_commands::{add_brush, add_pointlight, duplicate_brush, remove_entity, EditCommands},
-    resources::{self},
+    resources,
 };
 
 use crate::{
@@ -656,7 +656,7 @@ pub fn track_lights_system(
 
     for (entity, light_props, _transform) in &directial_query {
         // directional 'sun' light
-        let half_size = light_props.half_size;
+        let _half_size = light_props.half_size;
 
         let light_entity = commands
             .spawn((

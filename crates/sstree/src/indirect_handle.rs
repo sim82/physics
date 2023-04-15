@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::sync::Mutex;
 
 use arrayvec::ArrayVec;
 use bevy::prelude::{Resource, Vec3};
