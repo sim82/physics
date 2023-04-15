@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemState, prelude::*};
 
 use bevy_egui::{EguiContext, EguiContexts};
 use bevy_inspector_egui::egui;
@@ -28,17 +28,25 @@ pub fn wm_test_setup_system(
     }
 }
 
-pub fn wm_test_system(
-    mut egui_context: EguiContexts,
-    mut wm_state: ResMut<resources::WmState>,
-    mut image_assets: ResMut<Assets<Image>>,
-    mut event_writer: EventWriter<WmEvent>,
-    mut materials_res: ResMut<resources::Materials>,
-    mut material_browser: ResMut<resources::MaterialBrowser>,
-    rapier_debug_context: Option<ResMut<DebugRenderContext>>,
-) {
-    let wm_state = &mut *wm_state;
-
+pub fn wm_test_system(world: &mut World) {
+    let mut system_state: SystemState<(
+        EguiContexts,
+        EventWriter<WmEvent>,
+        Option<ResMut<DebugRenderContext>>,
+        ResMut<resources::WmState>,
+        ResMut<Assets<Image>>,
+        ResMut<resources::Materials>,
+        ResMut<resources::MaterialBrowser>,
+    )> = SystemState::new(world);
+    let (
+        mut egui_context,
+        mut event_writer,
+        rapier_debug_context,
+        mut wm_state,
+        mut image_assets,
+        mut materials_res,
+        mut material_browser,
+    ) = system_state.get_mut(world);
     egui::SidePanel::left("left side panel")
         .resizable(true)
         .default_width(wm_state.settings.sidepanel_separator)
@@ -74,6 +82,11 @@ pub fn wm_test_system(
                         &mut wm_state.sidepanel_content,
                         WmSidpanelContent::Miscsettings,
                         "Misc",
+                    );
+                    ui.selectable_value(
+                        &mut wm_state.sidepanel_content,
+                        WmSidpanelContent::Entities,
+                        "Ent",
                     );
                 });
 
@@ -113,6 +126,7 @@ pub fn wm_test_system(
                             });
                         }
                     }
+                    WmSidpanelContent::Entities => {}
                 }
 
                 // ui.allocate_space(ui.available_size());
@@ -160,6 +174,18 @@ pub fn wm_test_system(
     wm_state.slot_main3d.check_resize(&mut image_assets);
     wm_state.slot_upper2d.check_resize(&mut image_assets);
     wm_state.slot_lower2d.check_resize(&mut image_assets);
+
+    // needs to be last dur to exclusive world access
+    egui::SidePanel::right("right side panel")
+        .resizable(true)
+        // .default_width(wm_state.settings.sidepanel_separator)
+        .show(&egui_context.ctx_mut().clone(), |ui| {
+            egui::ScrollArea::vertical()
+                .id_source("entity_browser")
+                .show(ui, |ui| {
+                    bevy_inspector_egui::bevy_inspector::ui_for_world_entities(world, ui);
+                })
+        });
 }
 
 fn show_2d_view(

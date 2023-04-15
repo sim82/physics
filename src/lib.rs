@@ -421,7 +421,10 @@ impl Plugin for GameplayPlugin {
             //     enabled: true,
             //     ..default()
             // });
-            app.add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::default());
+            app.add_plugin(bevy_inspector_egui::DefaultInspectorConfigPlugin);
+            app.add_plugin(bevy_egui::EguiPlugin);
+            // app.add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::default());
+            // app.add_plugin(bevy_inspector_egui::quick::AssetInspectorPlugin::<Mesh>::default());
             // app.add_plugin(bevy_inspector_egui_rapier::InspectableRapierPlugin);
         }
         app.add_system(systems::enter_editor_system.in_schedule(OnEnter(AppState::Editor)));

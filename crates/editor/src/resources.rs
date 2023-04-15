@@ -259,6 +259,7 @@ pub enum WmSidpanelContent {
     #[default]
     Material,
     Miscsettings,
+    Entities,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
