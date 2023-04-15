@@ -1,6 +1,9 @@
+use std::time::Duration;
+
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 
+use bevy::time::common_conditions::on_timer;
 use shared::AppState;
 
 pub mod clip_systems;
@@ -122,13 +125,11 @@ impl Plugin for EditorPlugin {
         //         .with_run_criteria(FixedTimestep::step(0.1))
         //         .with_system(wm_systems::write_view_settings) // running as guest, just for fixed timestep...
         //         .with_system(systems::create_brush_csg_system_inc),
-        // );
+        // )l
         app.configure_set(CsgStage.after(TrackUpdateStage));
-        app.add_systems(
-            (
-                wm_systems::write_view_settings, // running as guest, just for fixed timestep...
-                systems::create_brush_csg_system_inc,
-            )
+        app.add_system(
+            systems::create_brush_csg_system_inc
+                .run_if(on_timer(Duration::from_millis(100)))
                 .in_base_set(CsgStage),
         );
         // add.
@@ -164,6 +165,9 @@ impl Plugin for EditorPlugin {
         // );
         app.add_system(wm_systems::wm_test_system.in_set(OnUpdate(AppState::Editor)));
         app.add_event::<util::WmEvent>();
+        app.add_system(
+            wm_systems::write_view_settings.run_if(on_timer(Duration::from_millis(500))),
+        );
     }
 }
 

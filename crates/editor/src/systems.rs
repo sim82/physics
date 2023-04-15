@@ -187,6 +187,7 @@ pub fn update_material_refs_system(
             Entity,
             &components::MaterialRef,
             &mut Handle<StandardMaterial>,
+            &mut Visibility,
         ),
         Changed<components::MaterialRef>,
     >,
@@ -195,13 +196,15 @@ pub fn update_material_refs_system(
         return;
     }
     // asset_server.mark_unused_assets()
-    for (entity, material_ref, mut material) in &mut query_changed {
+    for (entity, material_ref, mut material, mut visibility) in &mut query_changed {
         let Some(new_material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
             warn!( "material resource not found for {}", material_ref.material_name);
             continue;
         };
         // commands.entity(entity).insert(material);
         *material = new_material;
+        // new brushes (with pink default material) start hidden to prevent flickering.
+        *visibility = Visibility::Inherited;
         debug!("material ref changed {:?}", entity);
     }
 }
