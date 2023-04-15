@@ -21,22 +21,14 @@ pub mod wsx;
 
 pub struct EditorPlugin;
 
-// #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-// #[system_set(base)]
-// struct FixedUpdateStage;
-
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 #[system_set(base)]
-enum TrackUpdateStage {
-    Parallel,
-    CommandFlush,
-}
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-#[system_set(base)]
-enum CsgStage {
-    Parallel,
-    CommandFlush,
+enum EditorSet {
+    TrackUpdate,
+    TrackUpdateFlush,
+    Csg,
+    CsgFlush,
+    PostCsg,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
@@ -78,7 +70,7 @@ impl Plugin for EditorPlugin {
         //  - despawn
 
         // CsgStage: incremental CSG update. Deferred update with fixed timestep. Needs all 'fist order' post
-        // procesing data to be up to date (especially derived translation for brushes, since output mesh is
+        // processing data to be up to date (especially derived translation for brushes, since output mesh is
         // attached to Editor Object and needs the correct origin. Also the spatial index should better be up to date...)
 
         // PostCsgStage:
@@ -87,17 +79,17 @@ impl Plugin for EditorPlugin {
         app.configure_sets(
             (
                 CoreSet::UpdateFlush,
-                TrackUpdateStage::Parallel,
-                TrackUpdateStage::CommandFlush,
-                CsgStage::Parallel,
-                CsgStage::CommandFlush,
+                EditorSet::TrackUpdate,
+                EditorSet::TrackUpdateFlush,
+                EditorSet::Csg,
+                EditorSet::CsgFlush,
+                EditorSet::PostCsg,
                 CoreSet::PostUpdate,
-                PostCsgStage,
             )
                 .chain(),
         )
-        .add_system(apply_system_buffers.in_base_set(TrackUpdateStage::CommandFlush))
-        .add_system(apply_system_buffers.in_base_set(CsgStage::CommandFlush));
+        .add_system(apply_system_buffers.in_base_set(EditorSet::TrackUpdateFlush))
+        .add_system(apply_system_buffers.in_base_set(EditorSet::CsgFlush));
         app.add_systems(
             (
                 ortho_systems::edit_input_system,
@@ -119,13 +111,13 @@ impl Plugin for EditorPlugin {
                 clip_systems::clip_plane_vis_system,
                 systems::track_2d_vis_system.after(systems::track_brush_updates),
             )
-                .in_base_set(TrackUpdateStage::Parallel),
+                .in_base_set(EditorSet::TrackUpdate),
         );
         app.add_system(
             systems::create_brush_csg_system_inc
                 .run_if(on_timer(Duration::from_millis(100)))
                 // .run_if(on_timer(Duration::from_millis(1000 / 15)))
-                .in_base_set(CsgStage::Parallel),
+                .in_base_set(EditorSet::Csg),
         );
         app.add_systems(
             (
@@ -133,7 +125,7 @@ impl Plugin for EditorPlugin {
                 systems::track_primary_selection, // must run after track_2d_vis_system
                 clip_systems::clip_preview_system, // .with_system(ortho_systems::clip_point_update_system)
             )
-                .in_base_set(PostCsgStage),
+                .in_base_set(EditorSet::PostCsg),
         );
         app.register_type::<components::CsgRepresentation>();
         app.register_type::<components::BrushMaterialProperties>();
