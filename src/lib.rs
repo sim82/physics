@@ -328,12 +328,9 @@ mod systems {
             })
             .insert(RenderLayers::layer(render_layers::MAIN_3D))
             .insert(components::IngameCamera);
-        let Ok(mut window) = primary_query.get_single_mut() else {
-
-            
-                        return;
+        if let Ok(mut window) = primary_query.get_single_mut() {
+            window.cursor.grab_mode = CursorGrabMode::Locked;
         };
-        window.cursor.grab_mode = CursorGrabMode::Locked;
     }
     pub fn leave_ingame_system(
         mut commands: Commands,
@@ -343,13 +340,9 @@ mod systems {
         for entity in &query {
             commands.entity(entity).despawn();
         }
-        let Ok(mut window) = primary_query.get_single_mut() else {
-
-            
-                        return;
-        };
-
-        window.cursor.grab_mode = CursorGrabMode::None;
+        if let Ok(mut window) = primary_query.get_single_mut() {
+            window.cursor.grab_mode = CursorGrabMode::None;
+        }
     }
     pub fn toggle_anti_aliasing(
         mut state: ResMut<resources::AaState>,
@@ -435,7 +428,7 @@ impl Plugin for GameplayPlugin {
         // app.add_system_set(
         //     SystemSet::on_enter(AppState::Editor).with_system(systems::enter_editor_system),
         // );
-        
+
         app.add_system(systems::leave_editor_system.in_schedule(OnExit(AppState::Editor)));
         // app.add_system_set(
         //     SystemSet::on_exit(AppState::Editor).with_system(systems::leave_editor_system),
