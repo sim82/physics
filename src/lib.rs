@@ -1,6 +1,7 @@
 use bevy::{
     app::{AppExit, PluginGroupBuilder},
     diagnostic::FrameTimeDiagnosticsPlugin,
+    pbr::wireframe::WireframePlugin,
     prelude::*,
 };
 #[cfg(feature = "inspector")]
@@ -446,6 +447,7 @@ impl PluginGroup for ExternalPluginGroup {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(RapierPhysicsPlugin::<NoUserData>::default())
+            .add(WireframePlugin)
             // .add(RapierDebugRenderPlugin::default())
             .add(bevy_prototype_debug_lines::DebugLinesPlugin::default())
             .add(FrameTimeDiagnosticsPlugin)

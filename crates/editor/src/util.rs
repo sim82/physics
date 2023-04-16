@@ -165,7 +165,7 @@ pub fn spawn_csg_split(
             },
             Name::new(format!("csg {:?}", material_name)),
             RenderLayers::layer(render_layers::MAIN_3D),
-            Wireframe,
+            // Wireframe,
         ));
         debug!("spawned csg output: {:?}", entity_commands.id());
         entities.push(entity_commands.id());

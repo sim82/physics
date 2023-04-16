@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 inspector = [
     "bevy-inspector-egui",
+    "editor/inspector"
     # "bevy-inspector-egui-rapier"
 ]
 

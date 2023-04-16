@@ -4,13 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+inspector = [
+    "bevy-inspector-egui",
+]
 
 [dependencies]
 # not specifying specific versions of bevy crates so that the actual version is determined by the main project
 
 bevy = { workspace = true }
 wgpu = { workspace = true }
-bevy-inspector-egui = { workspace = true }
+bevy-inspector-egui = { workspace = true, optional = true }
 log = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }

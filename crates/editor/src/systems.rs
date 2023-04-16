@@ -10,6 +10,8 @@ use crate::{
     wsx,
 };
 use bevy::{
+    ecs::system::Remove,
+    pbr::wireframe::Wireframe,
     prelude::*,
     render::{mesh, view::RenderLayers},
     utils::{HashSet, Instant},
@@ -570,6 +572,7 @@ pub fn track_2d_vis_system(
                     },
                     render_layers::ortho_views(),
                     components::SelectionHighlighByMaterial,
+                    Name::new("orthomesh"),
                 ))
                 .id();
             commands.entity(entity).add_child(mesh_entity);
@@ -935,6 +938,30 @@ pub fn load_save_editor_objects(
                 },
                 ..default()
             });
+        }
+    }
+}
+
+pub fn track_wireframe_system(
+    mut commands: Commands,
+    selected: Query<Entity, With<components::Selected>>,
+    mut removed: RemovedComponents<components::Selected>,
+    children: Query<&Children>,
+    csg_with: Query<Entity, (With<components::CsgOutput>, With<Wireframe>)>,
+    csg_without: Query<Entity, (With<components::CsgOutput>, Without<Wireframe>)>,
+) {
+    for e in &selected {
+        let Ok(cs) = children.get(e) else { continue };
+        for c in cs {
+            let Ok(csg_ent) = csg_without.get(*c) else { continue };
+            commands.entity(csg_ent).insert(Wireframe);
+        }
+    }
+    for e in removed.iter() {
+        let Ok(cs) = children.get(e) else { continue };
+        for c in cs {
+            let Ok(csg_ent) = csg_with.get(*c) else { continue };
+            commands.entity(csg_ent).remove::<Wireframe>();
         }
     }
 }

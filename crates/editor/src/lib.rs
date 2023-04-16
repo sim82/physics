@@ -110,6 +110,7 @@ impl Plugin for EditorPlugin {
                 systems::track_brush_updates,
                 clip_systems::clip_plane_vis_system,
                 systems::track_2d_vis_system.after(systems::track_brush_updates),
+                systems::track_wireframe_system.after(systems::track_brush_updates),
             )
                 .in_base_set(EditorSet::TrackUpdate),
         );
