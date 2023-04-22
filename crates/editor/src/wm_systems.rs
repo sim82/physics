@@ -37,6 +37,7 @@ pub fn wm_test_system(world: &mut World) {
         ResMut<Assets<Image>>,
         ResMut<resources::Materials>,
         ResMut<resources::MaterialBrowser>,
+        ResMut<resources::MiscSettings>,
     )> = SystemState::new(world);
     let (
         mut egui_context,
@@ -46,6 +47,7 @@ pub fn wm_test_system(world: &mut World) {
         mut image_assets,
         mut materials_res,
         mut material_browser,
+        mut misc_settings,
     ) = system_state.get_mut(world);
     egui::SidePanel::left("left side panel")
         .resizable(true)
@@ -123,6 +125,7 @@ pub fn wm_test_system(world: &mut World) {
                                 ui.label("rapier");
                                 ui.checkbox(&mut rapier_debug_context.enabled, "show");
                                 ui.checkbox(&mut rapier_debug_context.always_on_top, "on top");
+                                ui.checkbox(&mut misc_settings.reverse_clip, "reverse clip order");
                             });
                         }
                     }

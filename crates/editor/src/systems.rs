@@ -263,6 +263,7 @@ pub fn create_brush_csg_system_inc(
     query_children: Query<&Children>,
     query_csg_output: Query<(), With<components::CsgOutput>>,
     mut processed_csg_query: Query<&mut components::ProcessedCsg>,
+    misc_settings: Res<resources::MiscSettings>,
     // mut query_csg_out: Query<&mut EditorObjectOutputLink>,
 ) {
     let start = Instant::now();
@@ -329,7 +330,7 @@ pub fn create_brush_csg_system_inc(
                     return None;
                 }
 
-                Some((other_bsp, entity < entry))
+                Some((other_bsp, (entity < entry) ^ misc_settings.reverse_clip))
             })
             .collect::<Vec<_>>();
 

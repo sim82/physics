@@ -292,3 +292,8 @@ pub struct ClipState {
     pub clip_mode: bool,
     pub last_clip_mode: bool,
 }
+
+#[derive(Resource, Default)]
+pub struct MiscSettings {
+    pub reverse_clip: bool,
+}

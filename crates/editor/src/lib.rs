@@ -52,6 +52,7 @@ impl Plugin for EditorPlugin {
         app.init_resource::<resources::MaterialBrowser>();
         app.init_resource::<sstree::SpatialIndex>();
         app.init_resource::<resources::ClipState>();
+        app.init_resource::<resources::MiscSettings>();
         app.add_event::<CleanupCsgOutputEvent>();
 
         app.add_system(systems::editor_input_system.in_set(OnUpdate(AppState::Editor)));
