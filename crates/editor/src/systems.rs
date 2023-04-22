@@ -330,7 +330,7 @@ pub fn create_brush_csg_system_inc(
                     return None;
                 }
 
-                Some((other_bsp, (entity < entry) ^ misc_settings.reverse_clip))
+                Some((other_bsp, (entity < entry)))
             })
             .collect::<Vec<_>>();
 
@@ -340,10 +340,21 @@ pub fn create_brush_csg_system_inc(
 
         // clip to overlapping brushes
         for (other_bsp, _) in &others {
-            bsp.clip_to(other_bsp);
+            if misc_settings.csg_reverse_check {
+                let mut check_other = other_bsp.clone();
+                check_other.clip_to(&bsp);
+
+                if check_other.is_empty() {
+                    continue;
+                }
+                bsp.clip_to(&check_other);
+            } else {
+                bsp.clip_to(other_bsp);
+            }
         }
 
         // invert (since we want them to be hollow)
+        let bsp_orig = bsp.clone();
         bsp.invert();
         // re-clip against overlapping brushes to remove overlapping coplanar faces (since the normal is now flipped)
         for (other_bsp, clip_inverse) in &others {
@@ -352,7 +363,16 @@ pub fn create_brush_csg_system_inc(
             if !*clip_inverse {
                 continue;
             }
-            bsp.clip_to(other_bsp);
+            if misc_settings.csg_reverse_check {
+                let mut check_other = other_bsp.clone();
+                check_other.clip_to(&bsp_orig);
+                if check_other.is_empty() {
+                    continue;
+                }
+                bsp.clip_to(&check_other);
+            } else {
+                bsp.clip_to(other_bsp);
+            }
         }
         // TODO: here it probably would help to check if the csg output actually changed before tearing down the meshes...
         // let mut csg_output = query_csg_out.get_mut(entity).expect("missing csg_out"); // should be impossible if CsgOutputLink is always created in bundle with CsgRepresentation
@@ -950,19 +970,26 @@ pub fn track_wireframe_system(
     children: Query<&Children>,
     csg_with: Query<Entity, (With<components::CsgOutput>, With<Wireframe>)>,
     csg_without: Query<Entity, (With<components::CsgOutput>, Without<Wireframe>)>,
+    misc_settings: Res<resources::MiscSettings>,
 ) {
-    for e in &selected {
-        let Ok(cs) = children.get(e) else { continue };
-        for c in cs {
-            let Ok(csg_ent) = csg_without.get(*c) else { continue };
-            commands.entity(csg_ent).insert(Wireframe);
+    if !misc_settings.csg_wireframe {
+        for e in &selected {
+            let Ok(cs) = children.get(e) else { continue };
+            for c in cs {
+                let Ok(csg_ent) = csg_without.get(*c) else { continue };
+                commands.entity(csg_ent).insert(Wireframe);
+            }
         }
-    }
-    for e in removed.iter() {
-        let Ok(cs) = children.get(e) else { continue };
-        for c in cs {
-            let Ok(csg_ent) = csg_with.get(*c) else { continue };
-            commands.entity(csg_ent).remove::<Wireframe>();
+        for e in removed.iter() {
+            let Ok(cs) = children.get(e) else { continue };
+            for c in cs {
+                let Ok(csg_ent) = csg_with.get(*c) else { continue };
+                commands.entity(csg_ent).remove::<Wireframe>();
+            }
+        }
+    } else {
+        for e in &csg_without {
+            commands.entity(e).insert(Wireframe);
         }
     }
 }

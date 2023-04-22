@@ -125,7 +125,14 @@ pub fn wm_test_system(world: &mut World) {
                                 ui.label("rapier");
                                 ui.checkbox(&mut rapier_debug_context.enabled, "show");
                                 ui.checkbox(&mut rapier_debug_context.always_on_top, "on top");
-                                ui.checkbox(&mut misc_settings.reverse_clip, "reverse clip order");
+                                ui.checkbox(
+                                    &mut misc_settings.csg_wireframe,
+                                    "csg output wireframe",
+                                );
+                                ui.checkbox(
+                                    &mut misc_settings.csg_reverse_check,
+                                    "csg reverse check",
+                                );
                             });
                         }
                     }

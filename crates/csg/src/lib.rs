@@ -513,6 +513,10 @@ impl Node {
     // Build a BSP tree out of `polygons`.
     // Each set of polygons is partitioned using the first polygon
     // (no heuristic is used to pick a good split).
+    pub fn is_empty(&self) -> bool {
+        // self.front.is_none() && self.back.is_none() & self.polygons.is_empty()
+        self.all_polygons().is_empty()
+    }
     pub fn from_polygons(polygons: &[Polygon]) -> Option<Node> {
         if polygons.is_empty() {
             return None;

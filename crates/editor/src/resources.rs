@@ -295,5 +295,6 @@ pub struct ClipState {
 
 #[derive(Resource, Default)]
 pub struct MiscSettings {
-    pub reverse_clip: bool,
+    pub csg_wireframe: bool,
+    pub csg_reverse_check: bool,
 }
