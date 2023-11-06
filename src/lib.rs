@@ -410,26 +410,29 @@ impl Plugin for GameplayPlugin {
         });
         app.insert_resource(ClearColor(Color::ALICE_BLUE));
         app.init_resource::<resources::AaState>();
-        app.add_startup_system(systems::setup_player_system);
-        app.add_startup_system(systems::setup_debug_render_system);
-        app.add_system(systems::update_deferred_mesh_system);
+        app.add_systems(Startup, systems::setup_player_system);
+        app.add_systems(Startup, systems::setup_debug_render_system);
+        app.add_systems(Update, systems::update_deferred_mesh_system);
         app.add_state::<AppState>();
-        app.add_system(systems::toggle_debug_menu_system);
+        app.add_systems(Update, systems::toggle_debug_menu_system);
         app.add_asset_loader(norm::NormalMappedImageTextureLoader);
         #[cfg(feature = "inspector")]
         {
             app.add_plugin(bevy_inspector_egui::DefaultInspectorConfigPlugin);
         }
         app.add_plugin(bevy_egui::EguiPlugin);
-        app.add_system(systems::enter_editor_system.in_schedule(OnEnter(AppState::Editor)));
-        app.add_system(systems::leave_editor_system.in_schedule(OnExit(AppState::Editor)));
-        app.add_system(systems::enter_ingame_system.in_schedule(OnEnter(AppState::InGame)));
-        app.add_system(systems::leave_ingame_system.in_schedule(OnExit(AppState::InGame)));
+        app.add_systems(OnEnter(AppState::Editor), systems::enter_editor_system);
+        app.add_systems(OnExit(AppState::Editor), systems::leave_editor_system);
+        app.add_systems(OnEnter(AppState::InGame), systems::enter_ingame_system);
+        app.add_systems(OnExit(AppState::InGame), systems::leave_ingame_system);
 
         // FIXME: those do not really belong here (related to external plugins)
         // Add material types to be converted
-        app.add_system(bevy_mod_mipmap_generator::generate_mipmaps::<StandardMaterial>);
-        app.add_system(systems::toggle_anti_aliasing);
+        app.add_systems(
+            Update,
+            bevy_mod_mipmap_generator::generate_mipmaps::<StandardMaterial>,
+        );
+        app.add_systems(Update, systems::toggle_anti_aliasing);
     }
 }
 
