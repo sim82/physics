@@ -1,5 +1,5 @@
 use bevy::{prelude::*, utils::Instant};
-use bevy_egui::EguiContexts;
+use bevy_egui::{egui::load::SizedTexture, EguiContexts};
 use bevy_inspector_egui::egui;
 
 use super::resources;
@@ -80,10 +80,10 @@ pub fn material_browser_ui(
                             };
                             if let Some(preview_image) = material_browser.get_preview(material) {
                                 if ui
-                                    .add(egui::ImageButton::new(
+                                    .add(egui::ImageButton::new(SizedTexture::new(
                                         preview_image,
                                         egui::Vec2::splat(64.0),
-                                    ))
+                                    )))
                                     .on_hover_text(material_name)
                                     .clicked()
                                 {

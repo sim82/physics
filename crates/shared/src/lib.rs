@@ -1,6 +1,6 @@
-use bevy::prelude::*;
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, States)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, States, ScheduleLabel)]
 pub enum AppState {
     // DebugMenu,
     #[default]

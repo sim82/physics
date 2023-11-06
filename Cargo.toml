@@ -16,9 +16,9 @@ default = ["inspector"]
 
 
 [workspace.dependencies]
-bevy = { version = "0.10", features = ["dynamic_linking"] }
+bevy = { version = "0.11", features = ["dynamic_linking"] }
 wgpu = "*"
-bevy-inspector-egui = { version = "0.18" }
+bevy-inspector-egui = { version = "0.20" }
 
 log = "0.4"
 anyhow = { version = "1" }
@@ -28,14 +28,15 @@ serde_yaml = "0.9"
 ron = "0.8"
 
 flexbuffers = "2"
-bevy_rapier3d = { version = "0.21", features = [
+bevy_rapier3d = { version = "0.22", features = [
     "debug-render",
     "serde-serialize",
 ] }
 
 gltf = "*"
-bevy_prototype_debug_lines = { version = "0.10", features = ["3d"] }
-bevy_atmosphere = { git = "https://github.com/JonahPlusPlus/bevy_atmosphere.git" }
+bevy_prototype_debug_lines = { version = "0.11", features = ["3d"] }
+# bevy_atmosphere = { git = "https://github.com/JonahPlusPlus/bevy_atmosphere.git" }
+bevy_atmosphere = { version = "0.7" }
 bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
 bitflags = "1"
 quick-xml = { version = "0.26", features = ["serialize"] }
@@ -46,12 +47,13 @@ env_logger = "0.10"
 dialoguer = "0.10"
 console = "0.15"
 rayon = "1"
-bevy_egui = "0.20"
+bevy_egui = "0.22"
 arrayvec = "0.7"
-bevy_mod_outline = "0.4"
+bevy_mod_outline = "0.5"
 thiserror = "1"
 #bevy_infinite_grid = "0.6.0"
-bevy_infinite_grid = {git="https://github.com/PikminGuts92/bevy_infinite_grid.git", branch="bevy-0.10"}
+# bevy_infinite_grid = {git="https://github.com/PikminGuts92/bevy_infinite_grid.git", branch="bevy-0.10"}
+bevy_infinite_grid = {version = "0.8.1"}
 parry3d = "0.13"
 
 [dependencies]

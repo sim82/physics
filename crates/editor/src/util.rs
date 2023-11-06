@@ -384,7 +384,7 @@ impl WmEventPointerState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Event, Debug)]
 pub enum WmEvent {
     Clicked {
         window: &'static str,
