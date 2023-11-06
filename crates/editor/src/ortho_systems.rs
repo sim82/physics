@@ -151,14 +151,18 @@ pub fn control_input_wm_system(
                 button: WmMouseButton::Right,
                 pointer_state,
             } => {
-                let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
+                let Some(window) = editor_windows_2d.windows.get(focused_name) else {
+                    continue;
+                };
                 let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
-                    warn!("2d window camera not found: {:?}", window.camera); 
+                    warn!("2d window camera not found: {:?}", window.camera);
                     continue;
                 };
                 info!("Right down");
-                let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
-                    warn!("viewport_to_world failed in {}", focused_name); 
+                let Some(ray) =
+                    camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down())
+                else {
+                    warn!("viewport_to_world failed in {}", focused_name);
                     continue;
                 };
                 let mut transforms = Vec::new();
@@ -180,9 +184,11 @@ pub fn control_input_wm_system(
                 button: WmMouseButton::Right,
                 pointer_state,
             } => {
-                let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
+                let Some(window) = editor_windows_2d.windows.get(focused_name) else {
+                    continue;
+                };
                 let Ok((_global_transform, camera)) = camera_query.get(window.camera) else {
-                    warn!("2d window camera not found: {:?}", window.camera); 
+                    warn!("2d window camera not found: {:?}", window.camera);
                     continue;
                 };
                 let mut transforms = Vec::new();
@@ -198,8 +204,11 @@ pub fn control_input_wm_system(
                     start_transforms,
                 }) = &editor_windows_2d.translate_drag
                 {
-                    let Some(ray) = camera.viewport_to_world(start_global_transform, pointer_state.get_pos_origin_down()) else {
-                        warn!("viewport_to_world failed in {}", focused_name); 
+                    let Some(ray) = camera.viewport_to_world(
+                        start_global_transform,
+                        pointer_state.get_pos_origin_down(),
+                    ) else {
+                        warn!("viewport_to_world failed in {}", focused_name);
                         continue;
                     };
                     let d = start_ray.origin - ray.origin;
@@ -225,17 +234,26 @@ pub fn control_input_wm_system(
             util::WmEvent::ZoomDelta(zoom_delta) => {
                 for (_name, window) in &editor_windows_2d.windows {
                     let Ok(mut projection) = projection_query.get_mut(window.camera) else {
-                        warn!("2d window camera transform / projection not found: {:?}", window.camera); 
+                        warn!(
+                            "2d window camera transform / projection not found: {:?}",
+                            window.camera
+                        );
                         continue;
                     };
 
                     let Projection::Orthographic(ortho) = &mut *projection else {
-                        warn!("2d window camera has not ortho projection: {:?}", window.camera); 
+                        warn!(
+                            "2d window camera has not ortho projection: {:?}",
+                            window.camera
+                        );
                         continue;
                     };
 
                     let ScalingMode::FixedHorizontal(scaling) = &mut ortho.scaling_mode else {
-                        warn!("2d window camera has not ortho projection: {:?}", window.camera); 
+                        warn!(
+                            "2d window camera has not ortho projection: {:?}",
+                            window.camera
+                        );
                         continue;
                     };
                     if *scaling * zoom_delta > 0.0 {
@@ -267,11 +285,13 @@ pub fn adjust_clip_planes_system(
     let upper_orientation = &upper.orientation;
     let lower_orientation = &lower.orientation;
 
-    let Ok((upper_transform, upper_camera, upper_projection, _)) = camera_query.get(upper.camera) else {
+    let Ok((upper_transform, upper_camera, upper_projection, _)) = camera_query.get(upper.camera)
+    else {
         return;
     };
 
-    let Ok((lower_transform, lower_camera, _lower_projection, _)) = camera_query.get(lower.camera) else {
+    let Ok((lower_transform, lower_camera, _lower_projection, _)) = camera_query.get(lower.camera)
+    else {
         return;
     };
 
@@ -295,14 +315,20 @@ pub fn adjust_clip_planes_system(
 
     let grid_scaling = 100.0 / trunc_scaling;
 
-    let Some((upper_min, upper_max)) = ortho_view_bounds(upper_camera, upper_transform) else { return };
-    let Some((lower_min, lower_max)) = ortho_view_bounds(lower_camera, lower_transform) else { return };
+    let Some((upper_min, upper_max)) = ortho_view_bounds(upper_camera, upper_transform) else {
+        return;
+    };
+    let Some((lower_min, lower_max)) = ortho_view_bounds(lower_camera, lower_transform) else {
+        return;
+    };
 
     {
         let min = upper_orientation.get_up_axis(upper_min) - 5.0;
         let max = upper_orientation.get_up_axis(upper_max) + 5.0;
 
-        let Ok((_, _, mut lower_projection, mut lower_transform)) = camera_query.get_mut(lower.camera) else {
+        let Ok((_, _, mut lower_projection, mut lower_transform)) =
+            camera_query.get_mut(lower.camera)
+        else {
             return;
         };
         let Projection::Orthographic(lower_ortho) = &mut *lower_projection else {
@@ -310,7 +336,7 @@ pub fn adjust_clip_planes_system(
         };
 
         let Ok((mut lower_grid_transform, _)) = grid_query.get_mut(lower.grid) else {
-            return
+            return;
         };
 
         *upper_orientation.get_up_axis_mut(&mut lower_transform.translation) = max;
@@ -326,14 +352,16 @@ pub fn adjust_clip_planes_system(
         let min = lower_orientation.get_up_axis(lower_min) - 5.0;
         let max = lower_orientation.get_up_axis(lower_max) + 5.0;
 
-        let Ok((_, _, mut upper_projection, mut upper_transform)) = camera_query.get_mut(upper.camera) else {
+        let Ok((_, _, mut upper_projection, mut upper_transform)) =
+            camera_query.get_mut(upper.camera)
+        else {
             return;
         };
         let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
             return;
         };
         let Ok((mut upper_grid_transform, _)) = grid_query.get_mut(upper.grid) else {
-            return
+            return;
         };
 
         *lower_orientation.get_up_axis_mut(&mut upper_transform.translation) = max;
@@ -374,7 +402,10 @@ pub fn adjust_clip_planes_system(
 }
 
 fn ortho_view_bounds(camera: &Camera, transform: &GlobalTransform) -> Option<(Vec3, Vec3)> {
-    let (view_min, view_max) = camera.logical_viewport_rect()?;
+    let Rect {
+        min: view_min,
+        max: view_max,
+    } = camera.logical_viewport_rect()?;
 
     // get world space coords of viewport bounds (ignoring ray.direction, assuming ortographic projection)
     let view_min_world = camera.viewport_to_world(transform, view_min)?.origin;
@@ -417,14 +448,18 @@ pub fn edit_input_system(
                 button: util::WmMouseButton::Left,
                 pointer_state,
             } => {
-                let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
+                let Some(window) = editor_windows_2d.windows.get(focused_name) else {
+                    continue;
+                };
                 let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
-                    warn!("2d window camera not found: {:?}", window.camera); 
+                    warn!("2d window camera not found: {:?}", window.camera);
                     continue;
                 };
                 info!("left down");
-                let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
-                    warn!("viewport_to_world failed in {}", focused_name); 
+                let Some(ray) =
+                    camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down())
+                else {
+                    warn!("viewport_to_world failed in {}", focused_name);
                     continue;
                 };
 
@@ -471,14 +506,18 @@ pub fn edit_input_system(
                 button: util::WmMouseButton::Left,
                 pointer_state,
             } => {
-                let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue; };
+                let Some(window) = editor_windows_2d.windows.get(focused_name) else {
+                    continue;
+                };
                 let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
-                    warn!("2d window camera not found: {:?}", window.camera); 
+                    warn!("2d window camera not found: {:?}", window.camera);
                     continue;
                 };
                 // info!("left down");
-                let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
-                    warn!("viewport_to_world failed in {}", focused_name); 
+                let Some(ray) =
+                    camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down())
+                else {
+                    warn!("viewport_to_world failed in {}", focused_name);
                     continue;
                 };
 
@@ -490,7 +529,7 @@ pub fn edit_input_system(
                     debug!("drag: {:?} on brush {:?}", drag_delta, entity);
 
                     // apply grid-snapping to drag-delta
-                    let snap = if keycodes.pressed(KeyCode::LAlt) {
+                    let snap = if keycodes.pressed(KeyCode::AltLeft) {
                         0.5
                     } else {
                         0.1
@@ -603,14 +642,18 @@ pub fn select_input_system(
             }
             info!("event: {:?}", event);
 
-            let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue };
+            let Some(window) = editor_windows_2d.windows.get(focused_name) else {
+                continue;
+            };
             let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
                 warn!("2d window camera not found: {:?}", window.camera);
                 continue;
             };
 
-            let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
-                warn!("viewport_to_world failed in {}", focused_name); 
+            let Some(ray) =
+                camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down())
+            else {
+                warn!("viewport_to_world failed in {}", focused_name);
                 continue;
             };
 

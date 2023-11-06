@@ -251,7 +251,7 @@ mod systems {
         mut next_state: ResMut<NextState<AppState>>,
     ) {
         if key_codes.just_pressed(KeyCode::F3) {
-            match app_state.0 {
+            match app_state.get() {
                 AppState::Editor => next_state.set(AppState::InGame),
                 AppState::InGame => next_state.set(AppState::Editor),
             }
@@ -405,7 +405,7 @@ impl Plugin for GameplayPlugin {
         });
         app.insert_resource(DebugRenderContext {
             enabled: false,
-            always_on_top: false,
+            // always_on_top: false,
             ..default()
         });
         app.insert_resource(ClearColor(Color::ALICE_BLUE));

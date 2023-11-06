@@ -17,7 +17,7 @@ default = ["inspector"]
 
 [workspace.dependencies]
 bevy = { version = "0.11", features = ["dynamic_linking"] }
-wgpu = "*"
+wgpu = "0.16"
 bevy-inspector-egui = { version = "0.20" }
 
 log = "0.4"

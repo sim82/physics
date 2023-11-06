@@ -65,7 +65,7 @@ impl Default for PlayerInputSource {
             right: KeyCode::D,
             up: KeyCode::R,
             down: KeyCode::F,
-            walk: KeyCode::LShift,
+            walk: KeyCode::ShiftLeft,
         }
     }
 }
@@ -80,7 +80,8 @@ pub fn player_controller_input_system(
     app_state: Res<State<AppState>>,
 ) {
     for (mut input_source, mut queue) in &mut query {
-        let input_enabled = app_state.0 != AppState::Editor || key_codes.pressed(input_source.walk);
+        let input_enabled =
+            *app_state.get() != AppState::Editor || key_codes.pressed(input_source.walk);
 
         if !input_enabled {
             continue;
@@ -247,8 +248,12 @@ fn sync_player_camera_system(
     player_query: Query<(&Transform, &PlayerState), Without<PlayerCamera>>,
     mut camera_query: Query<&mut Transform, With<PlayerCamera>>,
 ) {
-    let Ok((player, player_state)) = player_query.get_single() else { return };
-    let Ok(mut camera) = camera_query.get_single_mut() else { return };
+    let Ok((player, player_state)) = player_query.get_single() else {
+        return;
+    };
+    let Ok(mut camera) = camera_query.get_single_mut() else {
+        return;
+    };
 
     camera.translation = player.translation + Vec3::Y * 0.85;
     camera.rotation = player_state.get_rotation();

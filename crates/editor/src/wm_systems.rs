@@ -1,6 +1,6 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
-use bevy_egui::EguiContexts;
+use bevy_egui::{egui::load::SizedTexture, EguiContexts};
 use bevy_inspector_egui::egui;
 use bevy_rapier3d::render::DebugRenderContext;
 
@@ -57,8 +57,11 @@ pub fn wm_test_system(world: &mut World) {
                 let width = ui.available_width().round();
                 let size = egui::Vec2::new(width, width / 1.6);
 
-                let image = egui::Image::new(wm_state.slot_main3d.offscreen_egui_texture, size)
-                    .sense(egui::Sense::click());
+                let image = egui::Image::new(SizedTexture::new(
+                    wm_state.slot_main3d.offscreen_egui_texture,
+                    size,
+                ))
+                .sense(egui::Sense::click());
                 let response = ui.add(image);
 
                 send_wm_events_for_egui_response(
@@ -122,7 +125,7 @@ pub fn wm_test_system(world: &mut World) {
                             ui.group(|ui| {
                                 ui.label("rapier");
                                 ui.checkbox(&mut rapier_debug_context.enabled, "show");
-                                ui.checkbox(&mut rapier_debug_context.always_on_top, "on top");
+                                // ui.checkbox(&mut rapier_debug_context.always_on_top, "on top");
                             });
                         }
                     }
@@ -204,8 +207,8 @@ fn show_2d_view(
     // ui.
     slot.target_size = size;
     // ui.image(slot.offscreen_egui_texture, size)
-    let image =
-        egui::Image::new(slot.offscreen_egui_texture, size).sense(egui::Sense::click_and_drag());
+    let image = egui::Image::new(SizedTexture::new(slot.offscreen_egui_texture, size))
+        .sense(egui::Sense::click_and_drag());
     let response = ui.add(image);
     send_wm_events_for_egui_response(response, slot, event_writer, name);
 }

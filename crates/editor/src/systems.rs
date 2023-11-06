@@ -86,15 +86,17 @@ pub fn editor_input_system(
     mut clip_state: ResMut<resources::ClipState>,
 ) {
     {
-        let Ok(mut window) = primary_query.get_single_mut() else { return };
-        if keycodes.just_pressed(KeyCode::LShift) {
+        let Ok(mut window) = primary_query.get_single_mut() else {
+            return;
+        };
+        if keycodes.just_pressed(KeyCode::ShiftLeft) {
             window.cursor.grab_mode = bevy::window::CursorGrabMode::Confined;
         }
-        if keycodes.just_released(KeyCode::LShift) {
+        if keycodes.just_released(KeyCode::ShiftLeft) {
             window.cursor.grab_mode = bevy::window::CursorGrabMode::None;
         }
     }
-    if keycodes.pressed(KeyCode::LShift) {
+    if keycodes.pressed(KeyCode::ShiftLeft) {
         return;
     }
 
@@ -199,8 +201,15 @@ pub fn update_material_refs_system(
     }
     // asset_server.mark_unused_assets()
     for (entity, material_ref, mut material, mut visibility) in &mut query_changed {
-        let Some(new_material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
-            warn!( "material resource not found for {}", material_ref.material_name);
+        let Some(new_material) = materials_res.get(
+            &material_ref.material_name,
+            &mut materials,
+            &mut asset_server,
+        ) else {
+            warn!(
+                "material resource not found for {}",
+                material_ref.material_name
+            );
             continue;
         };
         // commands.entity(entity).insert(material);
@@ -235,8 +244,15 @@ pub fn update_symlinked_materials_system(
         {
             continue;
         }
-        let Some(new_material) = materials_res.get(&material_ref.material_name,&mut materials, &mut asset_server) else {
-            warn!( "material resource not found for {}", material_ref.material_name);
+        let Some(new_material) = materials_res.get(
+            &material_ref.material_name,
+            &mut materials,
+            &mut asset_server,
+        ) else {
+            warn!(
+                "material resource not found for {}",
+                material_ref.material_name
+            );
             continue;
         };
         // commands.entity(entity).insert(material);
@@ -483,7 +499,7 @@ pub fn track_primary_selection(
 
         for entity in to_default_material {
             let Ok(children) = children_query.get(*entity) else {
-                warn!( "no children: {:?}", entity);
+                warn!("no children: {:?}", entity);
                 continue;
             };
             for child in children {
@@ -497,7 +513,7 @@ pub fn track_primary_selection(
         }
         for entity in to_selected_material {
             let Ok(children) = children_query.get(*entity) else {
-                warn!( "no children: {:?}", entity);
+                warn!("no children: {:?}", entity);
                 continue;
             };
 
@@ -953,14 +969,18 @@ pub fn track_wireframe_system(
     for e in &selected {
         let Ok(cs) = children.get(e) else { continue };
         for c in cs {
-            let Ok(csg_ent) = csg_without.get(*c) else { continue };
+            let Ok(csg_ent) = csg_without.get(*c) else {
+                continue;
+            };
             commands.entity(csg_ent).insert(Wireframe);
         }
     }
     for e in removed.iter() {
         let Ok(cs) = children.get(e) else { continue };
         for c in cs {
-            let Ok(csg_ent) = csg_with.get(*c) else { continue };
+            let Ok(csg_ent) = csg_with.get(*c) else {
+                continue;
+            };
             commands.entity(csg_ent).remove::<Wireframe>();
         }
     }
