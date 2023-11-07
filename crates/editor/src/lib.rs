@@ -22,34 +22,16 @@ pub mod wsx;
 
 pub struct EditorPlugin;
 
-// #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-// // #[system_set(base)]
-// enum EditorSet {
-//     TrackUpdate,
-//     TrackUpdateFlush,
-//     Csg,
-//     CsgFlush,
-//     PostCsg,
-// }
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+enum EditorSet {
+    TrackUpdate,
+    TrackUpdateFlush,
+    Csg,
+    CsgFlush,
+    PostCsg,
+}
 
 #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, SystemSet)]
-struct EditorTrackUpdate;
-
-#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, SystemSet)]
-struct EditorTrackUpdateFlush;
-
-#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, SystemSet)]
-struct EditorCsg;
-
-#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, SystemSet)]
-struct EditorCsgFlush;
-
-#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, SystemSet)]
-struct EditorPostCsg;
-
-// #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, Debug)]
-#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, SystemSet)]
-// #[system_set(base)]
 struct PostCsgStage;
 
 #[derive(Event)]
@@ -103,16 +85,16 @@ impl Plugin for EditorPlugin {
         app.configure_sets(
             Update,
             (
-                EditorTrackUpdate,
-                EditorTrackUpdateFlush,
-                EditorCsg,
-                EditorCsgFlush,
-                EditorPostCsg,
+                EditorSet::TrackUpdate,
+                EditorSet::TrackUpdateFlush,
+                EditorSet::Csg,
+                EditorSet::CsgFlush,
+                EditorSet::PostCsg,
             )
                 .chain(),
         )
-        .add_systems(Update, apply_deferred.in_set(EditorTrackUpdateFlush))
-        .add_systems(Update, apply_deferred.in_set(EditorCsgFlush));
+        .add_systems(Update, apply_deferred.in_set(EditorSet::TrackUpdateFlush))
+        .add_systems(Update, apply_deferred.in_set(EditorSet::CsgFlush));
         app.add_systems(
             Update,
             (
@@ -126,7 +108,7 @@ impl Plugin for EditorPlugin {
         );
 
         app.add_systems(
-            EditorTrackUpdate,
+            Update,
             (
                 systems::update_symlinked_materials_system,
                 ortho_systems::adjust_clip_planes_system,
@@ -135,19 +117,23 @@ impl Plugin for EditorPlugin {
                 clip_systems::clip_plane_vis_system,
                 systems::track_2d_vis_system.after(systems::track_brush_updates),
                 systems::track_wireframe_system.after(systems::track_brush_updates),
-            ),
+            )
+                .in_set(EditorSet::TrackUpdate),
         );
         app.add_systems(
-            EditorCsg,
-            systems::create_brush_csg_system_inc.run_if(on_timer(Duration::from_millis(100))), // .run_if(on_timer(Duration::from_millis(1000 / 15)))
+            Update,
+            systems::create_brush_csg_system_inc
+                .run_if(on_timer(Duration::from_millis(100)))
+                .in_set(EditorSet::Csg), // .run_if(on_timer(Duration::from_millis(1000 / 15)))
         );
         app.add_systems(
-            EditorPostCsg,
+            Update,
             (
                 systems::update_material_refs_system,
                 systems::track_primary_selection, // must run after track_2d_vis_system
                 clip_systems::clip_preview_system, // .with_system(ortho_systems::clip_point_update_system)
-            ),
+            )
+                .in_set(EditorSet::PostCsg),
         );
         app.register_type::<components::CsgRepresentation>();
         app.register_type::<components::BrushMaterialProperties>();

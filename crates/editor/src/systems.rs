@@ -108,6 +108,8 @@ pub fn editor_input_system(
         }
 
         clear_selection = true;
+
+        info!("add brush");
     }
 
     if keycodes.just_pressed(KeyCode::D) {
