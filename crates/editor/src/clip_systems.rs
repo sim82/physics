@@ -10,7 +10,7 @@ pub fn clip_plane_setup_system(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     // let mesh = mesh::shape::Plane { size: 10.0 }.into();
-    let mesh = mesh::shape::Box::new(10.0, 10.0, 0.1).into();
+    let mesh: Mesh = mesh::shape::Box::new(10.0, 10.0, 0.1).into();
 
     commands
         .spawn(components::ClipPlaneBundle::default())
@@ -41,7 +41,7 @@ pub fn clip_plane_control_system(
     camera_query: Query<(&GlobalTransform, &Camera)>,
     mut next_clip_point: Local<NextClipPoint>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         if let util::WmEvent::Clicked {
             window: focused_name,
             button: util::WmMouseButton::Left,
@@ -53,13 +53,17 @@ pub fn clip_plane_control_system(
             }
 
             info!("event: {:?}", event);
-            let Some(window) = editor_windows_2d.windows.get(focused_name) else { continue };
+            let Some(window) = editor_windows_2d.windows.get(focused_name) else {
+                continue;
+            };
             let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
                 warn!("2d window camera not found: {:?}", window.camera);
                 continue;
             };
 
-            let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
+            let Some(ray) =
+                camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down())
+            else {
                 warn!("viewport_to_world failed in {}", focused_name);
                 continue;
             };
@@ -87,7 +91,7 @@ pub fn clip_plane_control_system(
                         .mix(ray.origin, clip_plane.points[1])
                         .snap(SNAP);
                     clip_plane.points[2] =
-                        (window.orientation.mix(ray.origin, clip_plane.points[2]) + ray.direction)
+                        (window.orientation.mix(ray.origin, clip_plane.points[2]) + *ray.direction)
                             .snap(SNAP);
 
                     *next_clip_point = NextClipPoint::Point0;
@@ -118,7 +122,7 @@ pub fn clip_plane_vis_system(
 #[allow(clippy::too_many_arguments)]
 pub fn clip_preview_system(
     mut commands: Commands,
-    keycodes: Res<Input<KeyCode>>,
+    keycodes: Res<ButtonInput<KeyCode>>,
     mut edit_commands: EditCommands,
     materials_res: Res<resources::Materials>,
     material_browser: Res<resources::MaterialBrowser>,
@@ -138,8 +142,8 @@ pub fn clip_preview_system(
     if brush_changed_query.is_empty()
         && clip_plane_changed_query.is_empty()
         && clip_state.clip_mode == clip_state.last_clip_mode
-        && !keycodes.just_pressed(KeyCode::R)
-        && !keycodes.just_pressed(KeyCode::G)
+        && !keycodes.just_pressed(KeyCode::KeyR)
+        && !keycodes.just_pressed(KeyCode::KeyG)
     {
         return;
     }
@@ -152,7 +156,10 @@ pub fn clip_preview_system(
         return;
     };
 
-    let Ok(clip_plane) = clip_plane_query.get_single().map(|clip_plane| clip_plane.get_plane()) else {
+    let Ok(clip_plane) = clip_plane_query
+        .get_single()
+        .map(|clip_plane| clip_plane.get_plane())
+    else {
         return;
     };
 
@@ -239,7 +246,7 @@ pub fn clip_preview_system(
         }
     }
 
-    if keycodes.just_pressed(KeyCode::R) {
+    if keycodes.just_pressed(KeyCode::KeyR) {
         info!("use red: {:?} -> {:?}", brush, clipped1);
         // let mut new_material_props = material_props.clone();
         if let Some((brush, material_props)) = clipped1 {
@@ -256,7 +263,7 @@ pub fn clip_preview_system(
         }
 
         clip_state.clip_mode = false;
-    } else if keycodes.just_pressed(KeyCode::G) {
+    } else if keycodes.just_pressed(KeyCode::KeyG) {
         info!("use green: {:?} -> {:?}", brush, clipped2);
         // let mut new_material_props = material_props.clone();
         if let Some((brush, material_props)) = clipped2 {

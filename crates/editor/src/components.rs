@@ -178,7 +178,7 @@ pub struct Selected;
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct DragAction {
-    pub start_ray: Ray,
+    pub start_ray: Ray3d,
     pub action: DragActionType,
 }
 

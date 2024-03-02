@@ -1,22 +1,24 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, render::texture::ImageSamplerDescriptor};
 use editor::EditorPluginGroup;
 use physics::{ExternalPluginGroup, GamePluginGroup};
 
 fn main() {
     let mut app = App::new();
 
+    // app.add_plugins(DefaultPlugins);
     app.add_plugins(DefaultPlugins.set(ImagePlugin {
-        default_sampler: wgpu::SamplerDescriptor {
+        default_sampler: ImageSamplerDescriptor {
             // mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
-            address_mode_u: wgpu::AddressMode::Repeat,
-            address_mode_v: wgpu::AddressMode::Repeat,
-            address_mode_w: wgpu::AddressMode::Repeat,
+            // min_filter: wgpu::FilterMode::Linear,
+            // mipmap_filter: wgpu::FilterMode::Linear,
+            address_mode_u: bevy::render::texture::ImageAddressMode::Repeat,
+            address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
+            address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
             ..Default::default()
         },
-    }))
-    .add_system(bevy::window::close_on_esc);
+    }));
+
+    app.add_systems(Update, bevy::window::close_on_esc);
 
     app.add_plugins(GamePluginGroup);
     app.add_plugins(EditorPluginGroup);

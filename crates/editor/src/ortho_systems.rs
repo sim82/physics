@@ -84,35 +84,38 @@ pub fn enter_editor_state(
                     })
                     .id();
 
-                let grid = if name == LOWER_WINDOW {
-                    bevy_infinite_grid::InfiniteGrid {
-                        x_axis_color: t.get_lower_x_axis_color(),
-                        z_axis_color: t.get_lower_z_axis_color(),
-                        ..Default::default()
-                    }
-                } else {
-                    // upper grid uses default colors
-                    default()
-                };
-
-                let grid_entity = commands
-                    .spawn((
-                        bevy_infinite_grid::InfiniteGridBundle {
-                            grid,
-                            transform: Transform::from_rotation(t.get_grid_rotation()),
+                #[cfg(feature = "external_deps")]
+                {
+                    let grid = if name == LOWER_WINDOW {
+                        bevy_infinite_grid::InfiniteGrid {
+                            x_axis_color: t.get_lower_x_axis_color(),
+                            z_axis_color: t.get_lower_z_axis_color(),
                             ..Default::default()
-                        },
-                        render_layer,
-                        Name::new(format!("{} grid", name)),
-                    ))
-                    .id();
+                        }
+                    } else {
+                        // upper grid uses default colors
+                        default()
+                    };
 
-                e.insert(resources::EditorWindow2d {
-                    camera,
-                    grid: grid_entity,
-                    offscreen_image,
-                    orientation: t,
-                });
+                    let grid_entity = commands
+                        .spawn((
+                            bevy_infinite_grid::InfiniteGridBundle {
+                                grid,
+                                transform: Transform::from_rotation(t.get_grid_rotation()),
+                                ..Default::default()
+                            },
+                            render_layer,
+                            Name::new(format!("{} grid", name)),
+                        ))
+                        .id();
+
+                    e.insert(resources::EditorWindow2d {
+                        camera,
+                        grid: grid_entity,
+                        offscreen_image,
+                        orientation: t,
+                    });
+                }
             }
 
             bevy::utils::hashbrown::hash_map::Entry::Occupied(e) => {
@@ -141,7 +144,7 @@ pub fn control_input_wm_system(
     mut event_reader: EventReader<util::WmEvent>,
     mut projection_query: Query<&mut Projection>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         // let focused_name = event.
         // info!("event: {:?}", event);
 
@@ -266,8 +269,13 @@ pub fn control_input_wm_system(
     }
 }
 
+// FIXME: make system independent from external dep
+#[cfg(not(features = "external_deps"))]
+pub fn adjust_clip_planes_system() {}
+
+#[cfg(features = "external_deps")]
 pub fn adjust_clip_planes_system(
-    keycodes: Res<Input<KeyCode>>,
+    keycodes: Res<ButtonInput<KeyCode>>,
 
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
@@ -423,7 +431,7 @@ pub fn edit_input_system(
     mut edit_commands: EditCommands,
     mut commands: Commands,
     mut event_reader: EventReader<util::WmEvent>,
-    keycodes: Res<Input<KeyCode>>,
+    keycodes: Res<ButtonInput<KeyCode>>,
     editor_windows_2d: Res<resources::EditorWindows2d>,
 
     camera_query: Query<(&GlobalTransform, &Camera)>,
@@ -440,7 +448,7 @@ pub fn edit_input_system(
     point_drag_query: Query<(Entity, &components::DragAction), With<components::EditablePoint>>,
     selected_query: Query<Entity, With<components::Selected>>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         debug!("event edit: {:?}", event);
         match *event {
             util::WmEvent::DragStart {
@@ -630,7 +638,7 @@ pub fn select_input_system(
     point_query: Query<(Entity, &Transform), With<components::EditablePoint>>,
     selected_query: Query<Entity, With<components::Selected>>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         if let util::WmEvent::Clicked {
             window: focused_name,
             button: util::WmMouseButton::Left,

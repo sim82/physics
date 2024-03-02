@@ -11,7 +11,7 @@ pub fn select_input_system(
     camera_query: Query<(&GlobalTransform, &Camera), With<components::Main3dCamera>>,
     processed_csg_query: Query<(Entity, &components::ProcessedCsg)>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         if let util::WmEvent::Clicked {
             window: focused_name,
             button,
@@ -34,8 +34,10 @@ pub fn select_input_system(
                 continue;
             };
 
-            let Some(ray) = camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down()) else {
-                warn!("viewport_to_world failed in {}", focused_name); 
+            let Some(ray) =
+                camera.viewport_to_world(global_transform, pointer_state.get_pos_origin_down())
+            else {
+                warn!("viewport_to_world failed in {}", focused_name);
                 continue;
             };
 

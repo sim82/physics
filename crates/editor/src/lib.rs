@@ -106,7 +106,6 @@ impl Plugin for EditorPlugin {
                 main3d_systems::select_input_system,
             ),
         );
-
         app.add_systems(
             Update,
             (
@@ -126,6 +125,7 @@ impl Plugin for EditorPlugin {
                 .run_if(on_timer(Duration::from_millis(100)))
                 .in_set(EditorSet::Csg), // .run_if(on_timer(Duration::from_millis(1000 / 15)))
         );
+
         app.add_systems(
             Update,
             (
@@ -150,7 +150,8 @@ impl Plugin for EditorPlugin {
             wm_systems::wm_test_system.run_if(in_state(AppState::Editor)),
         );
         app.add_event::<util::WmEvent>();
-        app.add_system(
+        app.add_systems(
+            Update,
             wm_systems::write_view_settings.run_if(on_timer(Duration::from_millis(500))),
         );
     }
@@ -159,9 +160,12 @@ impl Plugin for EditorPlugin {
 pub struct EditorPluginGroup;
 impl PluginGroup for EditorPluginGroup {
     fn build(self) -> bevy::app::PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
-            .add(EditorPlugin)
-            // .add(debug_gui::DebugGuiPlugin)
-            .add(bevy_infinite_grid::InfiniteGridPlugin)
+        let builder = PluginGroupBuilder::start::<Self>().add(EditorPlugin);
+        // .add(debug_gui::DebugGuiPlugin)
+        #[cfg(feature = "external_deps")]
+        {
+            builder.add(bevy_infinite_grid::InfiniteGridPlugin);
+        }
+        builder
     }
 }

@@ -14,6 +14,10 @@ pub struct ContactDebug {
     plane_mesh: Option<Handle<Mesh>>,
 }
 
+// FIXME: make system independent of external dep
+#[cfg(not(features = "external_deps"))]
+pub fn contact_debug() {}
+#[cfg(features = "external_deps")]
 pub fn contact_debug(
     time: Res<Time>,
     mut commands: Commands,

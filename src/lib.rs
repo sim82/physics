@@ -17,8 +17,10 @@ pub mod slidemove;
 pub mod trace;
 
 pub mod norm {
+    use bevy::asset::io::Reader;
     // srgb workaround from https://github.com/bevyengine/bevy/issues/6371
-    use bevy::asset::{AssetLoader, Error, LoadContext, LoadedAsset};
+    use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext, LoadedAsset};
+    use bevy::prelude::*;
     use bevy::render::texture::{CompressedImageFormats, Image, ImageType};
     use bevy::utils::BoxedFuture;
 
@@ -28,26 +30,38 @@ pub mod norm {
     impl AssetLoader for NormalMappedImageTextureLoader {
         fn load<'a>(
             &'a self,
-            bytes: &'a [u8],
+            reader: &'a mut Reader,
+            _settings: &'a Self::Settings,
             load_context: &'a mut LoadContext,
-        ) -> BoxedFuture<'a, Result<(), Error>> {
+        ) -> BoxedFuture<'a, Result<Self::Asset, anyhow::Error>> {
             Box::pin(async move {
+                let mut bytes = Vec::new();
+                reader.read_to_end(&mut bytes).await?;
                 let dyn_img = Image::from_buffer(
-                    bytes,
+                    bytes.as_slice(),
                     ImageType::Extension("png"),
                     CompressedImageFormats::all(),
                     false,
+                    default(),
+                    default(),
                 )
                 .unwrap();
 
-                load_context.set_default_asset(LoadedAsset::new(dyn_img));
-                Ok(())
+                // load_context.set_default_asset(LoadedAsset::new(dyn_img));
+                // Ok(())
+                Ok(dyn_img)
             })
         }
 
         fn extensions(&self) -> &[&str] {
             &["norm"]
         }
+
+        type Asset = Image;
+
+        type Settings = ();
+
+        type Error = anyhow::Error;
     }
 }
 
@@ -100,7 +114,7 @@ pub mod test_texture {
 pub mod player_controller;
 
 pub fn exit_on_esc_system(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut app_exit_events: EventWriter<AppExit>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
@@ -246,7 +260,7 @@ mod systems {
     }
 
     pub fn toggle_debug_menu_system(
-        key_codes: Res<Input<KeyCode>>,
+        key_codes: Res<ButtonInput<KeyCode>>,
         app_state: Res<State<AppState>>,
         mut next_state: ResMut<NextState<AppState>>,
     ) {
@@ -263,8 +277,10 @@ mod systems {
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<StandardMaterial>>,
     ) {
-        let player_mesh = meshes.add(shape::Box::new(0.6, 1.8, 0.6).into());
-        let player_material = materials.add(Color::rgba(0.8, 0.8, 0.4, 0.4).into());
+        let asset: Mesh = shape::Box::new(0.6, 1.8, 0.6).into();
+        let player_mesh = meshes.add(asset);
+        let asset: StandardMaterial = Color::rgba(0.8, 0.8, 0.4, 0.4).into();
+        let player_material = materials.add(asset);
 
         commands
             .spawn(SpatialBundle::from_transform(Transform::from_xyz(
@@ -347,7 +363,7 @@ mod systems {
     }
     pub fn toggle_anti_aliasing(
         mut state: ResMut<resources::AaState>,
-        key_codes: Res<Input<KeyCode>>,
+        key_codes: Res<ButtonInput<KeyCode>>,
         mut msaa: ResMut<Msaa>,
         mut query: Query<&mut Fxaa>,
     ) {
@@ -413,14 +429,14 @@ impl Plugin for GameplayPlugin {
         app.add_systems(Startup, systems::setup_player_system);
         app.add_systems(Startup, systems::setup_debug_render_system);
         app.add_systems(Update, systems::update_deferred_mesh_system);
-        app.add_state::<AppState>();
+        app.insert_state(AppState::default());
         app.add_systems(Update, systems::toggle_debug_menu_system);
-        app.add_asset_loader(norm::NormalMappedImageTextureLoader);
+        app.register_asset_loader(norm::NormalMappedImageTextureLoader);
         #[cfg(feature = "inspector")]
         {
-            app.add_plugin(bevy_inspector_egui::DefaultInspectorConfigPlugin);
+            app.add_plugins(bevy_inspector_egui::DefaultInspectorConfigPlugin);
         }
-        app.add_plugin(bevy_egui::EguiPlugin);
+        app.add_plugins(bevy_egui::EguiPlugin);
         app.add_systems(OnEnter(AppState::Editor), systems::enter_editor_system);
         app.add_systems(OnExit(AppState::Editor), systems::leave_editor_system);
         app.add_systems(OnEnter(AppState::InGame), systems::enter_ingame_system);
@@ -448,14 +464,20 @@ impl PluginGroup for GamePluginGroup {
 pub struct ExternalPluginGroup;
 impl PluginGroup for ExternalPluginGroup {
     fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
+        let builder = PluginGroupBuilder::start::<Self>()
             .add(RapierPhysicsPlugin::<NoUserData>::default())
             .add(WireframePlugin)
             // .add(RapierDebugRenderPlugin::default())
-            .add(bevy_prototype_debug_lines::DebugLinesPlugin::default())
             .add(FrameTimeDiagnosticsPlugin)
             .add(sky::SkyPlugin)
-            .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin)
-            .add(bevy_mod_outline::OutlinePlugin)
+            .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin);
+
+        #[cfg(features = "external_deps")]
+        {
+            builder
+                .add(bevy_mod_outline::OutlinePlugin)
+                .add(bevy_prototype_debug_lines::DebugLinesPlugin::default());
+        }
+        builder
     }
 }

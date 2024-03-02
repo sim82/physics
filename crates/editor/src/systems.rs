@@ -10,7 +10,6 @@ use crate::{
     wsx,
 };
 use bevy::{
-    ecs::system::Remove,
     pbr::wireframe::Wireframe,
     prelude::*,
     render::{mesh, view::RenderLayers},
@@ -18,6 +17,8 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_egui::EguiContexts;
+
+#[cfg(feature = "external_deps")]
 use bevy_mod_outline::OutlineMeshExt;
 use serde::{Deserialize, Serialize};
 use shared::render_layers;
@@ -81,7 +82,7 @@ pub fn editor_input_system(
     mut edit_commands: EditCommands,
     // mut windows: ResMut<Windows>,
     mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
-    keycodes: Res<Input<KeyCode>>,
+    keycodes: Res<ButtonInput<KeyCode>>,
     selection_query: Query<Entity, With<components::Selected>>,
     mut clip_state: ResMut<resources::ClipState>,
 ) {
@@ -101,7 +102,7 @@ pub fn editor_input_system(
     }
 
     let mut clear_selection = false;
-    if keycodes.just_pressed(KeyCode::B) {
+    if keycodes.just_pressed(KeyCode::KeyB) {
         let res = edit_commands.apply(add_brush::Command { brush: default() });
         if let Err(err) = res {
             warn!("failed to add brush: {:?}", err);
@@ -112,7 +113,7 @@ pub fn editor_input_system(
         info!("add brush");
     }
 
-    if keycodes.just_pressed(KeyCode::D) {
+    if keycodes.just_pressed(KeyCode::KeyD) {
         if let Ok(primary) = selection_query.get_single() {
             let res = edit_commands.apply(duplicate_brush::Command {
                 template_entity: primary,
@@ -124,7 +125,7 @@ pub fn editor_input_system(
         }
     }
 
-    if keycodes.just_pressed(KeyCode::L) {
+    if keycodes.just_pressed(KeyCode::KeyL) {
         let res = edit_commands.apply(add_pointlight::Command);
         if let Err(err) = res {
             warn!("failed to add point light: {:?}", err);
@@ -132,7 +133,7 @@ pub fn editor_input_system(
         clear_selection = true;
     }
 
-    if keycodes.just_pressed(KeyCode::K) {
+    if keycodes.just_pressed(KeyCode::KeyK) {
         commands
             .spawn((SpatialBundle::default(), components::EditablePoint))
             .with_children(|commands| {
@@ -162,7 +163,7 @@ pub fn editor_input_system(
     //     clear_selection = true;
     // }
 
-    if keycodes.just_pressed(KeyCode::X) {
+    if keycodes.just_pressed(KeyCode::KeyX) {
         if let Ok(primary) = selection_query.get_single() {
             let res = edit_commands.apply(remove_entity::Command { entity: primary });
             if let Err(err) = res {
@@ -171,7 +172,7 @@ pub fn editor_input_system(
         }
     }
 
-    if keycodes.just_pressed(KeyCode::C) {
+    if keycodes.just_pressed(KeyCode::KeyC) {
         clip_state.clip_mode = !clip_state.clip_mode;
     }
 
@@ -438,34 +439,11 @@ pub struct SelectionChangeTracking {
     selection: HashSet<Entity>,
 }
 
-// pub fn track_primary_selection(
-//     selection: Res<Selection>,
-//     materials_res: Res<resources::Materials>,
-//     mut tracking: Local<SelectionChangeTracking>,
-//     mut material_query: Query<&mut Handle<StandardMaterial>>,
-// ) {
-//     if selection.primary == tracking.primary {
-//         return;
-//     }
+// FIXME: make system independent from external dependency
+#[cfg(not(feature = "external_deps"))]
+pub fn track_primary_selection() {}
 
-//     // reset material for old selecton
-//     if let Some(mut material) = tracking
-//         .primary
-//         .and_then(|old_selection| material_query.get_mut(old_selection).ok())
-//     {
-//         *material = materials_res.get_brush_2d_material();
-//     }
-
-//     if let Some(mut material) = selection
-//         .primary
-//         .and_then(|new_selection| material_query.get_mut(new_selection).ok())
-//     {
-//         *material = materials_res.get_brush_2d_selected_material();
-//     }
-
-//     tracking.primary = selection.primary;
-// }
-
+#[cfg(feature = "external_deps")]
 pub fn track_primary_selection(
     // selection: Res<Selection>,
     materials_res: Res<resources::Materials>,
@@ -555,13 +533,16 @@ pub fn track_2d_vis_system(
                 if let Ok((old_mesh, mut mesh_transform)) = mesh_query.get_mut(*child) {
                     // meshes.remove(old_mesh.clone());
                     let (mut mesh, origin) = (&csg_rep.csg).into();
-                    if let Some(old_mesh) = meshes.get_mut(&old_mesh) {
-                        let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
-                        if let Err(err) = res {
-                            warn!(
-                                "failed to generate outline normals for {:?}: {:?}",
-                                child, err
-                            );
+                    if let Some(old_mesh) = meshes.get_mut(old_mesh.clone()) {
+                        #[cfg(features = "external_deps")]
+                        {
+                            let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
+                            if let Err(err) = res {
+                                warn!(
+                                    "failed to generate outline normals for {:?}: {:?}",
+                                    child, err
+                                );
+                            }
                         }
                         *old_mesh = mesh;
                     }
@@ -576,9 +557,12 @@ pub fn track_2d_vis_system(
             let (mut mesh, origin) = (&csg_rep.csg).into();
             // transform.translation = origin;
             // info!("brush new");
-            let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
-            if let Err(err) = res {
-                warn!("failed to generate outline normals for: {:?}", err);
+            #[cfg(features = "external_deps")]
+            {
+                let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
+                if let Err(err) = res {
+                    warn!("failed to generate outline normals for: {:?}", err);
+                }
             }
             let mesh_entity = commands
                 .spawn((
@@ -625,23 +609,23 @@ pub fn track_lights_system(
     >,
 ) {
     for entity in &vis2d_query {
+        let mesh: Mesh = mesh::shape::Icosphere {
+            radius: 0.1,
+            subdivisions: 2,
+        }
+        .try_into()
+        .expect("Icosphere to mesh failed"); // FIXME: handle?
         let vis2d_entity = commands
             .spawn((
                 PbrBundle {
-                    mesh: meshes.add(
-                        mesh::shape::Icosphere {
-                            radius: 0.1,
-                            subdivisions: 2,
-                        }
-                        .try_into()
-                        .expect("Icosphere to mesh failed"), // FIXME: handle?
-                    ),
+                    mesh: meshes.add(mesh),
                     material: materials_res.get_brush_2d_material(),
 
                     ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
                 },
                 render_layers::ortho_views(),
                 components::SelectionHighlighByOutline,
+                #[cfg(feature = "external_deps")]
                 bevy_mod_outline::OutlineBundle {
                     outline: bevy_mod_outline::OutlineVolume {
                         colour: Color::BLUE,
@@ -809,7 +793,7 @@ enum ExternalEditorObject {
 pub fn load_save_editor_objects(
     mut commands: Commands,
 
-    keycodes: Res<Input<KeyCode>>,
+    keycodes: Res<ButtonInput<KeyCode>>,
     brush_query: Query<(Entity, &csg::Brush, &components::BrushMaterialProperties)>,
     light_query: Query<(Entity, &components::PointLightProperties, &Transform)>,
     mut spatial_index: ResMut<SpatialIndex>,
@@ -977,7 +961,7 @@ pub fn track_wireframe_system(
             commands.entity(csg_ent).insert(Wireframe);
         }
     }
-    for e in removed.iter() {
+    for e in removed.read() {
         let Ok(cs) = children.get(e) else { continue };
         for c in cs {
             let Ok(csg_ent) = csg_with.get(*c) else {

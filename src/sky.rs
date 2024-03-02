@@ -105,7 +105,7 @@ impl Plugin for SkyPlugin {
                 ),
                 0,
             ))
-            .add_plugin(AtmospherePlugin) // Default AtmospherePlugin
+            .add_plugins(AtmospherePlugin) // Default AtmospherePlugin
             // .add_startup_system(setup_environment)
             // .add_system(daylight_cycle)
             // .add_system(examples_cycle)

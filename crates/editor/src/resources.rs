@@ -31,7 +31,7 @@ pub struct EditorWindow2d {
 }
 
 pub struct TranslateDrag {
-    pub start_ray: Ray,
+    pub start_ray: Ray3d,
     pub start_focus: String,
     pub start_global_transform: GlobalTransform,
     pub start_transforms: Vec<(Entity, Transform)>,

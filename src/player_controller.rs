@@ -59,12 +59,12 @@ impl Default for PlayerInputSource {
     fn default() -> Self {
         Self {
             next_serial: 0,
-            forward: KeyCode::W,
-            backward: KeyCode::S,
-            left: KeyCode::A,
-            right: KeyCode::D,
-            up: KeyCode::R,
-            down: KeyCode::F,
+            forward: KeyCode::KeyW,
+            backward: KeyCode::KeyS,
+            left: KeyCode::KeyA,
+            right: KeyCode::KeyD,
+            up: KeyCode::KeyR,
+            down: KeyCode::KeyF,
             walk: KeyCode::ShiftLeft,
         }
     }
@@ -74,7 +74,7 @@ impl Default for PlayerInputSource {
 pub struct PlayerCamera;
 
 pub fn player_controller_input_system(
-    key_codes: Res<Input<KeyCode>>,
+    key_codes: Res<ButtonInput<KeyCode>>,
     mut mouse_motion: EventReader<MouseMotion>,
     mut query: Query<(&mut PlayerInputSource, &mut PlayerInputQueue)>,
     app_state: Res<State<AppState>>,
@@ -123,7 +123,7 @@ pub fn player_controller_input_system(
         let mut lon = 0.0;
         let mut lat = 0.0;
 
-        for event in mouse_motion.iter() {
+        for event in mouse_motion.read() {
             const SENSITIVITY: f32 = 0.5;
             lon -= event.delta.x * SENSITIVITY;
             lat -= event.delta.y * SENSITIVITY;
@@ -292,11 +292,18 @@ impl Plugin for PlayerControllerPlugin {
         // app.add_system_set(
         //     SystemSet::on_update(AppState::InGame).with_system(player_controller_input_system),
         // );
-        app.add_system(player_controller_input_system);
-        app.add_system(player_controller_apply_system.after(player_controller_input_system))
-            .add_system(
-                player_controller_apply_output_system.before(player_controller_apply_system),
-            )
-            .add_system(sync_player_camera_system.after(player_controller_apply_output_system));
+        app.add_systems(Update, player_controller_input_system);
+        app.add_systems(
+            Update,
+            player_controller_apply_system.after(player_controller_input_system),
+        )
+        .add_systems(
+            Update,
+            player_controller_apply_output_system.before(player_controller_apply_system),
+        )
+        .add_systems(
+            Update,
+            sync_player_camera_system.after(player_controller_apply_output_system),
+        );
     }
 }

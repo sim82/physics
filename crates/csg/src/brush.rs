@@ -21,11 +21,11 @@ impl Brush {
     }
 
     /// get planes that are affected by a drag starting at this ray
-    pub fn get_planes_behind_ray(&self, ray: Ray) -> Vec<(usize, f32)> {
+    pub fn get_planes_behind_ray(&self, ray: Ray3d) -> Vec<(usize, f32)> {
         let mut res = Vec::new();
         for (i, p) in self.planes.iter().enumerate() {
             // info!("loc: {:?} {:?}", p.normal, location);
-            let dot = p.normal.dot(ray.direction);
+            let dot = p.normal.dot(*ray.direction);
             debug!("dot: {}", dot);
 
             // check if face normal is orthogonal to ray
@@ -35,7 +35,7 @@ impl Brush {
             }
             let location = p.location_of_point(ray.origin);
 
-            if location != Location::FRONT {
+            if location.bits() != Location::FRONT.bits() {
                 continue;
             }
 

@@ -114,13 +114,15 @@ pub struct Plane {
     pub w: f32,
 }
 
+// #[allow(clippy::bad_bit_mask)]
 bitflags::bitflags! {
+    #[derive(Eq, PartialEq, Clone, Copy)]
     pub struct Location : u32 {
         const NONE = 0;
         const COPLANAR = Self::NONE.bits();
         const FRONT = 1;
         const BACK = 2;
-        const SPANNING = Self::FRONT.bits() | Self::BACK.bits;
+        const SPANNING = Self::FRONT.bits() | Self::BACK.bits();
     }
 }
 
@@ -754,11 +756,11 @@ pub fn triangles_to_mesh_with_texgen(tris: &[TriWithNormal], texgen: &Texgen) ->
         indices.extend(idx0..=(idx0 + 2));
     }
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-    mesh.set_indices(Some(Indices::U32(indices)));
+    mesh.insert_indices(Indices::U32(indices));
     mesh.generate_tangents().expect("generate tangents failed");
     mesh
 }
@@ -798,11 +800,11 @@ impl<'a> From<TriangleSlice<'a>> for (Mesh, Vec3) {
             indices.extend(idx0..=(idx0 + 2));
         }
 
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-        mesh.set_indices(Some(Indices::U32(indices)));
+        mesh.insert_indices(Indices::U32(indices));
         mesh.generate_tangents().expect("generate tangents failed");
         (mesh, origin)
     }

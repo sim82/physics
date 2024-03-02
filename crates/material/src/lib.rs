@@ -22,7 +22,7 @@ pub fn load_all_material_files<P: AsRef<Path>>(dir: P) -> HashMap<String, Materi
     let mut res = HashMap::new();
 
     for e in std::fs::read_dir(dir).unwrap() {
-        let Ok(ent) = e else {continue};
+        let Ok(ent) = e else { continue };
         if !ent.file_type().unwrap().is_file()
             || !ent.file_name().to_string_lossy().ends_with(".ron")
         {
@@ -82,7 +82,7 @@ pub fn instantiate_material(
         emissive_texture: load_image(material.emissive.clone(), asset_server),
         emissive: material
             .emissive_color
-            .map(|c| c.extend(1.0).into())
+            .map(|c| Color::rgba_from_array(c.extend(1.0)))
             .unwrap_or(Color::BLACK),
         ..default()
     })

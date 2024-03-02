@@ -20,19 +20,18 @@ pub fn spawn_box(
     let center = (min + max) / 2.0;
     let hs = (max - min) / 2.0;
 
+    let asset: Mesh = mesh::shape::Box {
+        min_x: -hs.x,
+        max_x: hs.x,
+        min_y: -hs.y,
+        max_y: hs.y,
+        min_z: -hs.z,
+        max_z: hs.z,
+    }
+    .into();
     commands
         .spawn(PbrBundle {
-            mesh: meshes.add(
-                mesh::shape::Box {
-                    min_x: -hs.x,
-                    max_x: hs.x,
-                    min_y: -hs.y,
-                    max_y: hs.y,
-                    min_z: -hs.z,
-                    max_z: hs.z,
-                }
-                .into(),
-            ),
+            mesh: meshes.add(asset),
             material,
             transform: Transform::from_translation(center),
             ..Default::default()
@@ -52,20 +51,19 @@ pub fn add_box(
     let center = (min + max) / 2.0;
     let hs = (max - min) / 2.0;
 
+    let asset: Mesh = mesh::shape::Box {
+        min_x: -hs.x,
+        max_x: hs.x,
+        min_y: -hs.y,
+        max_y: hs.y,
+        min_z: -hs.z,
+        max_z: hs.z,
+    }
+    .into();
     commands
         .entity(entity)
         .insert(PbrBundle {
-            mesh: meshes.add(
-                mesh::shape::Box {
-                    min_x: -hs.x,
-                    max_x: hs.x,
-                    min_y: -hs.y,
-                    max_y: hs.y,
-                    min_z: -hs.z,
-                    max_z: hs.z,
-                }
-                .into(),
-            ),
+            mesh: meshes.add(asset),
             material,
             transform: Transform::from_translation(center),
             ..Default::default()
@@ -410,9 +408,9 @@ pub enum WmEvent {
 }
 
 // https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
-pub fn ray_point_distance(ray: Ray, x0: Vec3) -> f32 {
+pub fn ray_point_distance(ray: Ray3d, x0: Vec3) -> f32 {
     let x1 = ray.origin;
-    let x2 = ray.origin + ray.direction;
+    let x2 = ray.origin + *ray.direction;
     (x0 - x1).cross(x0 - x2).length() / ray.direction.length()
 }
 
@@ -445,7 +443,7 @@ pub struct RayHit {
 /// Implementation of the Möller-Trumbore ray-triangle intersection test
 /// adapted from https://github.com/aevyrie/bevy_mod_raycast/blob/main/src/raycast.rs
 pub fn raycast_moller_trumbore(
-    ray: &Ray,
+    ray: &Ray3d,
     triangle: &impl TriangleTrait,
     cull_backfaces: bool,
 ) -> Option<RayHit> {

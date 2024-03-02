@@ -9,36 +9,25 @@ inspector = [
     "editor/inspector"
     # "bevy-inspector-egui-rapier"
 ]
-
+external_deps = [
+    "bevy_mod_outline",
+    "bevy_prototype_debug_lines"
+]
 
 default = ["inspector"]
 # default = []
 
 
 [workspace.dependencies]
-bevy = { version = "0.13", features = ["dynamic_linking"] }
-wgpu = "0.16"
-bevy-inspector-egui = { version = "0.23" }
-
 log = "0.4"
 anyhow = { version = "1" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 serde_yaml = "0.9"
 ron = "0.8"
-
 flexbuffers = "2"
-bevy_rapier3d = { version = "0.25", features = [
-    "debug-render",
-    "serde-serialize",
-] }
-
 gltf = "*"
-bevy_prototype_debug_lines = { version = "0.11", features = ["3d"] }
-# bevy_atmosphere = { git = "https://github.com/JonahPlusPlus/bevy_atmosphere.git" }
-bevy_atmosphere = { version = "0.9" }
-bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
-bitflags = "1"
+bitflags = "2"
 quick-xml = { version = "0.26", features = ["serialize"] }
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 clap = { version = "4", features = ["derive"] }
@@ -47,14 +36,27 @@ env_logger = "0.10"
 dialoguer = "0.10"
 console = "0.15"
 rayon = "1"
-bevy_egui = "0.25"
 arrayvec = "0.7"
-bevy_mod_outline = "0.5"
 thiserror = "1"
-#bevy_infinite_grid = "0.6.0"
-# bevy_infinite_grid = {git="https://github.com/PikminGuts92/bevy_infinite_grid.git", branch="bevy-0.10"}
-bevy_infinite_grid = {version = "0.10"}
+
+###
+# bevy related dependencies
+bevy = { version = "0.13", features = ["dynamic_linking"] }
+bevy_rapier3d = { version = "0.25", features = [
+    "debug-render",
+    "serde-serialize",
+] }
+bevy-inspector-egui = { version = "0.23" }
+bevy_egui = "0.25"
+wgpu = "0.19"
 parry3d = "0.13"
+
+# frequently cause churn on bevy updates
+bevy_atmosphere = { version = "0.9" }
+bevy_prototype_debug_lines = { version = "0.11", features = ["3d"] }
+bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
+bevy_mod_outline = {version = "0.6", optional = false}
+bevy_infinite_grid = {version = "0.10.0", optional = false}
 
 [dependencies]
 bevy = { workspace = true, features = ["dynamic_linking"] }
@@ -75,7 +77,7 @@ bevy_rapier3d = { workspace = true, features = [
 ] }
 
 gltf = { workspace = true }
-bevy_prototype_debug_lines = { workspace = true, features = ["3d"] }
+bevy_prototype_debug_lines = { workspace = true, features = ["3d"], optional = true }
 bevy_atmosphere = { workspace = true }
 bevy_mod_mipmap_generator = { workspace = true }
 bitflags = { workspace = true }
@@ -89,7 +91,7 @@ console = { workspace = true }
 rayon = { workspace = true }
 bevy_egui = { workspace = true }
 arrayvec = { workspace = true }
-bevy_mod_outline = { workspace = true }
+bevy_mod_outline = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 csg = { path = "crates/csg" }

@@ -56,8 +56,8 @@ pub struct UndoCommands<'w, 's> {
     pub undo_stack: ResMut<'w, UndoStack>,
 }
 
-pub fn undo_system(mut undo_commands: UndoCommands, keycodes: Res<Input<KeyCode>>) {
-    if keycodes.just_pressed(KeyCode::Z) {
+pub fn undo_system(mut undo_commands: UndoCommands, keycodes: Res<ButtonInput<KeyCode>>) {
+    if keycodes.just_pressed(KeyCode::KeyZ) {
         let undo_entry = undo_commands.undo_stack.stack.pop();
         // info!("undo: {:?}", undo_entry);
         match undo_entry {

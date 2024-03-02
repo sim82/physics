@@ -19,9 +19,9 @@ fn main() {
     let mut app = App::new();
 
     app.add_plugins(DefaultPlugins)
-        .add_startup_system(setup)
-        .add_system(test_system)
-        .add_system(change_system)
+        .add_systems(Startup, setup)
+        .add_systems(Update, test_system)
+        .add_systems(Update, change_system)
         .insert_resource(State {
             timer: Timer::from_seconds(1.0, TimerMode::Repeating),
             c: 0,
