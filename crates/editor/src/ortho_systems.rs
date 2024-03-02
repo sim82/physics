@@ -52,6 +52,7 @@ pub fn enter_editor_state(
             ..default()
         };
         // lazy create camera entities
+        #[allow(unused)] // this is all a mess anyways
         match editor_windows_2d.windows.entry(name.to_string()) {
             bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
                 // let settings =
@@ -83,7 +84,6 @@ pub fn enter_editor_state(
                         ..default()
                     })
                     .id();
-
                 #[cfg(feature = "external_deps")]
                 {
                     let grid = if name == LOWER_WINDOW {
@@ -270,10 +270,10 @@ pub fn control_input_wm_system(
 }
 
 // FIXME: make system independent from external dep
-#[cfg(not(features = "external_deps"))]
+#[cfg(not(feature = "external_deps"))]
 pub fn adjust_clip_planes_system() {}
 
-#[cfg(features = "external_deps")]
+#[cfg(feature = "external_deps")]
 pub fn adjust_clip_planes_system(
     keycodes: Res<ButtonInput<KeyCode>>,
 
@@ -409,6 +409,7 @@ pub fn adjust_clip_planes_system(
     }
 }
 
+#[allow(dead_code)]
 fn ortho_view_bounds(camera: &Camera, transform: &GlobalTransform) -> Option<(Vec3, Vec3)> {
     let Rect {
         min: view_min,

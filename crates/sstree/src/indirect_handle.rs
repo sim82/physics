@@ -448,14 +448,14 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
         let links = pool.get(self.links);
         match links {
             Node::Leaf(points) => {
-                for (_i, point) in points.iter().enumerate() {
+                for point in points.iter() {
                     if point.center_radius.intersects(center_radius) && f(&point.payload) {
                         return Some(point);
                     }
                 }
             }
             Node::Inner(nodes) => {
-                for (_i, child) in nodes.iter().enumerate() {
+                for child in nodes.iter() {
                     if child.center_radius.intersects(center_radius) {
                         let ret = child.find_if(center_radius, f, pool);
                         if ret.is_some() {
@@ -944,7 +944,9 @@ impl<P, K: Center, const M: usize, N: NodePool<P, K, M>> SsTreeI<P, K, M> for Ss
         match links {
             Node::Inner(nodes) if nodes.len() == 1 => {
                 let links = self.pool.remove(self.root.links);
-                let Node::Inner(mut nodes) =  links else { panic!("expecting Node::Inner here") };
+                let Node::Inner(mut nodes) = links else {
+                    panic!("expecting Node::Inner here")
+                };
                 self.root = nodes.pop().unwrap();
                 self.height -= 1;
             }
@@ -989,7 +991,9 @@ impl<P, K: Center, const M: usize, N: NodePool<P, K, M>> SsTreeI<P, K, M> for Ss
         match links {
             Node::Inner(nodes) if nodes.len() == 1 => {
                 let links = self.pool.remove(self.root.links);
-                let Node::Inner(mut nodes) =  links else { panic!("expecting Node::Inner here") };
+                let Node::Inner(mut nodes) = links else {
+                    panic!("expecting Node::Inner here")
+                };
                 self.root = nodes.pop().unwrap();
                 self.height -= 1;
             }

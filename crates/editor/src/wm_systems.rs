@@ -28,6 +28,7 @@ pub fn wm_test_setup_system(
     }
 }
 
+#[allow(clippy::complexity)] // nope clippy, thats how bevy rolls...
 pub fn wm_test_system(world: &mut World) {
     let mut system_state: SystemState<(
         EguiContexts,

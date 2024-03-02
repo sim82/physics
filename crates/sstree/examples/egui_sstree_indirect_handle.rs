@@ -291,27 +291,13 @@ impl MyEguiApp {
             let mut selected = Vec::new();
 
             let start = Instant::now();
-            if !false {
-                self.tree.find_entries_within_radius(
-                    &Bounds {
-                        center: [select_tool.center.x, select_tool.center.y],
-                        radius: select_tool.radius,
-                    },
-                    &mut selected,
-                );
-            } else {
-                todo!()
-                // let mut paths = Vec::new();
-                // self.tree.paths_within_radius(
-                //     &[select_tool.center.x, select_tool.center.y],
-                //     select_tool.radius,
-                //     &mut paths,
-                // );
-
-                // for path in paths {
-                //     selected.push(self.tree.get_by_path(&path))
-                // }
-            }
+            self.tree.find_entries_within_radius(
+                &Bounds {
+                    center: [select_tool.center.x, select_tool.center.y],
+                    radius: select_tool.radius,
+                },
+                &mut selected,
+            );
             println!("selected: {} {:?}", selected.len(), start.elapsed());
 
             painter.extend(selected.iter().map(|p| {
@@ -412,22 +398,12 @@ fn main() {
     let mut tree = SsTree::<u64, [f32; 2], M>::new(LOWER_M);
     let mut rng = rand::thread_rng();
 
-    if !false {
-        for _ in 0..10 {
-            println!("insert ...");
-            for i in 0..100000 {
-                tree.insert(
-                    i,
-                    [rng.gen_range(200.0..9000.0), rng.gen_range(200.0..90000.0)],
-                    5.0,
-                );
-            }
-        }
-    } else {
-        for i in 0..10 {
+    for _ in 0..10 {
+        println!("insert ...");
+        for i in 0..100000 {
             tree.insert(
                 i,
-                [rng.gen_range(200.0..600.0), rng.gen_range(200.0..600.0)],
+                [rng.gen_range(200.0..9000.0), rng.gen_range(200.0..90000.0)],
                 5.0,
             );
         }

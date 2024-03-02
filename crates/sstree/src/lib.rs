@@ -335,7 +335,7 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
     ) -> Option<&Entry<P, K>> {
         match &self.links {
             SsNodeLinks::Leaf(points) => {
-                for (_i, point) in points.iter().enumerate() {
+                for point in points.iter() {
                     if point.center.distance(center) < (radius + point.radius) && f(&point.payload)
                     {
                         return Some(point);
@@ -343,7 +343,7 @@ impl<P, K: Default + DimIndex + Distance + PartialEq, const M: usize> SsNode<P, 
                 }
             }
             SsNodeLinks::Inner(nodes) => {
-                for (_i, child) in nodes.iter().enumerate() {
+                for child in nodes.iter() {
                     if child.centroid.distance(center) <= radius + child.radius {
                         let ret = child.find_if(center, radius, f);
                         if ret.is_some() {

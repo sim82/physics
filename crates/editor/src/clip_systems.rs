@@ -1,7 +1,7 @@
 use crate::{edit_commands, util::SnapToGrid};
 
 use super::{components, edit_commands::EditCommands, resources, util};
-use bevy::{prelude::*, render::mesh};
+use bevy::prelude::*;
 use shared::render_layers;
 
 pub fn clip_plane_setup_system(
@@ -10,14 +10,14 @@ pub fn clip_plane_setup_system(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     // let mesh = mesh::shape::Plane { size: 10.0 }.into();
-    let mesh: Mesh = mesh::shape::Box::new(10.0, 10.0, 0.1).into();
-
+    // let mesh: Mesh = mesh::shape::Box::new(10.0, 10.0, 0.1).into();
+    let halfsize = Vec3::new(10.0, 10.0, 0.02);
     commands
         .spawn(components::ClipPlaneBundle::default())
         .with_children(|commands| {
             commands.spawn((
                 PbrBundle {
-                    mesh: meshes.add(mesh),
+                    mesh: meshes.add(Cuboid::from_corners(halfsize, -halfsize).mesh()),
                     material: materials_res.brush_2d.clone(),
 
                     ..default()

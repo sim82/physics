@@ -12,7 +12,7 @@ use crate::{
 use bevy::{
     pbr::wireframe::Wireframe,
     prelude::*,
-    render::{mesh, view::RenderLayers},
+    render::view::RenderLayers,
     utils::{HashSet, Instant},
     window::PrimaryWindow,
 };
@@ -434,6 +434,7 @@ pub fn create_brush_csg_system_inc(
     }
 }
 
+#[allow(dead_code)]
 #[derive(Resource, Default)]
 pub struct SelectionChangeTracking {
     selection: HashSet<Entity>,
@@ -510,7 +511,7 @@ pub fn track_primary_selection(
     tracking.selection = new_selection;
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, unused_mut)]
 pub fn track_2d_vis_system(
     mut commands: Commands,
     materials_res: Res<resources::Materials>,
@@ -534,7 +535,7 @@ pub fn track_2d_vis_system(
                     // meshes.remove(old_mesh.clone());
                     let (mut mesh, origin) = (&csg_rep.csg).into();
                     if let Some(old_mesh) = meshes.get_mut(old_mesh.clone()) {
-                        #[cfg(features = "external_deps")]
+                        #[cfg(feature = "external_deps")]
                         {
                             let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
                             if let Err(err) = res {
@@ -557,7 +558,7 @@ pub fn track_2d_vis_system(
             let (mut mesh, origin) = (&csg_rep.csg).into();
             // transform.translation = origin;
             // info!("brush new");
-            #[cfg(features = "external_deps")]
+            #[cfg(feature = "external_deps")]
             {
                 let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
                 if let Err(err) = res {
@@ -609,16 +610,22 @@ pub fn track_lights_system(
     >,
 ) {
     for entity in &vis2d_query {
-        let mesh: Mesh = mesh::shape::Icosphere {
-            radius: 0.1,
-            subdivisions: 2,
-        }
-        .try_into()
-        .expect("Icosphere to mesh failed"); // FIXME: handle?
+        // let mesh: Mesh = mesh::shape::Icosphere {
+        //     radius: 0.1,
+        //     subdivisions: 2,
+        // }
+        // .try_into()
+        // .expect("Icosphere to mesh failed"); // FIXME: handle?
+
         let vis2d_entity = commands
             .spawn((
                 PbrBundle {
-                    mesh: meshes.add(mesh),
+                    mesh: meshes.add(
+                        Sphere::new(0.1)
+                            .mesh()
+                            .ico(2)
+                            .expect("icosphere to mesh failed"),
+                    ),
                     material: materials_res.get_brush_2d_material(),
 
                     ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),

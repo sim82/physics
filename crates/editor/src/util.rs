@@ -1,11 +1,7 @@
 use super::components::{self, CsgOutput};
 use shared::render_layers;
 
-use bevy::{
-    pbr::wireframe::Wireframe,
-    prelude::*,
-    render::{mesh, view::RenderLayers},
-};
+use bevy::{prelude::*, render::view::RenderLayers};
 use bevy_rapier3d::prelude::Collider;
 use csg::{self, Csg};
 use serde::{Deserialize, Serialize};
@@ -20,18 +16,9 @@ pub fn spawn_box(
     let center = (min + max) / 2.0;
     let hs = (max - min) / 2.0;
 
-    let asset: Mesh = mesh::shape::Box {
-        min_x: -hs.x,
-        max_x: hs.x,
-        min_y: -hs.y,
-        max_y: hs.y,
-        min_z: -hs.z,
-        max_z: hs.z,
-    }
-    .into();
     commands
         .spawn(PbrBundle {
-            mesh: meshes.add(asset),
+            mesh: meshes.add(Cuboid::from_corners(-hs, hs).mesh()),
             material,
             transform: Transform::from_translation(center),
             ..Default::default()
@@ -50,20 +37,10 @@ pub fn add_box(
 ) {
     let center = (min + max) / 2.0;
     let hs = (max - min) / 2.0;
-
-    let asset: Mesh = mesh::shape::Box {
-        min_x: -hs.x,
-        max_x: hs.x,
-        min_y: -hs.y,
-        max_y: hs.y,
-        min_z: -hs.z,
-        max_z: hs.z,
-    }
-    .into();
     commands
         .entity(entity)
         .insert(PbrBundle {
-            mesh: meshes.add(asset),
+            mesh: meshes.add(Cuboid::from_corners(-hs, hs)),
             material,
             transform: Transform::from_translation(center),
             ..Default::default()
@@ -221,19 +198,14 @@ pub fn spawn_csg_split(
 //     entities
 // }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
 pub enum Orientation2d {
+    #[default]
     DownFront,
     DownRight,
 
     Front,
     Right,
-}
-
-impl Default for Orientation2d {
-    fn default() -> Self {
-        Orientation2d::DownFront
-    }
 }
 
 impl Orientation2d {

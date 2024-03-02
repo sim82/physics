@@ -166,6 +166,7 @@ impl PluginGroup for EditorPluginGroup {
         {
             builder.add(bevy_infinite_grid::InfiniteGridPlugin);
         }
+        #[allow(clippy::let_and_return)] // no thanks
         builder
     }
 }

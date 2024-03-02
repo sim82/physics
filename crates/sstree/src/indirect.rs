@@ -322,14 +322,14 @@ impl<P, K: Center, const M: usize> InnerLink<P, K, M> {
     ) -> Option<&LeafLink<P, K>> {
         match self.links.as_ref() {
             Node::Leaf(points) => {
-                for (_i, point) in points.iter().enumerate() {
+                for point in points.iter() {
                     if point.center_radius.intersects(center_radius) && f(&point.payload) {
                         return Some(point);
                     }
                 }
             }
             Node::Inner(nodes) => {
-                for (_i, child) in nodes.iter().enumerate() {
+                for child in nodes.iter() {
                     if child.center_radius.intersects(center_radius) {
                         let ret = child.find_if(center_radius, f);
                         if ret.is_some() {
