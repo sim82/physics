@@ -8,6 +8,9 @@ fn main() {
     // app.add_plugins(DefaultPlugins);
     app.add_plugins(DefaultPlugins.set(ImagePlugin {
         default_sampler: ImageSamplerDescriptor {
+            // mipmap_filter: bevy::render::texture::ImageFilterMode::Linear,
+            min_filter: bevy::render::texture::ImageFilterMode::Linear,
+            mag_filter: bevy::render::texture::ImageFilterMode::Linear,
             // mag_filter: wgpu::FilterMode::Linear,
             // min_filter: wgpu::FilterMode::Linear,
             // mipmap_filter: wgpu::FilterMode::Linear,

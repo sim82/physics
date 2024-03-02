@@ -84,8 +84,10 @@ pub fn enter_editor_state(
                         ..default()
                     })
                     .id();
+
+                // FIXME: abstract away the grid implementation details
                 #[cfg(feature = "external_deps")]
-                {
+                let grid_entity = {
                     let grid = if name == LOWER_WINDOW {
                         bevy_infinite_grid::InfiniteGrid {
                             x_axis_color: t.get_lower_x_axis_color(),
@@ -108,14 +110,15 @@ pub fn enter_editor_state(
                             Name::new(format!("{} grid", name)),
                         ))
                         .id();
-
-                    e.insert(resources::EditorWindow2d {
-                        camera,
-                        grid: grid_entity,
-                        offscreen_image,
-                        orientation: t,
-                    });
-                }
+                };
+                #[cfg(not(feature = "external_deps"))]
+                let grid_entity = { commands.spawn_empty().id() };
+                e.insert(resources::EditorWindow2d {
+                    camera,
+                    grid: grid_entity,
+                    offscreen_image,
+                    orientation: t,
+                });
             }
 
             bevy::utils::hashbrown::hash_map::Entry::Occupied(e) => {
@@ -651,7 +654,13 @@ pub fn select_input_system(
             }
             info!("event: {:?}", event);
 
+            info!(
+                "focused: {} {:?}",
+                focused_name,
+                editor_windows_2d.windows.keys()
+            );
             let Some(window) = editor_windows_2d.windows.get(focused_name) else {
+                warn!("no 2d window focused");
                 continue;
             };
             let Ok((global_transform, camera)) = camera_query.get(window.camera) else {
@@ -666,9 +675,11 @@ pub fn select_input_system(
                 continue;
             };
 
+            info!("brute force selection");
             // TODO: brute force raycast against all brushes. can be accelerated by spatial index if necessary
             let brush_selection = brush_query.iter().filter_map(|(entity, _brush, csg)| {
                 for tri in csg.csg.get_triangles() {
+                    info!("select check {entity:?}");
                     // check against view bounds to only include visible brushes
                     if !tri.0.iter().any(|v| editor_windows_2d.in_view_bounds(v)) {
                         continue;
