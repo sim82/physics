@@ -346,10 +346,9 @@ pub struct WmEventPointerState {
 
 impl WmEventPointerState {
     pub fn get_pos_origin_down(&self) -> Vec2 {
-        // flip y coord
         Vec2::new(
             self.pos.x - self.bounds.min.x,
-            self.bounds.max.y - self.pos.y,
+            self.pos.y - self.bounds.min.y,
         )
     }
 }
