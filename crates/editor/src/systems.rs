@@ -76,6 +76,11 @@ pub fn setup(
     info!("loaded {} material defs", materials_res.material_defs.len());
 }
 
+pub fn setup_selection_gizmos(mut config_store: ResMut<GizmoConfigStore>) {
+    let (config, _) = config_store.config_mut::<super::SelectionGizmos>();
+    config.render_layers = render_layers::all();
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn editor_input_system(
     mut commands: Commands,
@@ -441,20 +446,23 @@ pub struct SelectionChangeTracking {
 }
 
 // FIXME: make system independent from external dependency
-#[cfg(not(feature = "external_deps"))]
-pub fn track_primary_selection() {}
+// #[cfg(not(feature = "external_deps"))]
+// pub fn track_primary_selection() {}
 
-#[cfg(feature = "external_deps")]
+// #[cfg(feature = "external_deps")]
 pub fn track_primary_selection(
     // selection: Res<Selection>,
+    mut gizmos: Gizmos<super::SelectionGizmos>,
     materials_res: Res<resources::Materials>,
     mut tracking: Local<SelectionChangeTracking>,
 
-    selection_query: Query<Entity, With<components::Selected>>,
-    mut outline_query: Query<
-        &mut bevy_mod_outline::OutlineVolume,
-        With<components::SelectionHighlighByOutline>,
-    >,
+    selection_query: Query<(Entity, &Children), With<components::Selected>>,
+    // FIXME: outline highlight defunct
+    // mut outline_query: Query<
+    //     &mut bevy_mod_outline::OutlineVolume,
+    //     With<components::SelectionHighlighByOutline>,
+    // >,
+    gizmo_query: Query<(&GlobalTransform, &components::SelectionHighlightByGizmo)>,
     mut material_query: Query<
         &mut Handle<StandardMaterial>,
         With<components::SelectionHighlighByMaterial>,
@@ -463,7 +471,22 @@ pub fn track_primary_selection(
 ) {
     // TODO: this is a brute force PoC with some major inefficiencies.
     // use change detection on Selected components
-    let new_selection = selection_query.iter().collect::<HashSet<_>>();
+    for (_, children) in &selection_query {
+        for child in children.iter() {
+            #[allow(clippy::single_match)] // NOPE clippy, there will be more...
+            match gizmo_query.get(*child) {
+                Ok((transform, components::SelectionHighlightByGizmo::Sphere { radius })) => {
+                    gizmos.sphere(transform.translation(), default(), *radius, Color::RED);
+                }
+                _ => (),
+            }
+        }
+    }
+
+    let new_selection = selection_query
+        .iter()
+        .map(|(entity, _)| entity)
+        .collect::<HashSet<_>>();
     if new_selection == tracking.selection {
         return;
     }
@@ -486,10 +509,11 @@ pub fn track_primary_selection(
             for child in children {
                 if let Ok(mut material) = material_query.get_mut(*child) {
                     *material = materials_res.get_brush_2d_material();
-                } else if let Ok(mut outline) = outline_query.get_mut(*child) {
-                    outline.colour = Color::BLUE;
-                    outline.width = 2.0;
                 }
+                // else if let Ok(mut outline) = outline_query.get_mut(*child) {
+                //     outline.colour = Color::BLUE;
+                //     outline.width = 2.0;
+                // }
             }
         }
         for entity in to_selected_material {
@@ -501,10 +525,11 @@ pub fn track_primary_selection(
             for child in children {
                 if let Ok(mut material) = material_query.get_mut(*child) {
                     *material = materials_res.get_brush_2d_selected_material();
-                } else if let Ok(mut outline) = outline_query.get_mut(*child) {
-                    outline.colour = Color::RED;
-                    outline.width = 4.0;
                 }
+                // else if let Ok(mut outline) = outline_query.get_mut(*child) {
+                //     outline.colour = Color::RED;
+                //     outline.width = 4.0;
+                // }
             }
         }
     }
@@ -631,16 +656,17 @@ pub fn track_lights_system(
                     ..default() // RenderLayers::from_layers(&[render_layers::SIDE_2D, render_layers::TOP_2D]),
                 },
                 render_layers::ortho_views(),
-                components::SelectionHighlighByOutline,
-                #[cfg(feature = "external_deps")]
-                bevy_mod_outline::OutlineBundle {
-                    outline: bevy_mod_outline::OutlineVolume {
-                        colour: Color::BLUE,
-                        visible: true,
-                        width: 2.0,
-                    },
-                    ..default()
-                },
+                components::SelectionHighlightByGizmo::Sphere { radius: 0.1 },
+                // components::SelectionHighlighByMaterial,
+                // #[cfg(feature = "external_deps")]
+                // bevy_mod_outline::OutlineBundle {
+                //     outline: bevy_mod_outline::OutlineVolume {
+                //         colour: Color::BLUE,
+                //         visible: true,
+                //         width: 2.0,
+                //     },
+                //     ..default()
+                // },
                 Name::new("2dvis Mesh"),
             ))
             .id();

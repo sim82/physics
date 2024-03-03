@@ -21,6 +21,9 @@ pub mod util;
 pub mod wm_systems;
 pub mod wsx;
 
+#[derive(Default, Reflect, GizmoConfigGroup)]
+pub struct SelectionGizmos {}
+
 pub struct EditorPlugin;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
@@ -44,6 +47,7 @@ impl Plugin for EditorPlugin {
             Startup,
             (
                 systems::setup,
+                systems::setup_selection_gizmos,
                 ortho_systems::setup_editor_system,
                 clip_systems::clip_plane_setup_system.after(systems::setup),
             ),
@@ -155,6 +159,7 @@ impl Plugin for EditorPlugin {
             Update,
             wm_systems::write_view_settings.run_if(on_timer(Duration::from_millis(500))),
         );
+        app.init_gizmo_group::<SelectionGizmos>();
     }
 }
 

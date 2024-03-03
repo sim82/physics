@@ -17,4 +17,7 @@ pub mod render_layers {
     pub fn ortho_views() -> RenderLayers {
         RenderLayers::from_layers(&[TOP_2D, SIDE_2D])
     }
+    pub fn all() -> RenderLayers {
+        RenderLayers::from_layers(&[MAIN_3D, TOP_2D, SIDE_2D])
+    }
 }
