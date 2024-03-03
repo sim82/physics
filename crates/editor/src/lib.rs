@@ -10,6 +10,7 @@ use shared::AppState;
 pub mod clip_systems;
 pub mod components;
 pub mod edit_commands;
+pub mod grid;
 pub mod gui_systems;
 pub mod main3d_systems;
 pub mod ortho_systems;
@@ -160,13 +161,8 @@ impl Plugin for EditorPlugin {
 pub struct EditorPluginGroup;
 impl PluginGroup for EditorPluginGroup {
     fn build(self) -> bevy::app::PluginGroupBuilder {
-        let builder = PluginGroupBuilder::start::<Self>().add(EditorPlugin);
-        // .add(debug_gui::DebugGuiPlugin)
-        #[cfg(feature = "external_deps")]
-        {
-            builder.add(bevy_infinite_grid::InfiniteGridPlugin);
-        }
-        #[allow(clippy::let_and_return)] // no thanks
-        builder
+        PluginGroupBuilder::start::<Self>()
+            .add(EditorPlugin)
+            .add(grid::GridPlugin)
     }
 }

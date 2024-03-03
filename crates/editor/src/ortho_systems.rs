@@ -13,7 +13,10 @@ use super::{
     resources::{self, LOWER_WINDOW, UPPER_WINDOW},
     util::{self, Orientation2d, SnapToGrid, WmMouseButton},
 };
-use crate::edit_commands::{update_brush_drag, update_point_transform};
+use crate::{
+    edit_commands::{update_brush_drag, update_point_transform},
+    grid,
+};
 
 use shared::render_layers;
 
@@ -55,18 +58,6 @@ pub fn enter_editor_state(
         #[allow(unused)] // this is all a mess anyways
         match editor_windows_2d.windows.entry(name.to_string()) {
             bevy::utils::hashbrown::hash_map::Entry::Vacant(e) => {
-                // let settings =
-                //     settings_map
-                //         .get(name)
-                //         .cloned()
-                //         .unwrap_or(resources::EditorWindowSettings {
-                //             pos_x: 0,
-                //             pos_y: 0,
-                //             width: 800,
-                //             height: 600,
-                //             orientation: t,
-                //         });
-
                 let camera = commands
                     .spawn(Camera3dBundle {
                         transform: t.get_transform(),
@@ -85,34 +76,14 @@ pub fn enter_editor_state(
                     })
                     .id();
 
-                // FIXME: abstract away the grid implementation details
-                #[cfg(feature = "external_deps")]
                 let grid_entity = {
-                    let grid = if name == LOWER_WINDOW {
-                        bevy_infinite_grid::InfiniteGrid {
-                            x_axis_color: t.get_lower_x_axis_color(),
-                            z_axis_color: t.get_lower_z_axis_color(),
-                            ..Default::default()
-                        }
-                    } else {
-                        // upper grid uses default colors
-                        default()
-                    };
-
-                    let grid_entity = commands
+                    commands
                         .spawn((
-                            bevy_infinite_grid::InfiniteGridBundle {
-                                grid,
-                                transform: Transform::from_rotation(t.get_grid_rotation()),
-                                ..Default::default()
-                            },
-                            render_layer,
+                            grid::GridBundle::new(name == LOWER_WINDOW, t, render_layer),
                             Name::new(format!("{} grid", name)),
                         ))
-                        .id();
+                        .id()
                 };
-                #[cfg(not(feature = "external_deps"))]
-                let grid_entity = { commands.spawn_empty().id() };
                 e.insert(resources::EditorWindow2d {
                     camera,
                     grid: grid_entity,
@@ -272,17 +243,11 @@ pub fn control_input_wm_system(
     }
 }
 
-// FIXME: make system independent from external dep
-#[cfg(not(feature = "external_deps"))]
-pub fn adjust_clip_planes_system() {}
-
-#[cfg(feature = "external_deps")]
 pub fn adjust_clip_planes_system(
     keycodes: Res<ButtonInput<KeyCode>>,
 
     mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
     mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
-    mut grid_query: Query<(&mut Transform, &mut bevy_infinite_grid::InfiniteGrid), Without<Camera>>,
 ) {
     let editor_windows_2d = &mut *editor_windows_2d;
 
@@ -324,8 +289,6 @@ pub fn adjust_clip_planes_system(
     }
     // info!("scaling: {} -> {}", scaling, trunc_scaling);
 
-    let grid_scaling = 100.0 / trunc_scaling;
-
     let Some((upper_min, upper_max)) = ortho_view_bounds(upper_camera, upper_transform) else {
         return;
     };
@@ -346,13 +309,7 @@ pub fn adjust_clip_planes_system(
             return;
         };
 
-        let Ok((mut lower_grid_transform, _)) = grid_query.get_mut(lower.grid) else {
-            return;
-        };
-
         *upper_orientation.get_up_axis_mut(&mut lower_transform.translation) = max;
-        *upper_orientation.get_up_axis_mut(&mut lower_grid_transform.translation) = min + 0.1;
-        lower_grid_transform.scale.x = grid_scaling;
         lower_ortho.far = max - min;
         // info!("depth: {}", lower_ortho.far);
         *upper_orientation.get_up_axis_mut(&mut editor_windows_2d.view_max) = max;
@@ -371,13 +328,8 @@ pub fn adjust_clip_planes_system(
         let Projection::Orthographic(upper_ortho) = &mut *upper_projection else {
             return;
         };
-        let Ok((mut upper_grid_transform, _)) = grid_query.get_mut(upper.grid) else {
-            return;
-        };
 
         *lower_orientation.get_up_axis_mut(&mut upper_transform.translation) = max;
-        *lower_orientation.get_up_axis_mut(&mut upper_grid_transform.translation) = min + 0.1;
-        upper_grid_transform.scale.x = grid_scaling;
 
         upper_ortho.far = max - min;
         *lower_orientation.get_up_axis_mut(&mut editor_windows_2d.view_max) = max;
@@ -401,18 +353,10 @@ pub fn adjust_clip_planes_system(
                     .orientation
                     .get_right_axis_mut(&mut transform.translation) = right;
             };
-            if let Ok((mut lower_grid_transform, mut grid)) = grid_query.get_mut(window.grid) {
-                // lower_grid_transform
-                *lower_grid_transform =
-                    Transform::from_rotation(window.orientation.get_grid_rotation());
-                grid.x_axis_color = window.orientation.get_lower_x_axis_color();
-                grid.z_axis_color = window.orientation.get_lower_z_axis_color();
-            };
         }
     }
 }
 
-#[allow(dead_code)]
 fn ortho_view_bounds(camera: &Camera, transform: &GlobalTransform) -> Option<(Vec3, Vec3)> {
     let Rect {
         min: view_min,
