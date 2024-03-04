@@ -453,3 +453,19 @@ pub fn raycast_moller_trumbore(
         uv_coords: (u, v),
     })
 }
+pub fn ortho_view_bounds(camera: &Camera, transform: &GlobalTransform) -> Option<(Vec3, Vec3)> {
+    let Rect {
+        min: view_min,
+        max: view_max,
+    } = camera.logical_viewport_rect()?;
+
+    // get world space coords of viewport bounds (ignoring ray.direction, assuming ortographic projection)
+    let view_min_world = camera.viewport_to_world(transform, view_min)?.origin;
+    let view_max_world = camera.viewport_to_world(transform, view_max)?.origin;
+
+    // get min / max in worldspace (viewport axis directions might be opposite of worldspace axes)
+    Some((
+        view_min_world.min(view_max_world),
+        view_min_world.max(view_max_world),
+    ))
+}

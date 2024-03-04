@@ -1,4 +1,10 @@
 use bevy::prelude::*;
+use shared::render_layers;
+
+use crate::{
+    resources::{self, LOWER_WINDOW, UPPER_WINDOW},
+    util::ortho_view_bounds,
+};
 
 // TODO: port
 pub fn adjust_grid_system(// keycodes: Res<ButtonInput<KeyCode>>,
@@ -134,9 +140,68 @@ pub fn adjust_grid_system(// keycodes: Res<ButtonInput<KeyCode>>,
     //         }
     //     }
 }
+#[derive(Default, Reflect, GizmoConfigGroup)]
+struct GridGizmos {}
+fn fake_grid_system(
+    mut gizmos: Gizmos<GridGizmos>,
+    mut editor_windows_2d: ResMut<resources::EditorWindows2d>,
+    mut camera_query: Query<(&GlobalTransform, &Camera, &mut Projection, &mut Transform)>,
+) {
+    // gizmos.line(Vec3::ZERO, Vec3::ONE, Color::BLACK);
+    gizmos.arrow(Vec3::ZERO, Vec3::X, Color::RED);
+    gizmos.arrow(Vec3::ZERO, Vec3::Y, Color::GREEN);
+    gizmos.arrow(Vec3::ZERO, Vec3::Z, Color::BLUE);
+
+    let Some(upper) = editor_windows_2d.windows.get(UPPER_WINDOW) else {
+        return;
+    };
+    let Some(lower) = editor_windows_2d.windows.get(LOWER_WINDOW) else {
+        return;
+    };
+
+    let upper_orientation = &upper.orientation;
+    let lower_orientation = &lower.orientation;
+
+    let Ok((upper_transform, upper_camera, upper_projection, _)) = camera_query.get(upper.camera)
+    else {
+        return;
+    };
+
+    let Ok((lower_transform, lower_camera, _lower_projection, _)) = camera_query.get(lower.camera)
+    else {
+        return;
+    };
+    let Some((upper_min, upper_max)) = ortho_view_bounds(upper_camera, upper_transform) else {
+        return;
+    };
+    let Some((lower_min, lower_max)) = ortho_view_bounds(lower_camera, lower_transform) else {
+        return;
+    };
+    let ystart = lower_min.y.floor();
+    let zstart = upper_min.z.floor();
+    let num_lines = (upper_max.z - upper_min.z).max(lower_max.y - lower_min.y) as i32 + 1;
+
+    // gizmos.line(upper_min, upper_max, Color::GREEN);
+    // gizmos.line(lower_min, lower_max, Color::YELLOW_GREEN);
+    info!("num_lines: {}", num_lines);
+    for yz in 0..num_lines {
+        gizmos.line(
+            Vec3::new(upper_min.x, yz as f32 + ystart, yz as f32 + zstart),
+            Vec3::new(upper_max.x, yz as f32 + ystart, yz as f32 + zstart),
+            Color::BLUE,
+        );
+    }
+}
+
+fn setup_grid_gizmos_system(mut config_store: ResMut<GizmoConfigStore>) {
+    let (config, _) = config_store.config_mut::<GridGizmos>();
+    config.render_layers = render_layers::ortho_views();
+    config.line_width = 1.0;
+    config.depth_bias = -1.0;
+}
+
 #[derive(Bundle)]
 pub struct GridBundle {}
-// init code:
 
 impl GridBundle {
     pub fn new(
@@ -178,6 +243,8 @@ pub struct GridPlugin;
 
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
-        // app.add_plugins(bevy_infinite_grid::InfiniteGridPlugin);
+        app.init_gizmo_group::<GridGizmos>();
+        app.add_systems(Update, fake_grid_system);
+        app.add_systems(Startup, setup_grid_gizmos_system);
     }
 }
