@@ -25,6 +25,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 ron = { workspace = true }
+sled = { workspace = true }
 
 # bevy_rapier3d = { version = "0.18", path = "ext/bevy_rapier/bevy_rapier3d", features = [
 #     "debug-render",

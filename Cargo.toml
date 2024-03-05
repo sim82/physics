@@ -38,6 +38,7 @@ console = "0.15"
 rayon = "1"
 arrayvec = "0.7"
 thiserror = "1"
+sled = {version = "0.34.7"}
 
 ###
 # bevy related dependencies

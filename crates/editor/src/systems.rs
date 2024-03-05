@@ -1004,3 +1004,45 @@ pub fn track_wireframe_system(
         }
     }
 }
+
+#[derive(Resource, Default)]
+pub struct LogSink {
+    db: Option<sled::Db>,
+}
+pub fn log_editor_objects(
+    mut log_sink: ResMut<LogSink>,
+    brush_query: Query<
+        (Entity, &csg::Brush, &components::BrushMaterialProperties),
+        Or<(
+            Changed<csg::Brush>,
+            Changed<components::BrushMaterialProperties>,
+        )>,
+    >,
+    light_query: Query<
+        (Entity, &components::PointLightProperties, &Transform),
+        Or<(
+            Changed<components::PointLightProperties>,
+            Changed<Transform>,
+        )>,
+    >,
+) {
+    //
+    if log_sink.db.is_none() {
+        log_sink.db = Some(sled::open("/tmp/physics.log").expect("failed to open log db"));
+    }
+    let Some(db) = log_sink.db.as_mut() else {
+        return;
+    };
+    for (e, brush, material_properties) in &brush_query {
+        info!("brush update: {:?}", e);
+        let o = ExternalEditorObject::Brush {
+            brush: brush.clone(),
+            material_properties: material_properties.clone(),
+        };
+
+        let k = ron::ser::to_string(&e.to_bits()).unwrap();
+        let v = ron::ser::to_string(&o).unwrap();
+        db.insert(k.as_bytes(), v.as_bytes());
+    }
+}
+// pub fn setup_log_editor_objects(db)

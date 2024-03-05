@@ -60,6 +60,7 @@ impl Plugin for EditorPlugin {
         app.init_resource::<resources::MaterialBrowser>();
         app.init_resource::<sstree::SpatialIndex>();
         app.init_resource::<resources::ClipState>();
+        app.init_resource::<systems::LogSink>(); // TODO: move to resources
         app.add_event::<CleanupCsgOutputEvent>();
 
         app.add_systems(
@@ -109,6 +110,7 @@ impl Plugin for EditorPlugin {
                 systems::load_save_editor_objects,
                 clip_systems::clip_plane_control_system,
                 main3d_systems::select_input_system,
+                systems::log_editor_objects,
             ),
         );
         app.add_systems(

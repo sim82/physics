@@ -183,7 +183,7 @@ fn fake_grid_system(
 
     // gizmos.line(upper_min, upper_max, Color::GREEN);
     // gizmos.line(lower_min, lower_max, Color::YELLOW_GREEN);
-    info!("num_lines: {}", num_lines);
+    // info!("num_lines: {}", num_lines);
     for yz in 0..num_lines {
         gizmos.line(
             Vec3::new(upper_min.x, yz as f32 + ystart, yz as f32 + zstart),
