@@ -179,15 +179,24 @@ fn fake_grid_system(
     };
     let ystart = lower_min.y.floor();
     let zstart = upper_min.z.floor();
-    let num_lines = (upper_max.z - upper_min.z).max(lower_max.y - lower_min.y) as i32 + 1;
+    let num_lines_yz = (upper_max.z - upper_min.z).max(lower_max.y - lower_min.y) as i32 + 1;
 
     // gizmos.line(upper_min, upper_max, Color::GREEN);
     // gizmos.line(lower_min, lower_max, Color::YELLOW_GREEN);
     // info!("num_lines: {}", num_lines);
-    for yz in 0..num_lines {
+    for yz in 0..num_lines_yz {
         gizmos.line(
             Vec3::new(upper_min.x, yz as f32 + ystart, yz as f32 + zstart),
             Vec3::new(upper_max.x, yz as f32 + ystart, yz as f32 + zstart),
+            Color::BLUE,
+        );
+    }
+    let num_lines_x = (upper_max.x - upper_min.x) as i32 + 1;
+    let xstart = upper_min.x.floor();
+    for x in 0..num_lines_x {
+        gizmos.line(
+            Vec3::new(x as f32 + xstart, lower_min.y, upper_min.z),
+            Vec3::new(x as f32 + xstart, lower_max.y, upper_max.z),
             Color::BLUE,
         );
     }
