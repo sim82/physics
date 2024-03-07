@@ -1028,6 +1028,7 @@ pub fn log_editor_objects(
 ) {
     //
     if log_sink.db.is_none() {
+        // sled::Config::new().path("/tmp/physics.log").create_new()
         log_sink.db = Some(sled::open("/tmp/physics.log").expect("failed to open log db"));
     }
     let Some(db) = log_sink.db.as_mut() else {
@@ -1042,7 +1043,17 @@ pub fn log_editor_objects(
 
         let k = ron::ser::to_string(&e.to_bits()).unwrap();
         let v = ron::ser::to_string(&o).unwrap();
-        db.insert(k.as_bytes(), v.as_bytes());
+        db.insert(k.as_bytes(), v.as_bytes()).unwrap();
+    }
+    for (e, light_properties, transform) in &light_query {
+        let o = ExternalEditorObject::PointLight {
+            translation: transform.translation,
+            light_properties: light_properties.clone(),
+        };
+
+        let k = ron::ser::to_string(&e.to_bits()).unwrap();
+        let v = ron::ser::to_string(&o).unwrap();
+        db.insert(k.as_bytes(), v.as_bytes()).unwrap();
     }
 }
 // pub fn setup_log_editor_objects(db)
