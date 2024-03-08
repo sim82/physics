@@ -40,7 +40,6 @@ parry3d = { workspace = true }
 # [patch.crates-io]
 # bevy_mod_raycast = { path = "bevy_mod_raycast" }
 
-# bevy_atmosphere = "0.4"
 bitflags = { workspace = true }
 quick-xml = { workspace = true, features = ["serialize"] }
 image = { workspace = true }

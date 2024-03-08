@@ -1,6 +1,6 @@
 use crate::trace;
 
-use bevy::{math::Vec3, prelude::*, render::mesh};
+use bevy::{math::Vec3, prelude::*};
 
 #[derive(Component)]
 pub struct ContactDebugMesh {

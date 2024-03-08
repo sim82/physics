@@ -9,8 +9,9 @@ inspector = [
     "editor/inspector"
     # "bevy-inspector-egui-rapier"
 ]
-default = ["inspector"]
+default = ["inspector", "atmosphere"]
 # default = []
+atmosphere = ["bevy_atmosphere"]
 
 
 [workspace.dependencies]
@@ -70,7 +71,7 @@ bevy_rapier3d = { workspace = true, features = [
 ] }
 
 gltf = { workspace = true }
-bevy_atmosphere = { workspace = true }
+bevy_atmosphere = { workspace = true, optional = true }
 bevy_mod_mipmap_generator = { workspace = true }
 bitflags = { workspace = true }
 quick-xml = { workspace = true, features = ["serialize"] }

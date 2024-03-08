@@ -11,14 +11,16 @@ use shared::AppState;
 
 pub mod appearance;
 pub mod contact_debug;
-pub mod sky;
 pub mod slidemove;
 pub mod trace;
+
+#[cfg(feature = "atmosphere")]
+pub mod sky;
 
 pub mod norm {
     use bevy::asset::io::Reader;
     // srgb workaround from https://github.com/bevyengine/bevy/issues/6371
-    use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext, LoadedAsset};
+    use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
     use bevy::prelude::*;
     use bevy::render::texture::{CompressedImageFormats, Image, ImageType};
     use bevy::utils::BoxedFuture;
@@ -31,7 +33,7 @@ pub mod norm {
             &'a self,
             reader: &'a mut Reader,
             _settings: &'a Self::Settings,
-            load_context: &'a mut LoadContext,
+            _load_context: &'a mut LoadContext,
         ) -> BoxedFuture<'a, Result<Self::Asset, anyhow::Error>> {
             Box::pin(async move {
                 let mut bytes = Vec::new();
@@ -169,7 +171,8 @@ mod systems {
         render::{camera::RenderTarget, view::RenderLayers},
         window::{CursorGrabMode, PrimaryWindow},
     };
-    use bevy_atmosphere::prelude::AtmosphereCamera;
+    #[cfg(feature = "atmosphere")]
+    use bevy_atmosphere::plugin::AtmosphereCamera;
     use bevy_rapier3d::{
         prelude::*,
         rapier::prelude::{ConvexPolyhedron, SharedShape},
@@ -276,8 +279,7 @@ mod systems {
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<StandardMaterial>>,
     ) {
-        let asset: Mesh = shape::Box::new(0.6, 1.8, 0.6).into();
-        let player_mesh = meshes.add(asset);
+        let player_mesh = meshes.add(Cuboid::new(0.6, 1.8, 0.6).mesh());
         let asset: StandardMaterial = Color::rgba(0.8, 0.8, 0.4, 0.4).into();
         let player_material = materials.add(asset);
 
@@ -305,21 +307,23 @@ mod systems {
     }
 
     pub fn enter_editor_system(mut commands: Commands, wm_state: Res<editor::resources::WmState>) {
-        commands
-            .spawn(Camera3dBundle {
-                camera: Camera {
-                    target: RenderTarget::Image(wm_state.slot_main3d.offscreen_image.clone()),
-                    ..default()
-                },
+        let mut entity_commands = commands.spawn(Camera3dBundle {
+            camera: Camera {
+                target: RenderTarget::Image(wm_state.slot_main3d.offscreen_image.clone()),
                 ..default()
-            })
-            // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
-            // .insert(RenderPlayer(0))
+            },
+            ..default()
+        });
+        // .insert(Transform::from_xyz(5.0, 1.01, 10.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y));
+        // .insert(RenderPlayer(0))
+        entity_commands
             .insert(PlayerCamera)
-            .insert(AtmosphereCamera::default())
             .insert(Fxaa::default())
             .insert(RenderLayers::layer(render_layers::MAIN_3D))
             .insert(editor::components::Main3dCamera);
+
+        #[cfg(feature = "atmosphere")]
+        entity_commands.insert(AtmosphereCamera::default());
     }
     pub fn leave_editor_system(
         mut commands: Commands,
@@ -334,16 +338,19 @@ mod systems {
         mut commands: Commands,
         mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
     ) {
-        commands
-            .spawn(Camera3dBundle { ..default() })
+        let mut entitiy_commands = commands.spawn(Camera3dBundle { ..default() });
+        entitiy_commands
             .insert(PlayerCamera)
-            .insert(AtmosphereCamera::default())
             .insert(Fxaa {
                 enabled: false,
                 ..default()
             })
             .insert(RenderLayers::layer(render_layers::MAIN_3D))
             .insert(components::IngameCamera);
+
+        #[cfg(feature = "atmosphere")]
+        entitiy_commands.insert(AtmosphereCamera::default());
+
         if let Ok(mut window) = primary_query.get_single_mut() {
             window.cursor.grab_mode = CursorGrabMode::Locked;
         };
@@ -463,12 +470,17 @@ impl PluginGroup for GamePluginGroup {
 pub struct ExternalPluginGroup;
 impl PluginGroup for ExternalPluginGroup {
     fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
+        let builder = PluginGroupBuilder::start::<Self>()
             .add(RapierPhysicsPlugin::<NoUserData>::default())
             .add(WireframePlugin)
             // .add(RapierDebugRenderPlugin::default())
             .add(FrameTimeDiagnosticsPlugin)
-            .add(sky::SkyPlugin)
-            .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin)
+            .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin);
+
+        #[cfg(feature = "atmosphere")]
+        let builder = builder.add(sky::SkyPlugin);
+
+        #[allow(clippy::let_and_return)]
+        builder
     }
 }

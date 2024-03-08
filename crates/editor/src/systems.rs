@@ -967,6 +967,7 @@ pub fn track_wireframe_system(
 pub struct LogSink {
     db: Option<sled::Db>,
 }
+#[allow(clippy::type_complexity)]
 pub fn log_editor_objects(
     mut log_sink: ResMut<LogSink>,
     brush_query: Query<
