@@ -9,10 +9,6 @@ inspector = [
     "editor/inspector"
     # "bevy-inspector-egui-rapier"
 ]
-external_deps = [
-    "bevy_prototype_debug_lines"
-]
-
 default = ["inspector"]
 # default = []
 
@@ -53,7 +49,6 @@ parry3d = "0.13"
 
 # frequently cause churn on bevy updates
 bevy_atmosphere = { version = "0.9" }
-bevy_prototype_debug_lines = { version = "0.11", features = ["3d"] }
 bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
 
 [dependencies]
@@ -75,7 +70,6 @@ bevy_rapier3d = { workspace = true, features = [
 ] }
 
 gltf = { workspace = true }
-bevy_prototype_debug_lines = { workspace = true, features = ["3d"], optional = true }
 bevy_atmosphere = { workspace = true }
 bevy_mod_mipmap_generator = { workspace = true }
 bitflags = { workspace = true }

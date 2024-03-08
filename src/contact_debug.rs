@@ -14,17 +14,12 @@ pub struct ContactDebug {
     plane_mesh: Option<Handle<Mesh>>,
 }
 
-// FIXME: make system independent of external dep
-#[cfg(not(features = "external_deps"))]
-pub fn contact_debug() {}
-#[cfg(features = "external_deps")]
 pub fn contact_debug(
     time: Res<Time>,
     mut commands: Commands,
     mut contact_debug: ResMut<ContactDebug>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut reaper_query: Query<(Entity, &mut ContactDebugMesh)>,
-    mut _debug_lines: ResMut<bevy_prototype_debug_lines::DebugLines>,
 ) {
     let mut cv = Vec::new();
     std::mem::swap(&mut contact_debug.add, &mut cv);
@@ -34,15 +29,12 @@ pub fn contact_debug(
             // .get_or_insert_with(|| meshes.add(mesh::shape::Quad::new(Vec2::new(0.1, 0.1)).into()))
             .get_or_insert_with(|| {
                 meshes.add(
-                    mesh::shape::Capsule {
-                        radius: 0.01,
-                        depth: 0.1,
-                        latitudes: 2,
-                        longitudes: 3,
-                        rings: 2,
-                        ..Default::default()
-                    }
-                    .into(),
+                    Capsule3d::new(0.01, 0.1)
+                        .mesh()
+                        .latitudes(2)
+                        .longitudes(3)
+                        .rings(2)
+                        .build(),
                 )
             })
             .clone();
@@ -68,15 +60,12 @@ pub fn contact_debug(
             // .get_or_insert_with(|| meshes.add(mesh::shape::Quad::new(Vec2::new(0.1, 0.1)).into()))
             .get_or_insert_with(|| {
                 meshes.add(
-                    mesh::shape::Capsule {
-                        radius: 0.01,
-                        depth: 0.1,
-                        latitudes: 2,
-                        longitudes: 3,
-                        rings: 2,
-                        ..Default::default()
-                    }
-                    .into(),
+                    Capsule3d::new(0.01, 0.1)
+                        .mesh()
+                        .latitudes(2)
+                        .longitudes(3)
+                        .rings(2)
+                        .build(),
                 )
             })
             .clone();

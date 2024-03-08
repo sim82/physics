@@ -9,9 +9,8 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 use shared::AppState;
 
-pub mod contact_debug;
-// pub mod debug_lines;
 pub mod appearance;
+pub mod contact_debug;
 pub mod sky;
 pub mod slidemove;
 pub mod trace;
@@ -464,18 +463,12 @@ impl PluginGroup for GamePluginGroup {
 pub struct ExternalPluginGroup;
 impl PluginGroup for ExternalPluginGroup {
     fn build(self) -> PluginGroupBuilder {
-        let builder = PluginGroupBuilder::start::<Self>()
+        PluginGroupBuilder::start::<Self>()
             .add(RapierPhysicsPlugin::<NoUserData>::default())
             .add(WireframePlugin)
             // .add(RapierDebugRenderPlugin::default())
             .add(FrameTimeDiagnosticsPlugin)
             .add(sky::SkyPlugin)
-            .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin);
-
-        #[cfg(features = "external_deps")]
-        {
-            builder.add(bevy_prototype_debug_lines::DebugLinesPlugin::default());
-        }
-        builder
+            .add(bevy_mod_mipmap_generator::MipmapGeneratorPlugin)
     }
 }
