@@ -15,7 +15,6 @@ use super::{
 };
 use crate::{
     edit_commands::{update_brush_drag, update_point_transform},
-    grid,
     util::ortho_view_bounds,
 };
 
@@ -77,14 +76,7 @@ pub fn enter_editor_state(
                     })
                     .id();
 
-                let grid_entity = {
-                    commands
-                        .spawn((
-                            grid::GridBundle::new(name == LOWER_WINDOW, t, render_layer),
-                            Name::new(format!("{} grid", name)),
-                        ))
-                        .id()
-                };
+                let grid_entity = { commands.spawn((Name::new(format!("{} grid", name)),)).id() };
                 e.insert(resources::EditorWindow2d {
                     camera,
                     grid: grid_entity,
