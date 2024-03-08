@@ -18,8 +18,6 @@ use bevy::{
 };
 use bevy_egui::EguiContexts;
 
-#[cfg(feature = "external_deps")]
-use bevy_mod_outline::OutlineMeshExt;
 use serde::{Deserialize, Serialize};
 use shared::render_layers;
 use sstree::{SpatialBounds, SpatialIndex};
@@ -457,11 +455,6 @@ pub fn track_primary_selection(
     mut tracking: Local<SelectionChangeTracking>,
 
     selection_query: Query<(Entity, &Children), With<components::Selected>>,
-    // FIXME: outline highlight defunct
-    // mut outline_query: Query<
-    //     &mut bevy_mod_outline::OutlineVolume,
-    //     With<components::SelectionHighlighByOutline>,
-    // >,
     gizmo_query: Query<(&GlobalTransform, &components::SelectionHighlightByGizmo)>,
     mut material_query: Query<
         &mut Handle<StandardMaterial>,
@@ -510,10 +503,6 @@ pub fn track_primary_selection(
                 if let Ok(mut material) = material_query.get_mut(*child) {
                     *material = materials_res.get_brush_2d_material();
                 }
-                // else if let Ok(mut outline) = outline_query.get_mut(*child) {
-                //     outline.colour = Color::BLUE;
-                //     outline.width = 2.0;
-                // }
             }
         }
         for entity in to_selected_material {
@@ -526,10 +515,6 @@ pub fn track_primary_selection(
                 if let Ok(mut material) = material_query.get_mut(*child) {
                     *material = materials_res.get_brush_2d_selected_material();
                 }
-                // else if let Ok(mut outline) = outline_query.get_mut(*child) {
-                //     outline.colour = Color::RED;
-                //     outline.width = 4.0;
-                // }
             }
         }
     }
@@ -560,16 +545,6 @@ pub fn track_2d_vis_system(
                     // meshes.remove(old_mesh.clone());
                     let (mut mesh, origin) = (&csg_rep.csg).into();
                     if let Some(old_mesh) = meshes.get_mut(old_mesh.clone()) {
-                        #[cfg(feature = "external_deps")]
-                        {
-                            let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
-                            if let Err(err) = res {
-                                warn!(
-                                    "failed to generate outline normals for {:?}: {:?}",
-                                    child, err
-                                );
-                            }
-                        }
                         *old_mesh = mesh;
                     }
 
@@ -583,13 +558,6 @@ pub fn track_2d_vis_system(
             let (mut mesh, origin) = (&csg_rep.csg).into();
             // transform.translation = origin;
             // info!("brush new");
-            #[cfg(feature = "external_deps")]
-            {
-                let res = OutlineMeshExt::generate_outline_normals(&mut mesh);
-                if let Err(err) = res {
-                    warn!("failed to generate outline normals for: {:?}", err);
-                }
-            }
             let mesh_entity = commands
                 .spawn((
                     PbrBundle {
@@ -657,16 +625,6 @@ pub fn track_lights_system(
                 },
                 render_layers::ortho_views(),
                 components::SelectionHighlightByGizmo::Sphere { radius: 0.1 },
-                // components::SelectionHighlighByMaterial,
-                // #[cfg(feature = "external_deps")]
-                // bevy_mod_outline::OutlineBundle {
-                //     outline: bevy_mod_outline::OutlineVolume {
-                //         colour: Color::BLUE,
-                //         visible: true,
-                //         width: 2.0,
-                //     },
-                //     ..default()
-                // },
                 Name::new("2dvis Mesh"),
             ))
             .id();

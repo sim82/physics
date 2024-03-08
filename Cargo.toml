@@ -10,7 +10,6 @@ inspector = [
     # "bevy-inspector-egui-rapier"
 ]
 external_deps = [
-    "bevy_mod_outline",
     "bevy_prototype_debug_lines"
 ]
 
@@ -56,8 +55,6 @@ parry3d = "0.13"
 bevy_atmosphere = { version = "0.9" }
 bevy_prototype_debug_lines = { version = "0.11", features = ["3d"] }
 bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
-bevy_mod_outline = {version = "0.6", optional = false}
-bevy_infinite_grid = {version = "0.10.0", optional = false}
 
 [dependencies]
 bevy = { workspace = true, features = ["dynamic_linking"] }
@@ -92,7 +89,6 @@ console = { workspace = true }
 rayon = { workspace = true }
 bevy_egui = { workspace = true }
 arrayvec = { workspace = true }
-bevy_mod_outline = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 csg = { path = "crates/csg" }

@@ -237,10 +237,6 @@ pub struct Main3dCamera;
 #[derive(Component)]
 pub struct SelectionHighlighByMaterial;
 
-// FIXME: currently defunct
-#[derive(Component)]
-pub struct SelectionHighlighByOutline;
-
 #[derive(Component)]
 pub enum SelectionHighlightByGizmo {
     Sphere { radius: f32 },

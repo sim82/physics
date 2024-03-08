@@ -9,10 +9,6 @@ inspector = [
     "bevy-inspector-egui",
 ]
 
-external_deps = [
-    "bevy_mod_outline",
-    "bevy_infinite_grid"
-]
 [dependencies]
 # not specifying specific versions of bevy crates so that the actual version is determined by the main project
 
@@ -51,11 +47,8 @@ image = { workspace = true }
 rayon = { workspace = true }
 bevy_egui = { workspace = true }
 arrayvec = { workspace = true }
-bevy_mod_outline = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
-bevy_infinite_grid = { workspace = true, optional = true }
-# bevy_infinite_grid = { path = "../../ext/bevy_infinite_grid" }
 
 csg = { path = "../csg" }
 sstree = { path = "../sstree" }

@@ -474,9 +474,7 @@ impl PluginGroup for ExternalPluginGroup {
 
         #[cfg(features = "external_deps")]
         {
-            builder
-                .add(bevy_mod_outline::OutlinePlugin)
-                .add(bevy_prototype_debug_lines::DebugLinesPlugin::default());
+            builder.add(bevy_prototype_debug_lines::DebugLinesPlugin::default());
         }
         builder
     }
