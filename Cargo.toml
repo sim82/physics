@@ -38,18 +38,19 @@ sled = {version = "0.34.7"}
 
 ###
 # bevy related dependencies
-bevy = { version = "0.13", features = ["dynamic_linking"] }
-bevy_rapier3d = { version = "0.25", features = [
+bevy = { version = "0.14", features = ["dynamic_linking"] }
+bevy_rapier3d = { version = "0.27", features = [
     "debug-render",
     "serde-serialize",
 ] }
-bevy-inspector-egui = { version = "0.23" }
-bevy_egui = "0.25"
-wgpu = "0.19"
-parry3d = "0.13"
+bevy-inspector-egui = { version = "0.27" }
+bevy_egui = "0.30"
+wgpu = "0.20"
+parry3d = "0.16"
+
 
 # frequently cause churn on bevy updates
-bevy_atmosphere = { version = "0.9" }
+bevy_atmosphere = { version = "0.10" }
 bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator.git" }
 
 [dependencies]

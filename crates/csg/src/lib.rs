@@ -42,6 +42,7 @@
 // Original code and comments copyright (c) 2011 Evan Wallace (http://madebyevan.com/), under the MIT license.
 
 use bevy::{
+    math::FloatOrd,
     prelude::*,
     render::{mesh::Indices, primitives::Aabb, render_resource::PrimitiveTopology},
     utils::HashMap,
@@ -476,7 +477,7 @@ impl Csg {
             .flat_map(|p| {
                 p.vertices
                     .iter()
-                    .map(|v| bevy::utils::FloatOrd((center - v.position).length()))
+                    .map(|v| FloatOrd((center - v.position).length()))
             })
             .max()
             .unwrap()

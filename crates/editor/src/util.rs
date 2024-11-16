@@ -1,7 +1,7 @@
 use super::components::{self, CsgOutput};
 use shared::render_layers;
 
-use bevy::{prelude::*, render::view::RenderLayers};
+use bevy::{color::palettes::tailwind, prelude::*, render::view::RenderLayers};
 use bevy_rapier3d::prelude::Collider;
 use csg::{self, Csg};
 use serde::{Deserialize, Serialize};
@@ -288,16 +288,16 @@ impl Orientation2d {
     }
     pub fn get_lower_x_axis_color(&self) -> Color {
         match self {
-            Orientation2d::Front => Color::rgb(1.0, 0.2, 0.2),
-            Orientation2d::Right => Color::rgb(0.0, 1.0, 0.2),
-            _ => Color::PINK,
+            Orientation2d::Front => Color::srgb(1.0, 0.2, 0.2),
+            Orientation2d::Right => Color::srgb(0.0, 1.0, 0.2),
+            _ => tailwind::PINK_500.into(),
         }
     }
     pub fn get_lower_z_axis_color(&self) -> Color {
         match self {
-            Orientation2d::Front => Color::rgb(0.2, 1.0, 0.2),
-            Orientation2d::Right => Color::rgb(0.2, 0.2, 1.0),
-            _ => Color::PINK,
+            Orientation2d::Front => Color::srgb(0.2, 1.0, 0.2),
+            Orientation2d::Right => Color::srgb(0.2, 0.2, 1.0),
+            _ => tailwind::PINK_500.into(),
         }
     }
 }

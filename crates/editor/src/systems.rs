@@ -10,6 +10,7 @@ use crate::{
     wsx,
 };
 use bevy::{
+    color::palettes::tailwind,
     pbr::wireframe::Wireframe,
     prelude::*,
     render::view::RenderLayers,
@@ -51,22 +52,22 @@ pub fn setup(
         &mut asset_server,
         &mut egui_context,
     );
-    let mut material: StandardMaterial = Color::rgba(0.5, 0.5, 1.0, 0.2).into();
+    let mut material: StandardMaterial = Color::srgba(0.5, 0.5, 1.0, 0.2).into();
     material.unlit = true;
     material.cull_mode = None;
     materials_res.brush_2d = material_assets.add(material);
 
-    let mut material: StandardMaterial = Color::rgba(1.0, 0.5, 0.5, 0.4).into();
+    let mut material: StandardMaterial = Color::srgba(1.0, 0.5, 0.5, 0.4).into();
     material.unlit = true;
     material.cull_mode = None;
     materials_res.brush_2d_selected = material_assets.add(material);
 
-    let mut material: StandardMaterial = Color::rgba(0.2, 1.0, 0.2, 0.6).into();
+    let mut material: StandardMaterial = Color::srgba(0.2, 1.0, 0.2, 0.6).into();
     material.unlit = true;
     material.cull_mode = None;
     materials_res.brush_clip_green = material_assets.add(material);
 
-    let mut material: StandardMaterial = Color::rgba(1.0, 0.2, 0.2, 0.6).into();
+    let mut material: StandardMaterial = Color::srgba(1.0, 0.2, 0.2, 0.6).into();
     material.unlit = true;
     material.cull_mode = None;
     materials_res.brush_clip_red = material_assets.add(material);
@@ -469,7 +470,12 @@ pub fn track_primary_selection(
             #[allow(clippy::single_match)] // NOPE clippy, there will be more...
             match gizmo_query.get(*child) {
                 Ok((transform, components::SelectionHighlightByGizmo::Sphere { radius })) => {
-                    gizmos.sphere(transform.translation(), default(), *radius, Color::RED);
+                    gizmos.sphere(
+                        transform.translation(),
+                        default(),
+                        *radius,
+                        tailwind::RED_500,
+                    );
                 }
                 _ => (),
             }
@@ -544,7 +550,7 @@ pub fn track_2d_vis_system(
                 if let Ok((old_mesh, mut mesh_transform)) = mesh_query.get_mut(*child) {
                     // meshes.remove(old_mesh.clone());
                     let (mut mesh, origin) = (&csg_rep.csg).into();
-                    if let Some(old_mesh) = meshes.get_mut(old_mesh.clone()) {
+                    if let Some(old_mesh) = meshes.get_mut(&old_mesh.clone()) {
                         *old_mesh = mesh;
                     }
 

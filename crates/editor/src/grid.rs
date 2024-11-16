@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{color::palettes::tailwind, prelude::*};
 use shared::render_layers;
 
 use crate::{
@@ -14,9 +14,9 @@ fn gizmo_grid_system(
     camera_query: Query<(&GlobalTransform, &Camera)>,
 ) {
     // gizmos.line(Vec3::ZERO, Vec3::ONE, Color::BLACK);
-    gizmos.arrow(Vec3::ZERO, Vec3::X, Color::RED);
-    gizmos.arrow(Vec3::ZERO, Vec3::Y, Color::GREEN);
-    gizmos.arrow(Vec3::ZERO, Vec3::Z, Color::BLUE);
+    gizmos.arrow(Vec3::ZERO, Vec3::X, tailwind::RED_500);
+    gizmos.arrow(Vec3::ZERO, Vec3::Y, tailwind::GREEN_500);
+    gizmos.arrow(Vec3::ZERO, Vec3::Z, tailwind::BLUE_500);
 
     let Some(upper) = editor_windows_2d.windows.get(UPPER_WINDOW) else {
         return;
@@ -47,7 +47,7 @@ fn gizmo_grid_system(
             gizmos.line(
                 Vec3::new(upper_min.x, yz as f32 + ystart, yz as f32 + zstart),
                 Vec3::new(upper_max.x, yz as f32 + ystart, yz as f32 + zstart),
-                Color::BLUE,
+                tailwind::BLUE_500,
             );
         }
         let num_lines_x = (upper_max.x - upper_min.x) as i32 + 1;
@@ -56,7 +56,7 @@ fn gizmo_grid_system(
             gizmos.line(
                 Vec3::new(x as f32 + xstart, lower_min.y, upper_min.z),
                 Vec3::new(x as f32 + xstart, lower_max.y, upper_max.z),
-                Color::BLUE,
+                tailwind::BLUE_500,
             );
         }
     } else {
@@ -71,7 +71,7 @@ fn gizmo_grid_system(
             gizmos.line(
                 Vec3::new(xy as f32 + xstart, xy as f32 + ystart, upper_min.z),
                 Vec3::new(xy as f32 + xstart, xy as f32 + ystart, upper_max.z),
-                Color::BLUE,
+                tailwind::BLUE_500,
             );
         }
         let num_lines_z = (upper_max.z - upper_min.z) as i32 + 1;
@@ -80,7 +80,7 @@ fn gizmo_grid_system(
             gizmos.line(
                 Vec3::new(upper_min.x, lower_min.y, z as f32 + zstart),
                 Vec3::new(upper_max.x, lower_max.y, z as f32 + zstart),
-                Color::BLUE,
+                tailwind::BLUE_500,
             );
         }
     }

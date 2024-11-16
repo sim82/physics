@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{color::palettes::tailwind, prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -82,8 +82,9 @@ pub fn instantiate_material(
         emissive_texture: load_image(material.emissive.clone(), asset_server),
         emissive: material
             .emissive_color
-            .map(|c| Color::rgba_from_array(c.extend(1.0)))
-            .unwrap_or(Color::BLACK),
+            .map(|c| Color::srgb(c.x, c.y, c.z))
+            .unwrap_or(Color::BLACK)
+            .into(),
         ..default()
     })
 }
@@ -92,7 +93,7 @@ pub fn instantiate_material(
 fn test() {
     let mat = Material {
         base: Some("base".into()),
-        base_color: Some(Color::LIME_GREEN),
+        base_color: Some(tailwind::LIME_500.into()),
         emissive: Some("emissive".into()),
         emissive_color: Some(Vec3::ZERO),
         roughness: Some(1.0),
