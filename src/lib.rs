@@ -4,6 +4,7 @@ use bevy::{
     diagnostic::FrameTimeDiagnosticsPlugin,
     pbr::wireframe::WireframePlugin,
     prelude::*,
+    window::PresentMode,
 };
 #[cfg(feature = "inspector")]
 // use bevy_inspector_egui::WorldInspectorParams;
@@ -431,6 +432,7 @@ impl Plugin for GameplayPlugin {
             // always_on_top: false,
             ..default()
         });
+        // app.insert_resource(PresentMode::Mailbox);
         app.insert_resource(ClearColor(tailwind::BLUE_200.into()));
         app.init_resource::<resources::AaState>();
         app.add_systems(Startup, systems::setup_player_system);

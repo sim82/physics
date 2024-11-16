@@ -109,6 +109,7 @@ pub fn player_controller_input_system(
         if key_codes.pressed(input_source.down) {
             up -= 1.0;
         }
+        if key_codes.pressed(KeyCode::KeyQ) {}
         const WALK_SPEED: f32 = 2.0;
         const RUN_SPEED: f32 = 6.0;
 
@@ -124,10 +125,14 @@ pub fn player_controller_input_system(
         let mut lat = 0.0;
 
         for event in mouse_motion.read() {
-            const SENSITIVITY: f32 = 0.5;
-            lon -= event.delta.x * SENSITIVITY;
-            lat -= event.delta.y * SENSITIVITY;
+            lon -= event.delta.x; // * SENSITIVITY;
+            lat -= event.delta.y; // * SENSITIVITY;
         }
+
+        info!("input: {} {}", lon, lat);
+        const SENS: f32 = 0.05;
+        lon *= SENS;
+        lat *= SENS;
 
         let player_input = PlayerInput {
             serial: input_source.next_serial,
@@ -190,6 +195,9 @@ pub fn player_controller_apply_system(
             }
 
             player_state.last_applied_serial = Some(input.serial);
+            // if input.lon.abs() > 0.0 || input.lat.abs() > 0.0 {
+            //     info!("apply: {} {}", input.lon, input.lat);
+            // }
             player_state.lon += input.lon;
             player_state.lat += input.lat;
 
