@@ -1,5 +1,6 @@
 use bevy::{
     app::{AppExit, PluginGroupBuilder},
+    color::palettes::tailwind,
     diagnostic::FrameTimeDiagnosticsPlugin,
     pbr::wireframe::WireframePlugin,
     prelude::*,
@@ -423,14 +424,14 @@ impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(AmbientLight {
             color: Color::WHITE,
-            brightness: 1.0 / 5.0f32,
+            brightness: 100.0,
         });
         app.insert_resource(DebugRenderContext {
             enabled: false,
             // always_on_top: false,
             ..default()
         });
-        app.insert_resource(ClearColor(Color::ALICE_BLUE));
+        app.insert_resource(ClearColor(tailwind::BLUE_200.into()));
         app.init_resource::<resources::AaState>();
         app.add_systems(Startup, systems::setup_player_system);
         app.add_systems(Startup, systems::setup_debug_render_system);

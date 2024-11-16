@@ -21,7 +21,7 @@ fn main() {
         },
     }));
 
-    app.add_systems(Update, bevy::window::close_on_esc);
+    // app.add_systems(Update, bevy::window::close_on_esc);
 
     app.add_plugins(GamePluginGroup);
     app.add_plugins(EditorPluginGroup);

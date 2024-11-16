@@ -55,9 +55,14 @@ impl CollisionTraceable for RapierContext {
 
         // info!("minfrac: {:?} {} {}", dist, d, minfrac);
 
-        let trace_result = if let Some((_handle, toi)) =
-            self.cast_shape(shape_pos, shape_rot, shape_vel, &shape, 1.0, true, filter)
-        {
+        let trace_result = if let Some((_handle, toi)) = self.cast_shape(
+            shape_pos,
+            shape_rot,
+            shape_vel,
+            &shape,
+            ShapeCastOptions::with_max_time_of_impact(1.0),
+            filter,
+        ) {
             if let Some(hit) = toi.details {
                 let contact = TraceContact {
                     collider_normal: (hit.normal1),
@@ -67,21 +72,21 @@ impl CollisionTraceable for RapierContext {
                 };
 
                 match toi.status {
-                    TOIStatus::Converged if toi.toi > minfrac => TraceResult {
+                    ShapeCastStatus::Converged if toi.time_of_impact > minfrac => TraceResult {
                         contact: Some(contact),
-                        dist: dist * (toi.toi - minfrac),
+                        dist: dist * (toi.time_of_impact - minfrac),
                         stuck: false,
-                        f: toi.toi - minfrac,
+                        f: toi.time_of_impact - minfrac,
                     },
-                    TOIStatus::Converged | TOIStatus::Failed | TOIStatus::OutOfIterations => {
-                        TraceResult {
-                            contact: Some(contact),
-                            dist: Vec3::ZERO,
-                            stuck: false,
-                            f: 0.0,
-                        }
-                    }
-                    TOIStatus::Penetrating => TraceResult {
+                    ShapeCastStatus::Converged
+                    | ShapeCastStatus::Failed
+                    | ShapeCastStatus::OutOfIterations => TraceResult {
+                        contact: Some(contact),
+                        dist: Vec3::ZERO,
+                        stuck: false,
+                        f: 0.0,
+                    },
+                    ShapeCastStatus::PenetratingOrWithinTargetDist => TraceResult {
                         contact: None,
                         dist: Vec3::ZERO,
                         stuck: true,
