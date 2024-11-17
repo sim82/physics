@@ -11,3 +11,4 @@ wm_settings.yaml
 scene.ron
 scene.bin
 *.wsx
+trace*.json

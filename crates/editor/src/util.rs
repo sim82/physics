@@ -424,8 +424,8 @@ pub fn raycast_moller_trumbore(
     let p_vec = ray.direction.cross(vector_v0_to_v2);
     let determinant: f32 = vector_v0_to_v1.dot(p_vec);
 
-    if (cull_backfaces && determinant < std::f32::EPSILON)
-        || (!cull_backfaces && determinant.abs() < std::f32::EPSILON)
+    if (cull_backfaces && determinant < f32::EPSILON)
+        || (!cull_backfaces && determinant.abs() < f32::EPSILON)
     {
         // if determinant.abs() < std::f32::EPSILON {
         return None;

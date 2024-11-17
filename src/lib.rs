@@ -4,7 +4,6 @@ use bevy::{
     diagnostic::FrameTimeDiagnosticsPlugin,
     pbr::wireframe::WireframePlugin,
     prelude::*,
-    window::PresentMode,
 };
 #[cfg(feature = "inspector")]
 // use bevy_inspector_egui::WorldInspectorParams;
@@ -25,7 +24,7 @@ pub mod norm {
     use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
     use bevy::prelude::*;
     use bevy::render::texture::{CompressedImageFormats, Image, ImageType};
-    use bevy::utils::BoxedFuture;
+    use bevy::utils::ConditionalSendFuture;
 
     #[derive(Default)]
     pub struct NormalMappedImageTextureLoader;
@@ -36,7 +35,7 @@ pub mod norm {
             reader: &'a mut Reader,
             _settings: &'a Self::Settings,
             _load_context: &'a mut LoadContext,
-        ) -> BoxedFuture<'a, Result<Self::Asset, anyhow::Error>> {
+        ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
             Box::pin(async move {
                 let mut bytes = Vec::new();
                 reader.read_to_end(&mut bytes).await?;
@@ -282,7 +281,7 @@ mod systems {
         mut materials: ResMut<Assets<StandardMaterial>>,
     ) {
         let player_mesh = meshes.add(Cuboid::new(0.6, 1.8, 0.6).mesh());
-        let asset: StandardMaterial = Color::rgba(0.8, 0.8, 0.4, 0.4).into();
+        let asset: StandardMaterial = Color::srgba(0.8, 0.8, 0.4, 0.4).into();
         let player_material = materials.add(asset);
 
         commands

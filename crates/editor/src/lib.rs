@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::app::PluginGroupBuilder;
-use bevy::ecs::schedule::ScheduleLabel;
+// use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 
 use bevy::time::common_conditions::on_timer;
@@ -35,8 +35,8 @@ enum EditorSet {
     PostCsg,
 }
 
-#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, SystemSet)]
-struct PostCsgStage;
+// #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash, SystemSet)]
+// struct PostCsgStage;
 
 #[derive(Event)]
 pub struct CleanupCsgOutputEvent;

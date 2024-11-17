@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use bevy::{color::palettes::tailwind, prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -89,36 +89,42 @@ pub fn instantiate_material(
     })
 }
 
-#[test]
-fn test() {
-    let mat = Material {
-        base: Some("base".into()),
-        base_color: Some(tailwind::LIME_500.into()),
-        emissive: Some("emissive".into()),
-        emissive_color: Some(Vec3::ZERO),
-        roughness: Some(1.0),
-        metallic: Some(1.0),
-        metallic_roughness_texture: Some("mrt".into()),
-        reflectance: Some(1.0),
-        normal_map: Some("norm".into()),
-        occlusion: Some("occlusion".into()),
-        preview64: None,
-    };
-    let m: HashMap<_, _> = [
-        ("test1".to_string(), mat.clone()),
-        ("test2".to_string(), mat),
-    ]
-    .iter()
-    .cloned()
-    .collect();
+#[cfg(test)]
+mod test {
+    use super::*;
+    use bevy::color::palettes::tailwind;
 
-    let t = ron::ser::to_string_pretty(&m, default()).unwrap();
-    // let t = serde_yaml::to_string(&m).unwrap();
-    println!("{}", t);
-}
+    #[test]
+    fn test() {
+        let mat = Material {
+            base: Some("base".into()),
+            base_color: Some(tailwind::LIME_500.into()),
+            emissive: Some("emissive".into()),
+            emissive_color: Some(Vec3::ZERO),
+            roughness: Some(1.0),
+            metallic: Some(1.0),
+            metallic_roughness_texture: Some("mrt".into()),
+            reflectance: Some(1.0),
+            normal_map: Some("norm".into()),
+            occlusion: Some("occlusion".into()),
+            preview64: None,
+        };
+        let m: HashMap<_, _> = [
+            ("test1".to_string(), mat.clone()),
+            ("test2".to_string(), mat),
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
-#[test]
-fn test2() {
-    let mat: Material = ron::de::from_str("(base: \"blub\")").unwrap();
-    println!("{:?}", mat);
+        let t = ron::ser::to_string_pretty(&m, default()).unwrap();
+        // let t = serde_yaml::to_string(&m).unwrap();
+        println!("{}", t);
+    }
+
+    #[test]
+    fn test2() {
+        let mat: Material = ron::de::from_str("(base: \"blub\")").unwrap();
+        println!("{:?}", mat);
+    }
 }

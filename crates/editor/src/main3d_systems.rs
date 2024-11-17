@@ -45,7 +45,7 @@ pub fn select_input_system(
 
             // find clicked face
             let mut closest_hit = None;
-            let mut closest_hit_distance = std::f32::INFINITY;
+            let mut closest_hit_distance = f32::INFINITY;
             for (entity, processed_csg) in &processed_csg_query {
                 'poly_loop: for polygon in processed_csg.bsp.all_polygons() {
                     let mut res = Vec::new();

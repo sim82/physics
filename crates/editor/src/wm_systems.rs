@@ -97,7 +97,7 @@ pub fn wm_test_system(world: &mut World) {
                 match wm_state.sidepanel_content {
                     WmSidpanelContent::Material => {
                         egui::ScrollArea::vertical()
-                            .id_source("material browser")
+                            .id_salt("material browser")
                             .show(ui, |ui| {
                                 let (appearance_clicked, material_clicked) =
                                     gui_systems::material_browser_ui(
@@ -188,7 +188,7 @@ pub fn wm_test_system(world: &mut World) {
             // .default_width(wm_state.settings.sidepanel_separator)
             .show(&egui_context.ctx_mut().clone(), |ui| {
                 egui::ScrollArea::vertical()
-                    .id_source("entity_browser")
+                    .id_salt("entity_browser")
                     .show(ui, |ui| {
                         bevy_inspector_egui::bevy_inspector::ui_for_world_entities(world, ui);
                     })
@@ -272,7 +272,7 @@ fn send_wm_events_for_egui_response(
                     button,
                     pointer_state,
                 });
-            } else if response.drag_released() && slot.drag_active {
+            } else if response.drag_stopped() && slot.drag_active {
                 slot.drag_active = false;
                 event_writer.send(WmEvent::DragEnd {
                     window: name,
