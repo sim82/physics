@@ -11,7 +11,7 @@ use crate::{
 };
 use bevy::{
     color::palettes::tailwind,
-    pbr::wireframe::Wireframe,
+    pbr::{wireframe::Wireframe, VolumetricLight},
     prelude::*,
     render::view::RenderLayers,
     utils::{HashSet, Instant},

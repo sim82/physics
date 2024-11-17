@@ -167,7 +167,8 @@ mod systems {
     };
 
     use bevy::{
-        core_pipeline::fxaa::Fxaa,
+        core_pipeline::{bloom::BloomSettings, fxaa::Fxaa, tonemapping::Tonemapping},
+        pbr::VolumetricFogSettings,
         prelude::*,
         render::{camera::RenderTarget, view::RenderLayers},
         window::{CursorGrabMode, PrimaryWindow},
@@ -339,7 +340,13 @@ mod systems {
         mut commands: Commands,
         mut primary_query: Query<&mut Window, With<PrimaryWindow>>,
     ) {
-        let mut entitiy_commands = commands.spawn(Camera3dBundle { ..default() });
+        let mut entitiy_commands = commands.spawn(Camera3dBundle {
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            ..default()
+        });
         entitiy_commands
             .insert(PlayerCamera)
             .insert(Fxaa {
@@ -347,7 +354,13 @@ mod systems {
                 ..default()
             })
             .insert(RenderLayers::layer(render_layers::MAIN_3D))
-            .insert(components::IngameCamera);
+            .insert(components::IngameCamera)
+            // .insert(BloomSettings::default())
+            // .insert(Tonemapping::TonyMcMapface)
+            .insert(VolumetricFogSettings {
+                ambient_intensity: 0.0,
+                ..default()
+            });
 
         #[cfg(feature = "atmosphere")]
         entitiy_commands.insert(AtmosphereCamera::default());
@@ -422,10 +435,10 @@ pub fn spawn_gltf2(
 pub struct GameplayPlugin;
 impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(AmbientLight {
-            color: Color::WHITE,
-            brightness: 100.0,
-        });
+        // app.insert_resource(AmbientLight {
+        //     color: Color::WHITE,
+        //     brightness: 100.0,
+        // });
         app.insert_resource(DebugRenderContext {
             enabled: false,
             // always_on_top: false,
