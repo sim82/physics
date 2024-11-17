@@ -109,7 +109,6 @@ pub fn player_controller_input_system(
         if key_codes.pressed(input_source.down) {
             up -= 1.0;
         }
-        if key_codes.pressed(KeyCode::KeyQ) {}
         const WALK_SPEED: f32 = 2.0;
         const RUN_SPEED: f32 = 6.0;
 
@@ -121,19 +120,28 @@ pub fn player_controller_input_system(
         forward *= speed;
         right *= speed;
 
-        let mut lon = 0.0;
-        let mut lat = 0.0;
+        let mut lon_raw = 0.0;
+        let mut lat_raw = 0.0;
 
         for event in mouse_motion.read() {
-            lon -= event.delta.x; // * SENSITIVITY;
-            lat -= event.delta.y; // * SENSITIVITY;
+            lon_raw -= event.delta.x; // * SENSITIVITY;
+            lat_raw -= event.delta.y; // * SENSITIVITY;
         }
 
-        info!("input: {} {}", lon, lat);
         const SENS: f32 = 0.05;
-        lon *= SENS;
-        lat *= SENS;
+        let mut lon = lon_raw * SENS;
+        let mut lat = lat_raw * SENS;
 
+        let accel = [(0.5..2.0, 2.0), (2.0..f32::MAX, 3.0)];
+        for a in &accel {
+            if a.0.contains(&lon.abs()) {
+                lon *= a.1
+            }
+            if a.0.contains(&lat.abs()) {
+                lat *= a.1
+            }
+        }
+        // info!("input: {} {} -> {} {}", lon_raw, lat_raw, lon, lat);
         let player_input = PlayerInput {
             serial: input_source.next_serial,
             forward,
@@ -149,6 +157,7 @@ pub fn player_controller_input_system(
 }
 
 pub fn player_controller_apply_system(
+    time: Res<Time>,
     mut query: Query<(
         &mut Transform,
         &mut KinematicCharacterController,
@@ -210,11 +219,12 @@ pub fn player_controller_apply_system(
             }
 
             let y_rot = player_state.get_y_rotation();
-            const DT: f32 = 1.0 / 60.0; // fixed timestep
+            let dt = time.delta_seconds();
+            // const DT: f32 = 1.0 / 60.0; // fixed timestep
 
-            let forward = y_rot * (-Vec3::Z * input.forward) * DT;
-            let right = y_rot * (Vec3::X * input.right) * DT;
-            let up = input.up * Vec3::Y * DT;
+            let forward = y_rot * (-Vec3::Z * input.forward) * dt;
+            let right = y_rot * (Vec3::X * input.right) * dt;
+            let up = input.up * Vec3::Y * dt;
 
             // info!("{:?} {:?}", forward, right);
             // transform.translation += forward;

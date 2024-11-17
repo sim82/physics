@@ -25,7 +25,7 @@ fn main() {
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     present_mode: bevy::window::PresentMode::AutoNoVsync,
-                    mode: bevy::window::WindowMode::Fullscreen,
+                    // mode: bevy::window::WindowMode::Fullscreen,
                     ..default()
                 }),
                 ..default()
