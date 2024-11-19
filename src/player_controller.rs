@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use bevy::{input::mouse::MouseMotion, prelude::*};
-use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::{parry::simba::scalar::SupersetOf, prelude::*};
 
 use shared::AppState;
 
@@ -11,7 +11,13 @@ pub struct PlayerState {
     pub lon: f32,
     pub lat: f32,
 
+    pub z_velocity: f32,
+
+    pub last_jump: f32,
+
     pub rotation: Quat,
+
+    pub gravity: Option<f32>,
 }
 
 impl PlayerState {
@@ -29,6 +35,7 @@ pub struct PlayerInput {
     pub forward: f32,
     pub right: f32,
     pub up: f32,
+    pub jump: bool,
 
     pub lon: f32,
     pub lat: f32,
@@ -52,6 +59,8 @@ pub struct PlayerInputSource {
     pub up: KeyCode,
     pub down: KeyCode,
 
+    pub jump: KeyCode,
+
     pub walk: KeyCode,
 }
 
@@ -65,6 +74,7 @@ impl Default for PlayerInputSource {
             right: KeyCode::KeyD,
             up: KeyCode::KeyR,
             down: KeyCode::KeyF,
+            jump: KeyCode::Space,
             walk: KeyCode::ShiftLeft,
         }
     }
@@ -109,6 +119,7 @@ pub fn player_controller_input_system(
         if key_codes.pressed(input_source.down) {
             up -= 1.0;
         }
+
         const WALK_SPEED: f32 = 2.0;
         const RUN_SPEED: f32 = 6.0;
 
@@ -141,12 +152,14 @@ pub fn player_controller_input_system(
                 lat *= a.1
             }
         }
+        let jump = key_codes.pressed(input_source.jump);
         // info!("input: {} {} -> {} {}", lon_raw, lat_raw, lon, lat);
         let player_input = PlayerInput {
             serial: input_source.next_serial,
             forward,
             right,
             up,
+            jump,
             lon,
             lat,
         };
@@ -156,6 +169,21 @@ pub fn player_controller_input_system(
     }
 }
 
+pub fn hack_toggle_gravity_system(
+    key_codes: Res<ButtonInput<KeyCode>>,
+
+    mut query: Query<&mut PlayerState>,
+) {
+    if key_codes.just_released(KeyCode::KeyQ) {
+        for mut player_state in &mut query {
+            if player_state.gravity.is_none() {
+                player_state.gravity = Some(-9.81);
+            } else {
+                player_state.gravity = None;
+            }
+        }
+    }
+}
 pub fn player_controller_apply_system(
     time: Res<Time>,
     mut query: Query<(
@@ -163,9 +191,11 @@ pub fn player_controller_apply_system(
         &mut KinematicCharacterController,
         &mut PlayerState,
         &mut PlayerInputQueue,
+        Option<&KinematicCharacterControllerOutput>,
     )>,
 ) {
-    for (mut _transform, mut character_controller, mut player_state, mut input_queue) in &mut query
+    for (mut _transform, mut character_controller, mut player_state, mut input_queue, output) in
+        &mut query
     {
         // let (discard, apply) = if let Some(last_applied) = player_state.last_applied_serial {
         //     if let Some((first_newer, _)) = input_queue
@@ -224,12 +254,37 @@ pub fn player_controller_apply_system(
 
             let forward = y_rot * (-Vec3::Z * input.forward) * dt;
             let right = y_rot * (Vec3::X * input.right) * dt;
-            let up = input.up * Vec3::Y * dt;
+            // * character_controller.custom_mass.unwrap_or(1.0);
 
             // info!("{:?} {:?}", forward, right);
             // transform.translation += forward;
             // transform.translation += right;
             // character_controller.max_slope_climb_angle = std::f32::consts::PI / 2.0;
+            let mut up = Vec3::ZERO;
+            if let Some(gravity) = player_state.gravity {
+                if let Some(output) = output {
+                    if output.grounded {
+                        if input.jump && time.elapsed_seconds() - player_state.last_jump >= 0.5 {
+                            player_state.z_velocity = 2.0;
+                            player_state.last_jump = time.elapsed_seconds();
+                            info!("jump");
+                        } else if time.elapsed_seconds() - player_state.last_jump >= 0.1 {
+                            player_state.z_velocity = 0.0;
+                        }
+                    } else {
+                        player_state.z_velocity += gravity * dt;
+
+                        up += Vec3::Y * player_state.z_velocity * dt;
+                    }
+                }
+            } else {
+                up = Vec3::Y * input.up * dt;
+            }
+
+            // let up = if let Some(gravity) = player_state.gravity {
+
+            // }
+
             character_controller.translation = Some(forward + right + up);
             debug!("want: {:?}", character_controller.translation);
             character_controller.autostep = Some(CharacterAutostep::default());
@@ -292,7 +347,19 @@ impl Default for PlayerControllerBundle {
             // collider: Collider::cuboid(0.2, 0.9, 0.2),
             player_state: default(),
             character_controller: KinematicCharacterController {
+                custom_mass: Some(5.0),
+                up: Vec3::Y,
                 offset: CharacterLength::Absolute(0.1),
+                slide: true,
+                autostep: Some(CharacterAutostep {
+                    max_height: CharacterLength::Absolute(0.3),
+                    min_width: CharacterLength::Relative(0.5),
+                    include_dynamic_bodies: false,
+                }),
+                max_slope_climb_angle: 40.0f32.to_radians(),
+                min_slope_slide_angle: 30.0f32.to_radians(),
+                apply_impulse_to_dynamic_bodies: true,
+                snap_to_ground: Some(CharacterLength::Absolute(0.2)),
                 ..default()
             },
             input_queue: default(),
@@ -322,6 +389,7 @@ impl Plugin for PlayerControllerPlugin {
         .add_systems(
             Update,
             sync_player_camera_system.after(player_controller_apply_output_system),
-        );
+        )
+        .add_systems(Update, hack_toggle_gravity_system);
     }
 }
