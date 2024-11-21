@@ -11,7 +11,8 @@ pub struct PlayerState {
     pub lon: f32,
     pub lat: f32,
 
-    pub z_velocity: f32,
+    // pub z_velocity: f32,
+    pub velocity: Vec3,
 
     pub last_jump: f32,
 
@@ -82,6 +83,16 @@ impl Default for PlayerInputSource {
 
 #[derive(Component, Default, Debug)]
 pub struct PlayerCamera;
+
+pub fn apply_ground_friction(v: Vec2, decel: f32) -> Vec2 {
+    let vnorm = v.normalize_or_zero();
+    let len = v.length();
+    if len > decel {
+        vnorm * (len - decel)
+    } else {
+        Vec2::ZERO
+    }
+}
 
 pub fn player_controller_input_system(
     key_codes: Res<ButtonInput<KeyCode>>,
@@ -252,40 +263,58 @@ pub fn player_controller_apply_system(
             let dt = time.delta_seconds();
             // const DT: f32 = 1.0 / 60.0; // fixed timestep
 
-            let forward = y_rot * (-Vec3::Z * input.forward) * dt;
-            let right = y_rot * (Vec3::X * input.right) * dt;
+            let forward = y_rot * (-Vec3::Z * input.forward);
+            let right = y_rot * (Vec3::X * input.right);
+
+            if forward.length() != 0.0 || right.length() != 0.0 {
+                player_state.velocity.x = forward.x + right.x;
+                player_state.velocity.z = forward.z + right.z;
+            } else {
+                const DECEL: f32 = 30.0;
+                let Vec2 { x, y: z } =
+                    apply_ground_friction(player_state.velocity.xz(), DECEL * dt);
+                player_state.velocity.x = x;
+                player_state.velocity.z = z;
+            }
             // * character_controller.custom_mass.unwrap_or(1.0);
 
             // info!("{:?} {:?}", forward, right);
             // transform.translation += forward;
             // transform.translation += right;
+            let up = Vec3::ZERO;
             // character_controller.max_slope_climb_angle = std::f32::consts::PI / 2.0;
             let mut up = Vec3::ZERO;
             if let Some(gravity) = player_state.gravity {
                 if let Some(output) = output {
                     if output.grounded {
                         if input.jump && time.elapsed_seconds() - player_state.last_jump >= 0.5 {
-                            player_state.z_velocity = 2.0;
+                            player_state.velocity.y = 4.0;
                             player_state.last_jump = time.elapsed_seconds();
                             info!("jump");
                         } else if time.elapsed_seconds() - player_state.last_jump >= 0.1 {
-                            player_state.z_velocity = 0.0;
+                            player_state.velocity.y = 0.0;
                         }
                     } else {
-                        player_state.z_velocity += gravity * dt;
-
-                        up += Vec3::Y * player_state.z_velocity * dt;
+                        player_state.velocity.y += gravity * 2.0 * dt;
                     }
                 }
             } else {
-                up = Vec3::Y * input.up * dt;
+                player_state.velocity.y = input.up * dt;
             }
 
+            if let Some(output) = output {
+                info!(
+                    "grounded: {}\tsliding: {}",
+                    output.grounded, output.is_sliding_down_slope
+                );
+            }
+            player_state.velocity.y += up.y;
+            // player_state.velocity.y += Vec3::Y * player_state.z_velocity * dt;
             // let up = if let Some(gravity) = player_state.gravity {
 
             // }
 
-            character_controller.translation = Some(forward + right + up);
+            character_controller.translation = Some(player_state.velocity * dt);
             debug!("want: {:?}", character_controller.translation);
             character_controller.autostep = Some(CharacterAutostep::default());
         }
